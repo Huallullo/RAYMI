@@ -10,22 +10,24 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RAYMI">
+        android:theme="@style/AppTheme">
 
-        <activity android:name=".LoginActivity" />
-
+        <!-- 🔹 Actividad principal de inicio (Login) -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.RAYMI">
+            android:name=".LoginActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-    </application>
+        <!-- 🔹 Dashboard del administrador -->
+        <activity android:name=".DashboardActivity" />
 
+        <!-- 🔹 MainActivity (si la usas como pantalla extra o pruebas) -->
+        <activity android:name=".MainActivity" />
+
+    </application>
 
 </manifest>

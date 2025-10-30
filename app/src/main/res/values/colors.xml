@@ -19,10 +19,17 @@
     <color name="teal_700">#018786</color>
     <color name="black_900">#121212</color>
     <color name="gray_light">#CCCCCC</color>
+    <color name="colorAccent">#FF4081</color> <!-- Color fucsia o el color que prefieras -->
 
     <!-- 🌈 Paleta principal RAYMI -->
     <color name="primary">#D62828</color>          <!-- Rojo inca intenso -->
     <color name="primary_dark">#A4161A</color>     <!-- Variante oscura -->
     <color name="accent">#F77F00</color>           <!-- Naranja cálido -->
     <color name="secondary">#003049</color>        <!-- Azul profundo -->
+    <color name="colorPrimary">#6200EE</color> <!-- Morado -->
+    <color name="colorPrimaryDark">#3700B3</color> <!-- Morado más oscuro -->
+
+
+
+
 </resources>
