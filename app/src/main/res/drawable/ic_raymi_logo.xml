@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Fondo circular dorado -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M60,0 A60,60 0 1,1 59.99,0 Z" />
+
+    <!-- Sol central Inca -->
+    <path
+        android:fillColor="#FF6F00"
+        android:pathData="M60,20 L70,50 L100,60 L70,70 L60,100 L50,70 L20,60 L50,50 Z" />
+
+    <!-- Centro circular -->
+    <path
+        android:fillColor="#0F0F0F"
+        android:pathData="M60,50 a10,10 0 1,1 -0.01,0 Z" />
+
+</vector>
