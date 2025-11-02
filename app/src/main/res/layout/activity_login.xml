@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:inputType="textEmailAddress"
                     android:textColor="@color/text_main"
-                    android:textColorHint="@color/text_secondary"/>
+                    android:textColorHint="@color/text_secondary" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Campo de contraseña -->

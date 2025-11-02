@@ -42,7 +42,7 @@ class LoginActivity : AppCompatActivity() {
                     } else {
                         Toast.makeText(
                             this,
-                            "Error: ${task.exception?.message}",
+                            "Error: Correo o Contraseña Incorrecta Vuelva a Intentar",
                             Toast.LENGTH_LONG
                         ).show()
                     }
