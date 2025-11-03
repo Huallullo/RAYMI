@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/navigation_dashboard">
+
+    <fragment
+        android:id="@+id/navigation_dashboard"
+        android:name="com.raymi.app.ui.dashboard.DashboardFragment"
+        android:label="Inicio"
+        tools:layout="@layout/fragment_dashboard" />
+
+    <fragment
+        android:id="@+id/navigation_clientes"
+        android:name="com.raymi.app.ui.clientes.ClientesFragment"
+        android:label="Clientes"
+        tools:layout="@layout/fragment_clientes" />
+
+    <fragment
+        android:id="@+id/navigation_vestuarios"
+        android:name="com.raymi.app.ui.vestuarios.VestuariosFragment"
+        android:label="Vestuarios"
+        tools:layout="@layout/fragment_vestuarios" />
+
+    <fragment
+        android:id="@+id/navigation_alquileres"
+        android:name="com.raymi.app.ui.alquileres.AlquileresFragment"
+        android:label="Alquileres"
+        tools:layout="@layout/fragment_alquileres" />
+
+    <fragment
+        android:id="@+id/navigation_historial"
+        android:name="com.raymi.app.ui.historial.HistorialFragment"
+        android:label="Historial"
+        tools:layout="@layout/fragment_historial" />
+</navigation>

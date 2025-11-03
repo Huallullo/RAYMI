@@ -1,80 +1,48 @@
 package com.raymi.app
 
-import android.content.Intent
 import android.os.Bundle
-import android.util.Log
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.raymi.app.ui.fragments.AlquileresFragment
+
+
+import com.raymi.app.ui.fragments.ClientesFragment
+import com.raymi.app.ui.fragments.DashboardFragment
+import com.raymi.app.ui.fragments.HistorialFragment
+import com.raymi.app.ui.fragments.VestuariosFragment
 
 class DashboardActivity : AppCompatActivity() {
-
-    private lateinit var db: FirebaseFirestore
-    private lateinit var tvClientesCount: TextView
-    private lateinit var tvVestuariosCount: TextView
-    private lateinit var tvAlquileresCount: TextView
-    private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
 
-        db = FirebaseFirestore.getInstance()
-        tvClientesCount = findViewById(R.id.tvClientesCount)
-        tvVestuariosCount = findViewById(R.id.tvVestuariosCount)
-        tvAlquileresCount = findViewById(R.id.tvAlquileresCount)
-        auth = FirebaseAuth.getInstance()
+        // Fragment inicial
+        loadFragment(DashboardFragment())
 
-        loadMetrics()
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_dashboard -> loadFragment(DashboardFragment())
+                R.id.nav_vestuarios -> loadFragment(VestuariosFragment())
+                R.id.nav_clientes -> loadFragment(ClientesFragment())
+                R.id.nav_historial -> loadFragment(HistorialFragment())
+                R.id.nav_alquileres -> loadFragment(AlquileresFragment())
+            }
+            true
+        }
     }
 
-    private fun loadMetrics() {
-        // Contar clientes
-        db.collection("clientes").get()
-            .addOnSuccessListener { docs ->
-                tvClientesCount.text = docs.size().toString()
-            }
-            .addOnFailureListener { e ->
-                Log.e("Dashboard", "Error clientes: ${e.message}")
-            }
-
-        // Contar vestuarios
-        db.collection("vestuarios").get()
-            .addOnSuccessListener { docs ->
-                tvVestuariosCount.text = docs.size().toString()
-            }
-            .addOnFailureListener { e ->
-                Log.e("Dashboard", "Error vestuarios: ${e.message}")
-            }
-
-        // Contar alquileres activos
-        db.collection("alquileres").whereEqualTo("estado", "Activo").get()
-            .addOnSuccessListener { docs ->
-                tvAlquileresCount.text = docs.size().toString()
-            }
-            .addOnFailureListener { e ->
-                Log.e("Dashboard", "Error alquileres: ${e.message}")
-            }
+    private fun loadFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
     }
-
-    override fun onStop() {
-        super.onStop()
-        // Cerrar sesión cuando el usuario deja de usar la app
-        FirebaseAuth.getInstance().signOut()
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        // Cerrar sesión si la actividad se destruye
         FirebaseAuth.getInstance().signOut()
     }
 
-    // Opcional: Si tienes un botón para cerrar sesión en el dashboard
-    private fun logOut() {
-        auth.signOut()
-        val intent = Intent(this, LoginActivity::class.java)
-        startActivity(intent)
-        finish()
-    }
 }

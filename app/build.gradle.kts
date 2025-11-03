@@ -58,6 +58,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation(libs.material)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
 
     // Testing
     testImplementation("junit:junit:4.13.2")
