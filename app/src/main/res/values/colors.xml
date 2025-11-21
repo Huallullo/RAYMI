@@ -1,36 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 🎨 Colores principales del tema RAYMI (inspirados en cultura peruana) -->
-    <color name="bg">#0F0F0F</color> <!-- Fondo negro futurista -->
-    <color name="card_bg">#1E1E1E</color> <!-- Fondo de tarjetas -->
-    <color name="text_main">#FFD700</color> <!-- Dorado principal (sol inca) -->
-    <color name="text_secondary">#FF6F00</color> <!-- Naranja cálido -->
-    <color name="accent_red">#E53935</color> <!-- Detalle rojo inca -->
-    <color name="accent_yellow">#FFC107</color> <!-- Detalle amarillo -->
-    <color name="accent_orange">#FF9800</color> <!-- Complemento vibrante -->
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
-
-    <!-- 🎨 Colores del tema Material -->
-    <color name="purple_200">#BB86FC</color>
-    <color name="purple_500">#6200EE</color>
-    <color name="purple_700">#3700B3</color>
-    <color name="teal_200">#03DAC5</color>
-    <color name="teal_700">#018786</color>
-    <color name="black_900">#121212</color>
-    <color name="gray_light">#CCCCCC</color>
-    <color name="colorAccent">#FF4081</color> <!-- Color fucsia o el color que prefieras -->
-
-    <!-- 🌈 Paleta principal RAYMI -->
-    <color name="primary">#D62828</color>          <!-- Rojo inca intenso -->
-    <color name="primary_dark">#A4161A</color>     <!-- Variante oscura -->
-    <color name="accent">#F77F00</color>           <!-- Naranja cálido -->
-    <color name="secondary">#003049</color>        <!-- Azul profundo -->
-    <color name="colorPrimary">#6200EE</color> <!-- Morado -->
-    <color name="colorPrimaryDark">#3700B3</color> <!-- Morado más oscuro -->
-    <color name="red">#D32F2F</color>
-
-
-
-
+    <color name="colorPrimary">#FFD700</color>
+    <color name="colorPrimaryDark">#FFB300</color>
+    <color name="colorAccent">#D62828</color>
 </resources>
