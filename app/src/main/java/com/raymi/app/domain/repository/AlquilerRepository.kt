@@ -1,2 +1,62 @@
 package com.raymi.app.domain.repository
 
+import com.raymi.app.domain.model.Alquiler
+import com.raymi.app.domain.model.EstadoAlquiler
+import com.raymi.app.domain.model.Resource
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * Interfaz del repositorio de alquileres
+ */
+interface AlquilerRepository {
+
+    /**
+     * Obtiene todos los alquileres
+     */
+    suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Obtiene un alquiler por su ID
+     */
+    suspend fun getAlquilerById(id: String): Flow<Resource<Alquiler>>
+
+    /**
+     * Obtiene alquileres por estado
+     */
+    suspend fun getAlquileresByEstado(estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Obtiene alquileres de un cliente específico
+     */
+    suspend fun getAlquileresByCliente(clienteId: String): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Obtiene alquileres de un vestuario específico
+     */
+    suspend fun getAlquileresByVestuario(vestuarioId: String): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Crea un nuevo alquiler
+     */
+    suspend fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>>
+
+    /**
+     * Actualiza un alquiler existente
+     */
+    suspend fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>>
+
+    /**
+     * Registra la devolución de un alquiler
+     */
+    suspend fun registrarDevolucion(alquilerId: String): Flow<Resource<Unit>>
+
+    /**
+     * Actualiza el estado de un alquiler
+     */
+    suspend fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>>
+
+    /**
+     * Elimina un alquiler
+     */
+    suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
+}
