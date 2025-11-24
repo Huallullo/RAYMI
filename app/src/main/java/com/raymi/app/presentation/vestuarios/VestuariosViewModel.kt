@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.raymi.app.domain.model.EstadoVestuario
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.Vestuario
+import com.raymi.app.domain.usecase.vestuario.AddVestuarioUseCase
 import com.raymi.app.domain.usecase.vestuario.GetVestuariosUseCase
+import com.raymi.app.domain.usecase.vestuario.UpdateVestuarioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +21,9 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class VestuariosViewModel @Inject constructor(
-    private val getVestuariosUseCase: GetVestuariosUseCase
+    private val getVestuariosUseCase: GetVestuariosUseCase,
+    private val addVestuarioUseCase: AddVestuarioUseCase,
+    private val updateVestuarioUseCase: UpdateVestuarioUseCase
 ) : ViewModel() {
 
     // ========== ESTADOS UI ==========
@@ -111,6 +115,103 @@ class VestuariosViewModel @Inject constructor(
     }
 
     /**
+     * Muestra el diálogo para agregar vestuario
+     */
+    fun showAddVestuarioDialog() {
+        _uiState.value = _uiState.value.copy(showAddDialog = true)
+    }
+
+    /**
+     * Oculta el diálogo de agregar vestuario
+     */
+    fun hideAddVestuarioDialog() {
+        _uiState.value = _uiState.value.copy(showAddDialog = false)
+    }
+
+    /**
+     * Muestra el diálogo para editar vestuario
+     */
+    fun showEditVestuarioDialog(vestuario: Vestuario) {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = true,
+            selectedVestuario = vestuario
+        )
+    }
+
+    /**
+     * Oculta el diálogo de editar vestuario
+     */
+    fun hideEditVestuarioDialog() {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = false,
+            selectedVestuario = null
+        )
+    }
+
+    /**
+     * Agrega un nuevo vestuario
+     */
+    fun addVestuario(vestuario: Vestuario) {
+        viewModelScope.launch {
+            addVestuarioUseCase(vestuario).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _uiState.value = _uiState.value.copy(isSaving = true)
+                    }
+
+                    is Resource.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            showAddDialog = false,
+                            successMessage = "Vestuario agregado correctamente"
+                        )
+                        loadVestuarios()
+                    }
+
+                    is Resource.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Actualiza un vestuario existente
+     */
+    fun updateVestuario(vestuario: Vestuario) {
+        viewModelScope.launch {
+            updateVestuarioUseCase(vestuario).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _uiState.value = _uiState.value.copy(isSaving = true)
+                    }
+
+                    is Resource.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            showEditDialog = false,
+                            selectedVestuario = null,
+                            successMessage = "Vestuario actualizado correctamente"
+                        )
+                        loadVestuarios()
+                    }
+
+                    is Resource.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Limpia los mensajes
      */
     fun clearMessages() {
@@ -130,6 +231,10 @@ data class VestuariosUiState(
     val searchQuery: String = "",
     val selectedEstado: EstadoVestuario? = null,
     val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
+    val showAddDialog: Boolean = false,
+    val showEditDialog: Boolean = false,
+    val selectedVestuario: Vestuario? = null,
     val error: String? = null,
     val successMessage: String? = null
 )

@@ -112,6 +112,12 @@ fun VestuariosScreen(
                     }
                 }
             )
+        },    floatingActionButton = {
+            FloatingActionButton(
+                onClick = { viewModel.showAddVestuarioDialog() }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Agregar vestuario")
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
@@ -186,6 +192,31 @@ fun VestuariosScreen(
             }
         }
     }
+    // Y al final del Composable, agregar los diálogos:
+
+    // Diálogo para agregar vestuario
+    if (uiState.showAddDialog) {
+        AddVestuarioDialog(
+            onDismiss = { viewModel.hideAddVestuarioDialog() },
+            onConfirm = { vestuario ->
+                // TODO: Llamar a addVestuario en el ViewModel
+                viewModel.hideAddVestuarioDialog()
+            }
+        )
+    }
+
+    // Diálogo para editar vestuario
+    if (uiState.showEditDialog && uiState.selectedVestuario != null) {
+        EditVestuarioDialog(
+            vestuario = uiState.selectedVestuario!!,
+            onDismiss = { viewModel.hideEditVestuarioDialog() },
+            onConfirm = { vestuarioActualizado ->
+                // TODO: Llamar a updateVestuario en el ViewModel
+                viewModel.hideEditVestuarioDialog()
+            }
+        )
+    }
+    
 }
 
 /**

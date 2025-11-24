@@ -7,6 +7,7 @@ import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.cliente.AddClienteUseCase
 import com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase
 import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
+import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ import javax.inject.Inject
 class ClientesViewModel @Inject constructor(
     private val getClientesUseCase: GetClientesUseCase,
     private val addClienteUseCase: AddClienteUseCase,
+    private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: DeleteClienteUseCase
 ) : ViewModel() {
 
@@ -105,6 +107,26 @@ class ClientesViewModel @Inject constructor(
     }
 
     /**
+     * Muestra el diálogo para editar cliente
+     */
+    fun showEditClienteDialog(cliente: Cliente) {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = true,
+            selectedCliente = cliente
+        )
+    }
+
+    /**
+     * Oculta el diálogo de editar cliente
+     */
+    fun hideEditClienteDialog() {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = false,
+            selectedCliente = null
+        )
+    }
+
+    /**
      * Agrega un nuevo cliente
      */
     fun addCliente(cliente: Cliente) {
@@ -120,6 +142,38 @@ class ClientesViewModel @Inject constructor(
                             isSaving = false,
                             showAddDialog = false,
                             successMessage = "Cliente agregado correctamente"
+                        )
+                        loadClientes()
+                    }
+
+                    is Resource.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Actualiza un cliente existente
+     */
+    fun updateCliente(cliente: Cliente) {
+        viewModelScope.launch {
+            updateClienteUseCase(cliente).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _uiState.value = _uiState.value.copy(isSaving = true)
+                    }
+
+                    is Resource.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            isSaving = false,
+                            showEditDialog = false,
+                            selectedCliente = null,
+                            successMessage = "Cliente actualizado correctamente"
                         )
                         loadClientes()
                     }
@@ -187,6 +241,8 @@ data class ClientesUiState(
     val isSaving: Boolean = false,
     val isDeleting: Boolean = false,
     val showAddDialog: Boolean = false,
+    val showEditDialog: Boolean = false,
+    val selectedCliente: Cliente? = null,
     val error: String? = null,
     val successMessage: String? = null
 )
