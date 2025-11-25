@@ -15,7 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.presentation.clientes.InfoRow
+
 import com.raymi.app.presentation.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)

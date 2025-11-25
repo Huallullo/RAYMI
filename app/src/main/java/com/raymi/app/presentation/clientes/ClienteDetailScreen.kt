@@ -17,13 +17,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.presentation.alquileres.AlquilerItem
-import com.raymi.app.presentation.alquileres.InfoRow
+
 import com.raymi.app.presentation.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
-@Composable
+
 fun ClienteDetailScreen(
     clienteId: String,
     viewModel: ClienteDetailViewModel = hiltViewModel(),

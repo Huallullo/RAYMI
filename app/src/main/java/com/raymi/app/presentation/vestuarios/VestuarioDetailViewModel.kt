@@ -88,8 +88,11 @@ class VestuarioDetailViewModel @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+    fun clearMessages() {
+        _uiState.value = _uiState.value.copy(
+            error = null,
+            successMessage = null
+        )
     }
 }
 
@@ -99,5 +102,6 @@ data class VestuarioDetailUiState(
     val totalAlquileres: Int = 0,
     val totalIngresos: Double = 0.0,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null  // ✅ AGREGADO
 )

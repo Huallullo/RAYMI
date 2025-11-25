@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,7 +17,7 @@ import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoVestuario
 import com.raymi.app.presentation.alquileres.AlquilerItem
-import com.raymi.app.presentation.alquileres.InfoRow
+
 
 import com.raymi.app.presentation.components.*
 
