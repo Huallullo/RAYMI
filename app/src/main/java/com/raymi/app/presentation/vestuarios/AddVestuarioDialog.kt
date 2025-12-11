@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.utils.Constants
+import com.raymi.app.core.utils.GeneradorCodigo
 import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.EstadoVestuario
 import com.raymi.app.domain.model.Vestuario
@@ -29,7 +30,7 @@ fun AddVestuarioDialog(
     onConfirm: (Vestuario) -> Unit,
     isLoading: Boolean = false
 ) {
-    var codigo by remember { mutableStateOf("") }
+
     var danza by remember { mutableStateOf("") }
     var departamento by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
@@ -38,7 +39,7 @@ fun AddVestuarioDialog(
     var expanded by remember { mutableStateOf(false) }
     var expandedTalla by remember { mutableStateOf(false) }
 
-    var codigoError by remember { mutableStateOf<String?>(null) }
+
     var danzaError by remember { mutableStateOf<String?>(null) }
     var precioError by remember { mutableStateOf<String?>(null) }
 
@@ -50,14 +51,6 @@ fun AddVestuarioDialog(
     fun validateFields(): Boolean {
         var isValid = true
 
-        // Validar código
-        val codigoValidation = Validators.validateCodigo(codigo)
-        if (!codigoValidation.isValid) {
-            codigoError = codigoValidation.errorMessage
-            isValid = false
-        } else {
-            codigoError = null
-        }
 
         // Validar danza
         val danzaValidation = Validators.validateDanza(danza)
@@ -106,26 +99,6 @@ fun AddVestuarioDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Código
-                OutlinedTextField(
-                    value = codigo,
-                    onValueChange = {
-                        codigo = it.uppercase()
-                        codigoError = null
-                    },
-                    label = { Text("Código *") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Tag, contentDescription = null)
-                    },
-                    isError = codigoError != null,
-                    supportingText = {
-                        codigoError?.let { Text(it) }
-                    },
-                    placeholder = { Text("Ej: VES-001") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading
-                )
 
                 // Danza
                 OutlinedTextField(
@@ -262,13 +235,16 @@ fun AddVestuarioDialog(
                 )
             }
         },
+        // En AddVestuarioDialog.kt
+// Busca la sección "confirmButton" y reemplázala completamente:
+
         confirmButton = {
             Button(
                 onClick = {
                     if (validateFields()) {
                         onConfirm(
                             Vestuario(
-                                codigo = codigo.trim().uppercase(),
+                                codigo = GeneradorCodigo.generarCodigoVestuario(),  // ✅ AUTO-GENERADO
                                 danza = danza.trim(),
                                 departamento = departamento,
                                 descripcion = descripcion.trim(),

@@ -225,10 +225,74 @@ fun CreateAlquilerScreen(
                     }
                 }
             }
+// Sección: Cantidad (AGREGAR DESPUÉS DEL VESTUARIO)
+            Text(
+                text = "3. Cantidad de Vestuarios",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
 
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = CustomShapes.CardShape
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = uiState.cantidad,
+                        onValueChange = { viewModel.onCantidadChange(it) },
+                        label = { Text("Cantidad *") },
+                        leadingIcon = {
+                            Icon(Icons.Default.ShoppingCart, contentDescription = null)
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    if (uiState.selectedVestuario != null && uiState.cantidad.isNotBlank()) {
+                        Divider()
+
+                        // Mostrar cálculo
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Precio unitario:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = uiState.selectedVestuario!!.precioFormateado,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Cantidad:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "x ${uiState.cantidad}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
             // Sección: Fechas
             Text(
-                text = "3. Configurar Fechas",
+                text = "4. Configurar Fechas",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -318,7 +382,7 @@ fun CreateAlquilerScreen(
 
             // Sección: Pago
             Text(
-                text = "4. Información de Pago",
+                text = "5. Información de Pago",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

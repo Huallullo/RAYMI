@@ -50,11 +50,13 @@ class DashboardViewModel @Inject constructor(
                         val totalClientes = clientesResult.data?.size ?: 0
                         updateEstadisticas { copy(totalClientes = totalClientes) }
                     }
+
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
                             error = clientesResult.message
                         )
                     }
+
                     is Resource.Loading -> {}
                 }
             }
@@ -77,30 +79,32 @@ class DashboardViewModel @Inject constructor(
                             )
                         }
                     }
+
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
                             error = vestuariosResult.message
                         )
                     }
+
                     is Resource.Loading -> {}
                 }
             }
         }
 
         viewModelScope.launch {
-            // Cargar alquileres
             getAlquileresUseCase().collect { alquileresResult ->
                 when (alquileresResult) {
                     is Resource.Success -> {
                         val alquileres = alquileresResult.data ?: emptyList()
                         val activos = alquileres.count { it.estado.name == "ACTIVO" }
                         val vencidos = alquileres.count { it.estaVencido }
-                        val ingresosTotales = alquileres.sumOf { it.precioTotal }
 
-                        // Calcular ingresos del mes actual
+                        // ✅ SOLO SUMAR LO QUE SE HA PAGADO (adelanto)
+                        val ingresosTotales = alquileres.sumOf { it.adelanto }
+
+                        // Ingresos del mes actual (solo adelantos)
                         val ingresosMes = alquileres
                             .filter {
-                                // Filtrar solo los del mes actual
                                 val mesAlquiler = java.util.Calendar.getInstance().apply {
                                     time = it.createdAt.toDate()
                                 }.get(java.util.Calendar.MONTH)
@@ -108,7 +112,7 @@ class DashboardViewModel @Inject constructor(
                                     .get(java.util.Calendar.MONTH)
                                 mesAlquiler == mesActual
                             }
-                            .sumOf { it.precioTotal }
+                            .sumOf { it.adelanto }
 
                         updateEstadisticas {
                             copy(
@@ -121,17 +125,19 @@ class DashboardViewModel @Inject constructor(
 
                         _uiState.value = _uiState.value.copy(isLoading = false)
                     }
+
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             error = alquileresResult.message
                         )
                     }
+
                     is Resource.Loading -> {}
                 }
             }
         }
-    }
+    } // <<--- ESTA LLAVE DE CIERRE ESTABA EN EL LUGAR INCORRECTO
 
     /**
      * Actualiza las estadísticas
@@ -148,13 +154,13 @@ class DashboardViewModel @Inject constructor(
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
-}
 
-/**
- * Estado UI para el Dashboard
- */
-data class DashboardUiState(
-    val estadisticas: Estadisticas = Estadisticas(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
+    /**
+     * Estado UI para el Dashboard
+     */
+    data class DashboardUiState(
+        val estadisticas: Estadisticas = Estadisticas(),
+        val isLoading: Boolean = false,
+        val error: String? = null
+    )
+}

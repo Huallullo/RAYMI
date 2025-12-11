@@ -9,6 +9,7 @@ import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.Vestuario
 import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.vestuario.GetVestuarioByIdUseCase
+import com.raymi.app.domain.usecase.vestuario.UpdateVestuarioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class VestuarioDetailViewModel @Inject constructor(
     private val getVestuarioByIdUseCase: GetVestuarioByIdUseCase,
     private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val updateVestuarioUseCase: UpdateVestuarioUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -87,7 +89,31 @@ class VestuarioDetailViewModel @Inject constructor(
             }
         }
     }
-
+    // Agregar método:
+    fun updateVestuario(vestuario: Vestuario) {
+        viewModelScope.launch {
+            updateVestuarioUseCase(vestuario).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _uiState.value = _uiState.value.copy(isLoading = true)
+                    }
+                    is Resource.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            successMessage = "Vestuario actualizado correctamente"
+                        )
+                        loadVestuarioData()
+                    }
+                    is Resource.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(
             error = null,

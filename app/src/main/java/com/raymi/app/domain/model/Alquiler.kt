@@ -13,9 +13,11 @@ data class Alquiler(
     val vestuarioId: String = "",
     val vestuarioNombre: String = "",
     val vestuarioCodigo: String = "",
+    val cantidad: Int = 1,  // ✅ NUEVO CAMPO
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
+    val precioUnitario: Double = 0.0,  // ✅ NUEVO - Precio por unidad
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
@@ -49,6 +51,9 @@ data class Alquiler(
 
     val precioFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioTotal)
+
+    val precioUnitarioFormateado: String  // ✅ NUEVO
+        get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioUnitario)
 
     val adelantoFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(adelanto)

@@ -34,8 +34,6 @@ class CreateAlquilerViewModel @Inject constructor(
         loadVestuariosDisponibles()
     }
 
-    // ========== CARGAR DATOS ==========
-
     private fun loadClientes() {
         viewModelScope.launch {
             getClientesUseCase().collect { result ->
@@ -46,9 +44,7 @@ class CreateAlquilerViewModel @Inject constructor(
                         )
                     }
                     is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            error = result.message
-                        )
+                        _uiState.value = _uiState.value.copy(error = result.message)
                     }
                     is Resource.Loading -> {}
                 }
@@ -69,17 +65,13 @@ class CreateAlquilerViewModel @Inject constructor(
                         )
                     }
                     is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            error = result.message
-                        )
+                        _uiState.value = _uiState.value.copy(error = result.message)
                     }
                     is Resource.Loading -> {}
                 }
             }
         }
     }
-
-    // ========== SELECCIÓN ==========
 
     fun selectCliente(cliente: Cliente) {
         _uiState.value = _uiState.value.copy(
@@ -92,12 +84,36 @@ class CreateAlquilerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             selectedVestuario = vestuario,
             showVestuarioDialog = false,
-            precioTotal = vestuario.precio.toString()
+            precioUnitario = vestuario.precio.toString()
+        )
+        calcularPrecioTotal()
+    }
+
+    // ========== CANTIDAD ==========
+
+    fun onCantidadChange(cantidad: String) {
+        // Solo permitir números positivos
+        val cantidadInt = cantidad.toIntOrNull()
+        if (cantidadInt != null && cantidadInt > 0) {
+            _uiState.value = _uiState.value.copy(cantidad = cantidad)
+            calcularPrecioTotal()
+        } else if (cantidad.isEmpty()) {
+            _uiState.value = _uiState.value.copy(cantidad = "")
+        }
+    }
+
+    // ========== CÁLCULOS ==========
+
+    private fun calcularPrecioTotal() {
+        val precioUnit = _uiState.value.precioUnitario.toDoubleOrNull() ?: 0.0
+        val cantidad = _uiState.value.cantidad.toIntOrNull() ?: 1
+        val total = precioUnit * cantidad
+
+        _uiState.value = _uiState.value.copy(
+            precioTotal = String.format("%.2f", total)
         )
         calcularSaldo()
     }
-
-    // ========== DIÁLOGOS ==========
 
     fun showClienteDialog() {
         _uiState.value = _uiState.value.copy(showClienteDialog = true)
@@ -115,8 +131,6 @@ class CreateAlquilerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showVestuarioDialog = false)
     }
 
-    // ========== BÚSQUEDA ==========
-
     fun searchClientes(query: String) {
         _uiState.value = _uiState.value.copy(clienteSearchQuery = query)
     }
@@ -124,8 +138,6 @@ class CreateAlquilerViewModel @Inject constructor(
     fun searchVestuarios(query: String) {
         _uiState.value = _uiState.value.copy(vestuarioSearchQuery = query)
     }
-
-    // ========== FECHAS ==========
 
     fun setFechaInicio(fecha: Date) {
         _uiState.value = _uiState.value.copy(fechaInicio = fecha)
@@ -150,8 +162,6 @@ class CreateAlquilerViewModel @Inject constructor(
         }
     }
 
-    // ========== PAGO ==========
-
     fun onAdelantoChange(adelanto: String) {
         _uiState.value = _uiState.value.copy(adelanto = adelanto)
         calcularSaldo()
@@ -167,8 +177,6 @@ class CreateAlquilerViewModel @Inject constructor(
     fun onObservacionesChange(observaciones: String) {
         _uiState.value = _uiState.value.copy(observaciones = observaciones)
     }
-
-    // ========== CREAR ALQUILER ==========
 
     fun createAlquiler() {
         // Validar campos
@@ -192,14 +200,22 @@ class CreateAlquilerViewModel @Inject constructor(
             return
         }
 
-        val precio = _uiState.value.precioTotal.toDoubleOrNull()
-        if (precio == null || precio <= 0) {
+        val cantidad = _uiState.value.cantidad.toIntOrNull()
+        if (cantidad == null || cantidad <= 0) {
+            _uiState.value = _uiState.value.copy(error = "La cantidad debe ser mayor a 0")
+            return
+        }
+
+        val precioUnit = _uiState.value.precioUnitario.toDoubleOrNull()
+        if (precioUnit == null || precioUnit <= 0) {
             _uiState.value = _uiState.value.copy(error = "Precio inválido")
             return
         }
 
+        val precioTotal = _uiState.value.precioTotal.toDoubleOrNull() ?: 0.0
         val adelanto = _uiState.value.adelanto.toDoubleOrNull() ?: 0.0
-        if (adelanto > precio) {
+
+        if (adelanto > precioTotal) {
             _uiState.value = _uiState.value.copy(error = "El adelanto no puede ser mayor al precio total")
             return
         }
@@ -211,9 +227,11 @@ class CreateAlquilerViewModel @Inject constructor(
             vestuarioId = _uiState.value.selectedVestuario!!.id,
             vestuarioNombre = _uiState.value.selectedVestuario!!.danza,
             vestuarioCodigo = _uiState.value.selectedVestuario!!.codigo,
+            cantidad = cantidad,  // ✅
             fechaInicio = Timestamp(_uiState.value.fechaInicio!!),
             fechaFinPrevista = Timestamp(_uiState.value.fechaFin!!),
-            precioTotal = precio,
+            precioUnitario = precioUnit,  // ✅
+            precioTotal = precioTotal,
             adelanto = adelanto,
             saldo = _uiState.value.saldo,
             estado = EstadoAlquiler.ACTIVO,
@@ -254,16 +272,16 @@ class CreateAlquilerViewModel @Inject constructor(
     }
 }
 
-// ========== UI STATE ==========
-
 data class CreateAlquilerUiState(
     val clientes: List<Cliente> = emptyList(),
     val vestuariosDisponibles: List<Vestuario> = emptyList(),
     val selectedCliente: Cliente? = null,
     val selectedVestuario: Vestuario? = null,
+    val cantidad: String = "1",  // ✅ NUEVO
     val fechaInicio: Date? = null,
     val fechaFin: Date? = null,
     val diasAlquiler: Int = 0,
+    val precioUnitario: String = "",  // ✅ NUEVO
     val precioTotal: String = "",
     val adelanto: String = "",
     val saldo: Double = 0.0,

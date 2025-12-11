@@ -4,9 +4,6 @@ import com.google.firebase.Timestamp
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 
-/**
- * DTO para transferencia de datos de Alquiler con Firebase
- */
 data class AlquilerDto(
     val id: String = "",
     val clienteId: String = "",
@@ -14,9 +11,11 @@ data class AlquilerDto(
     val vestuarioId: String = "",
     val vestuarioNombre: String = "",
     val vestuarioCodigo: String = "",
+    val cantidad: Int = 1,  // ✅ NUEVO
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
+    val precioUnitario: Double = 0.0,  // ✅ NUEVO
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
@@ -25,9 +24,6 @@ data class AlquilerDto(
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
-    /**
-     * Convierte DTO a modelo de dominio
-     */
     fun toDomain(): Alquiler {
         return Alquiler(
             id = id,
@@ -36,9 +32,11 @@ data class AlquilerDto(
             vestuarioId = vestuarioId,
             vestuarioNombre = vestuarioNombre,
             vestuarioCodigo = vestuarioCodigo,
+            cantidad = cantidad,  // ✅
             fechaInicio = fechaInicio,
             fechaFinPrevista = fechaFinPrevista,
             fechaDevolucion = fechaDevolucion,
+            precioUnitario = precioUnitario,  // ✅
             precioTotal = precioTotal,
             adelanto = adelanto,
             saldo = saldo,
@@ -50,9 +48,6 @@ data class AlquilerDto(
     }
 
     companion object {
-        /**
-         * Convierte modelo de dominio a DTO
-         */
         fun fromDomain(alquiler: Alquiler): AlquilerDto {
             return AlquilerDto(
                 id = alquiler.id,
@@ -61,9 +56,11 @@ data class AlquilerDto(
                 vestuarioId = alquiler.vestuarioId,
                 vestuarioNombre = alquiler.vestuarioNombre,
                 vestuarioCodigo = alquiler.vestuarioCodigo,
+                cantidad = alquiler.cantidad,  // ✅
                 fechaInicio = alquiler.fechaInicio,
                 fechaFinPrevista = alquiler.fechaFinPrevista,
                 fechaDevolucion = alquiler.fechaDevolucion,
+                precioUnitario = alquiler.precioUnitario,  // ✅
                 precioTotal = alquiler.precioTotal,
                 adelanto = alquiler.adelanto,
                 saldo = alquiler.saldo,
@@ -74,9 +71,6 @@ data class AlquilerDto(
             )
         }
 
-        /**
-         * Crea DTO desde un Map de Firebase
-         */
         fun fromMap(id: String, map: Map<String, Any>): AlquilerDto {
             return AlquilerDto(
                 id = id,
@@ -85,9 +79,11 @@ data class AlquilerDto(
                 vestuarioId = map["vestuarioId"] as? String ?: "",
                 vestuarioNombre = map["vestuarioNombre"] as? String ?: "",
                 vestuarioCodigo = map["vestuarioCodigo"] as? String ?: "",
+                cantidad = (map["cantidad"] as? Number)?.toInt() ?: 1,  // ✅
                 fechaInicio = map["fechaInicio"] as? Timestamp ?: Timestamp.now(),
                 fechaFinPrevista = map["fechaFinPrevista"] as? Timestamp ?: Timestamp.now(),
                 fechaDevolucion = map["fechaDevolucion"] as? Timestamp,
+                precioUnitario = (map["precioUnitario"] as? Number)?.toDouble() ?: 0.0,  // ✅
                 precioTotal = (map["precioTotal"] as? Number)?.toDouble() ?: 0.0,
                 adelanto = (map["adelanto"] as? Number)?.toDouble() ?: 0.0,
                 saldo = (map["saldo"] as? Number)?.toDouble() ?: 0.0,
@@ -99,9 +95,6 @@ data class AlquilerDto(
         }
     }
 
-    /**
-     * Convierte DTO a Map para Firebase
-     */
     fun toMap(): Map<String, Any> {
         val map = hashMapOf(
             "clienteId" to clienteId,
@@ -109,8 +102,10 @@ data class AlquilerDto(
             "vestuarioId" to vestuarioId,
             "vestuarioNombre" to vestuarioNombre,
             "vestuarioCodigo" to vestuarioCodigo,
+            "cantidad" to cantidad,  // ✅
             "fechaInicio" to fechaInicio,
             "fechaFinPrevista" to fechaFinPrevista,
+            "precioUnitario" to precioUnitario,  // ✅
             "precioTotal" to precioTotal,
             "adelanto" to adelanto,
             "saldo" to saldo,

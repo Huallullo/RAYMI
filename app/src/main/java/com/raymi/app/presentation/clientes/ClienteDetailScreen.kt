@@ -285,4 +285,16 @@ fun ClienteDetailScreen(
             }
         }
     }
+    // Al final del composable:
+    if (showEditDialog && uiState.cliente != null) {
+        EditClienteDialog(
+            cliente = uiState.cliente!!,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { clienteActualizado ->
+                viewModel.updateCliente(clienteActualizado)
+                showEditDialog = false
+            },
+            isLoading = uiState.isLoading
+        )
+    }
 }

@@ -313,4 +313,16 @@ fun VestuarioDetailScreen(
             }
         }
     }
+    // Al final del composable:
+    if (showEditDialog && uiState.vestuario != null) {
+        EditVestuarioDialog(
+            vestuario = uiState.vestuario!!,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { vestuarioActualizado ->
+                viewModel.updateVestuario(vestuarioActualizado)
+                showEditDialog = false
+            },
+            isLoading = uiState.isLoading
+        )
+    }
 }

@@ -29,6 +29,9 @@ fun AlquilerDetailScreen(
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDevolucionDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showPagoDialog by remember { mutableStateOf(false) }
+
 
     // Mostrar mensajes
     LaunchedEffect(uiState.error, uiState.successMessage) {
@@ -54,10 +57,13 @@ fun AlquilerDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Editar */ }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                    if (uiState.alquiler?.estado == EstadoAlquiler.ACTIVO) {
+                        IconButton(onClick = { showEditDialog = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar")
+                        }
                     }
                 }
+
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -196,9 +202,20 @@ fun AlquilerDetailScreen(
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
+                                            text = "${alquiler.cantidad}x ${alquiler.vestuarioNombre}",  // ✅
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
                                             text = "Código: ${alquiler.vestuarioCodigo}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "Cantidad: ${alquiler.cantidad} unidad(es)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
@@ -284,6 +301,37 @@ fun AlquilerDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
+                                        text = "Precio Unitario:",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = alquiler.precioUnitarioFormateado,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Cantidad:",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = "${alquiler.cantidad} unidad(es)",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Divider()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
                                         text = "Precio Total:",
                                         style = MaterialTheme.typography.bodyLarge
                                     )
@@ -355,63 +403,199 @@ fun AlquilerDetailScreen(
                             }
                         }
 
-                        // Acciones
+                        // Reemplaza toda la sección de acciones (donde está el botón de devolución):
+
+// Acciones
                         if (alquiler.estado == EstadoAlquiler.ACTIVO) {
-                            Button(
-                                onClick = { showDevolucionDialog = true },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                enabled = !uiState.isProcessing
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                if (uiState.isProcessing) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
+                                // ✅ Si hay deuda, mostrar botón de pagar
+                                if (alquiler.saldo > 0) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = RaymiColors.Warning.copy(alpha = 0.1f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Warning,
+                                                contentDescription = null,
+                                                tint = RaymiColors.Warning,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Deuda Pendiente",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = RaymiColors.Warning
+                                                )
+                                                Text(
+                                                    text = "Saldo: ${alquiler.saldoFormateado}",
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Botón para registrar pago
+                                    Button(
+                                        onClick = { showPagoDialog = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        enabled = !uiState.isProcessing,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = RaymiColors.Warning
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.Payments, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Registrar Pago")
+                                    }
                                 } else {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Registrar Devolución")
+                                    // Sin deuda - Permitir devolución
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = RaymiColors.Success.copy(alpha = 0.1f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = RaymiColors.Success,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Pago Completo",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = RaymiColors.Success
+                                                )
+                                                Text(
+                                                    text = "El cliente ha pagado el total del alquiler",
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = { showDevolucionDialog = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        enabled = !uiState.isProcessing
+                                    ) {
+                                        if (uiState.isProcessing) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Registrar Devolución")
+                                        }
+                                    }
                                 }
                             }
                         }
+                        if (showEditDialog && uiState.alquiler != null) {
+                            EditAlquilerDialog(
+                                alquiler = uiState.alquiler!!,
+                                onDismiss = { showEditDialog = false },
+                                onConfirm = { alquilerActualizado ->
+                                    viewModel.updateAlquiler(alquilerActualizado)
+                                    showEditDialog = false
+                                },
+                                isLoading = uiState.isProcessing
+                            )
+                        }
+                        if (showPagoDialog && uiState.alquiler != null) {
+                            RegistrarPagoDialog(
+                                alquiler = uiState.alquiler!!,
+                                onDismiss = { showPagoDialog = false },
+                                onConfirm = { montoPago ->
+                                    viewModel.registrarPago(montoPago)
+                                    showPagoDialog = false
+                                },
+                                isLoading = uiState.isProcessing
+                            )
+                        }
+                        if (showDevolucionDialog && uiState.alquiler != null) {
+                            val alquiler = uiState.alquiler!!
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                            AlertDialog(
+                                onDismissRequest = { showDevolucionDialog = false },
+                                icon = {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                },
+                                title = {
+                                    Text("Registrar Devolución")
+                                },
+                                text = {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        if (alquiler.saldo > 0) {
+                                            // Si hay deuda, mostrar advertencia
+                                            Text(
+                                                "⚠️ El cliente aún tiene un saldo pendiente de ${alquiler.saldoFormateado}.",
+                                                color = RaymiColors.Warning
+                                            )
+                                            Text(
+                                                "¿Deseas registrar la devolución de todas formas? Se marcará el alquiler como devuelto pero la deuda quedará registrada."
+                                            )
+                                        } else {
+                                            Text(
+                                                "¿Confirmas que el vestuario ha sido devuelto? Esta acción marcará el alquiler como completado."
+                                            )
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            showDevolucionDialog = false
+                                            viewModel.registrarDevolucion()
+                                        }
+                                    ) {
+                                        Text("Confirmar Devolución")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showDevolucionDialog = false }) {
+                                        Text("Cancelar")
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
+
         }
+
     }
 
-    // Diálogo de confirmación de devolución
-    if (showDevolucionDialog) {
-        AlertDialog(
-            onDismissRequest = { showDevolucionDialog = false },
-            icon = {
-                Icon(Icons.Default.CheckCircle, contentDescription = null)
-            },
-            title = {
-                Text("Registrar Devolución")
-            },
-            text = {
-                Text("¿Confirmas que el vestuario ha sido devuelto? Esta acción marcará el alquiler como completado.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDevolucionDialog = false
-                        viewModel.registrarDevolucion()
-                    }
-                ) {
-                    Text("Confirmar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDevolucionDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
 }
