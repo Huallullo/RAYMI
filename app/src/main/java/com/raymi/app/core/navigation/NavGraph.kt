@@ -6,16 +6,16 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.raymi.app.presentation.auth.LoginScreen
-import com.raymi.app.presentation.dashboard.DashboardScreen
-import com.raymi.app.presentation.clientes.ClientesScreen
-import com.raymi.app.presentation.clientes.ClienteDetailScreen
-import com.raymi.app.presentation.vestuarios.VestuariosScreen
-import com.raymi.app.presentation.vestuarios.VestuarioDetailScreen
+import com.raymi.app.presentation.alquileres.AlquilerDetailScreen
 import com.raymi.app.presentation.alquileres.AlquileresScreen
 import com.raymi.app.presentation.alquileres.CreateAlquilerScreen
-import com.raymi.app.presentation.alquileres.AlquilerDetailScreen
+import com.raymi.app.presentation.auth.LoginScreen
+import com.raymi.app.presentation.clientes.ClienteDetailScreen
+import com.raymi.app.presentation.clientes.ClientesScreen
+import com.raymi.app.presentation.dashboard.DashboardScreen
 import com.raymi.app.presentation.historial.HistorialScreen
+import com.raymi.app.presentation.vestuarios.VestuarioDetailScreen
+import com.raymi.app.presentation.vestuarios.VestuariosScreen
 
 /**
  * Grafo de navegación principal de la aplicación
@@ -69,13 +69,17 @@ fun RaymiNavGraph(
          * Clientes - Lista de clientes
          */
         composable(route = Screen.Clientes.route) {
+            val navigatedFromResult = navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.get<Boolean>("refresh") ?: false
             ClientesScreen(
                 onClienteClick = { clienteId ->
                     navController.navigate(Screen.ClienteDetalle.createRoute(clienteId))
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                navigatedFromResult = navigatedFromResult
             )
         }
 
@@ -94,6 +98,9 @@ fun RaymiNavGraph(
             ClienteDetailScreen(
                 clienteId = clienteId,
                 onNavigateBack = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh", true)
                     navController.popBackStack()
                 },
                 onNavigateToAlquiler = { alquilerId ->
@@ -106,13 +113,17 @@ fun RaymiNavGraph(
          * Vestuarios - Lista de vestuarios
          */
         composable(route = Screen.Vestuarios.route) {
+            val navigatedFromResult = navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.get<Boolean>("refresh") ?: false
             VestuariosScreen(
                 onVestuarioClick = { vestuarioId ->
                     navController.navigate(Screen.VestuarioDetalle.createRoute(vestuarioId))
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                navigatedFromResult = navigatedFromResult
             )
         }
 
@@ -131,6 +142,9 @@ fun RaymiNavGraph(
             VestuarioDetailScreen(
                 vestuarioId = vestuarioId,
                 onNavigateBack = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh", true)
                     navController.popBackStack()
                 }
             )
@@ -140,6 +154,9 @@ fun RaymiNavGraph(
          * Alquileres - Lista de alquileres
          */
         composable(route = Screen.Alquileres.route) {
+            val navigatedFromResult = navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.get<Boolean>("refresh") ?: false
             AlquileresScreen(
                 onAlquilerClick = { alquilerId ->
                     navController.navigate(Screen.AlquilerDetalle.createRoute(alquilerId))
@@ -149,7 +166,8 @@ fun RaymiNavGraph(
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                navigatedFromResult = navigatedFromResult
             )
         }
 
@@ -162,7 +180,9 @@ fun RaymiNavGraph(
                     navController.popBackStack()
                 },
                 onAlquilerCreated = { alquilerId ->
-                    // Volver a la lista de alquileres
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh", true)
                     navController.popBackStack()
                 }
             )
@@ -183,6 +203,9 @@ fun RaymiNavGraph(
             AlquilerDetailScreen(
                 alquilerId = alquilerId,
                 onNavigateBack = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh", true)
                     navController.popBackStack()
                 }
             )

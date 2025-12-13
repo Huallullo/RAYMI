@@ -6,6 +6,11 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Checkroom
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 
 // Rutas de navegación
@@ -43,35 +48,35 @@ sealed class BottomNavItem(
     object Dashboard : BottomNavItem(
         route = Screen.Dashboard.route,
         title = "Inicio",
-        icon = Icons.Default.Dashboard,
+        icon = Icons.Outlined.Dashboard,
         selectedIcon = Icons.Filled.Dashboard
     )
 
     object Clientes : BottomNavItem(
         route = Screen.Clientes.route,
         title = "Clientes",
-        icon = Icons.Default.People,
+        icon = Icons.Outlined.People,
         selectedIcon = Icons.Filled.People
     )
 
     object Vestuarios : BottomNavItem(
         route = Screen.Vestuarios.route,
         title = "Vestuarios",
-        icon = Icons.Default.Checkroom,
+        icon = Icons.Outlined.Checkroom,
         selectedIcon = Icons.Filled.Checkroom
     )
 
     object Alquileres : BottomNavItem(
         route = Screen.Alquileres.route,
         title = "Alquileres",
-        icon = Icons.Default.ShoppingCart,
+        icon = Icons.Outlined.ShoppingCart,
         selectedIcon = Icons.Filled.ShoppingCart
     )
 
     object Historial : BottomNavItem(
         route = Screen.Historial.route,
         title = "Historial",
-        icon = Icons.Default.History,
+        icon = Icons.Outlined.History,
         selectedIcon = Icons.Filled.History
     )
 }

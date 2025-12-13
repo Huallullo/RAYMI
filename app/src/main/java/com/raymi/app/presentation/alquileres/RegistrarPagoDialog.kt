@@ -34,7 +34,7 @@ fun RegistrarPagoDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Payments, contentDescription = null)
+                Icon(Icons.Filled.Payments, contentDescription = null)
                 Text("Registrar Pago")
             }
         },
@@ -85,7 +85,7 @@ fun RegistrarPagoDialog(
                                 color = RaymiColors.Success
                             )
                         }
-                        Divider()
+                        HorizontalDivider()
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -121,7 +121,7 @@ fun RegistrarPagoDialog(
                     },
                     label = { Text("Monto a Pagar *") },
                     leadingIcon = {
-                        Icon(Icons.Default.AttachMoney, contentDescription = null)
+                        Icon(Icons.Filled.AttachMoney, contentDescription = null)
                     },
                     trailingIcon = {
                         // Botón para pagar todo
@@ -186,12 +186,12 @@ fun RegistrarPagoDialog(
                         }
 
                         if (nuevoSaldo <= 0) {
-                            Divider()
+                            HorizontalDivider()
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.CheckCircle,
+                                    Icons.Filled.CheckCircle,
                                     contentDescription = null,
                                     tint = RaymiColors.Success,
                                     modifier = Modifier.size(20.dp)

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,12 +32,12 @@ fun HistorialScreen(
                 title = { Text("Historial de Alquileres") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadHistorial() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                        Icon(Icons.Filled.Refresh, contentDescription = "Actualizar")
                     }
                 }
             )
@@ -54,7 +55,7 @@ fun HistorialScreen(
 
                 uiState.alquileres.isEmpty() -> {
                     RaymiEmptyState(
-                        icon = Icons.Default.History,
+                        icon = Icons.Filled.History,
                         title = "Sin historial",
                         description = "El historial de alquileres aparecerá aquí"
                     )
@@ -112,7 +113,7 @@ fun HistorialScreen(
                                         )
                                     }
 
-                                    Divider()
+                                    HorizontalDivider()
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),

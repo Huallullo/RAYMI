@@ -34,7 +34,7 @@ class VestuarioDetailViewModel @Inject constructor(
         loadVestuarioData()
     }
 
-    private fun loadVestuarioData() {
+    fun loadVestuarioData() {
         viewModelScope.launch {
             // Cargar datos del vestuario
             getVestuarioByIdUseCase(vestuarioId).collect { result ->

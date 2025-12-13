@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ fun VestuarioDetailScreen(
                 title = { Text("Detalle del Vestuario") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
@@ -59,7 +59,7 @@ fun VestuarioDetailScreen(
                             showEditDialog = true
                         }
                     }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                        Icon(Icons.Filled.Edit, contentDescription = "Editar")
                     }
                 }
             )
@@ -79,7 +79,7 @@ fun VestuarioDetailScreen(
                 uiState.vestuario == null -> {
                     RaymiErrorState(
                         message = "No se pudo cargar el vestuario",
-                        onRetry = { /* Recargar */ }
+                        onRetry = { viewModel.loadVestuarioData() }
                     )
                 }
 
@@ -109,7 +109,7 @@ fun VestuarioDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Checkroom,
+                                    imageVector = Icons.Filled.Checkroom,
                                     contentDescription = null,
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -151,31 +151,31 @@ fun VestuarioDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 InfoRow(
-                                    icon = Icons.Default.MusicNote,
+                                    icon = Icons.Filled.MusicNote,
                                     label = "Danza",
                                     value = vestuario.danza
                                 )
 
-                                Divider()
+                                HorizontalDivider()
 
                                 InfoRow(
-                                    icon = Icons.Default.Place,
+                                    icon = Icons.Filled.Place,
                                     label = "Departamento",
                                     value = vestuario.departamento
                                 )
 
-                                Divider()
+                                HorizontalDivider()
 
                                 InfoRow(
-                                    icon = Icons.Default.Straighten,
+                                    icon = Icons.Filled.Straighten,
                                     label = "Talla",
                                     value = vestuario.talla
                                 )
 
-                                Divider()
+                                HorizontalDivider()
 
                                 InfoRow(
-                                    icon = Icons.Default.AttachMoney,
+                                    icon = Icons.Filled.AttachMoney,
                                     label = "Precio por día",
                                     value = vestuario.precioFormateado
                                 )
@@ -282,7 +282,7 @@ fun VestuarioDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.History,
+                                        imageVector = Icons.Filled.History,
                                         contentDescription = null,
                                         modifier = Modifier.size(48.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)

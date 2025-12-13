@@ -34,7 +34,7 @@ class ClienteDetailViewModel @Inject constructor(
         loadClienteData()
     }
 
-    private fun loadClienteData() {
+    fun loadClienteData() {
         viewModelScope.launch {
             // Cargar datos del cliente
             getClienteByIdUseCase(clienteId).collect { result ->

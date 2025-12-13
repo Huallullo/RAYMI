@@ -69,7 +69,7 @@ fun LoginScreen(
             ) {
                 // Logo y título
                 Icon(
-                    imageVector = Icons.Default.Star,
+                    imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     modifier = Modifier.size(100.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -96,7 +96,7 @@ fun LoginScreen(
                     onValueChange = viewModel::onEmailChange,
                     label = { Text("Email") },
                     leadingIcon = {
-                        Icon(Icons.Default.Email, contentDescription = null)
+                        Icon(Icons.Filled.Email, contentDescription = null)
                     },
                     isError = uiState.emailError != null,
                     supportingText = {
@@ -125,15 +125,15 @@ fun LoginScreen(
                     onValueChange = viewModel::onPasswordChange,
                     label = { Text("Contraseña") },
                     leadingIcon = {
-                        Icon(Icons.Default.Lock, contentDescription = null)
+                        Icon(Icons.Filled.Lock, contentDescription = null)
                     },
                     trailingIcon = {
                         IconButton(onClick = viewModel::togglePasswordVisibility) {
                             Icon(
                                 imageVector = if (uiState.isPasswordVisible) {
-                                    Icons.Default.VisibilityOff
+                                    Icons.Filled.VisibilityOff
                                 } else {
-                                    Icons.Default.Visibility
+                                    Icons.Filled.Visibility
                                 },
                                 contentDescription = if (uiState.isPasswordVisible) {
                                     "Ocultar contraseña"

@@ -103,7 +103,7 @@ fun AddClienteDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                Icon(Icons.Filled.PersonAdd, contentDescription = null)
                 Text("Agregar Cliente")
             }
         },
@@ -123,7 +123,7 @@ fun AddClienteDialog(
                     },
                     label = { Text("DNI *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Badge, contentDescription = null)
+                        Icon(Icons.Filled.Badge, contentDescription = null)
                     },
                     isError = dniError != null,
                     supportingText = {
@@ -144,7 +144,7 @@ fun AddClienteDialog(
                     },
                     label = { Text("Nombre *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null)
+                        Icon(Icons.Filled.Person, contentDescription = null)
                     },
                     isError = nombreError != null,
                     supportingText = {
@@ -164,7 +164,7 @@ fun AddClienteDialog(
                     },
                     label = { Text("Apellidos *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null)
+                        Icon(Icons.Filled.Person, contentDescription = null)
                     },
                     isError = apellidosError != null,
                     supportingText = {
@@ -184,7 +184,7 @@ fun AddClienteDialog(
                     },
                     label = { Text("Teléfono *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Phone, contentDescription = null)
+                        Icon(Icons.Filled.Phone, contentDescription = null)
                     },
                     isError = telefonoError != null,
                     supportingText = {
@@ -205,7 +205,7 @@ fun AddClienteDialog(
                     },
                     label = { Text("Email (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Email, contentDescription = null)
+                        Icon(Icons.Filled.Email, contentDescription = null)
                     },
                     isError = emailError != null,
                     supportingText = {
@@ -223,7 +223,7 @@ fun AddClienteDialog(
                     onValueChange = { direccion = it },
                     label = { Text("Dirección (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Home, contentDescription = null)
+                        Icon(Icons.Filled.Home, contentDescription = null)
                     },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth(),

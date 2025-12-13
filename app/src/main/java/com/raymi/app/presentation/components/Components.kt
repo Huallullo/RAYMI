@@ -112,7 +112,7 @@ fun RaymiErrorState(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Icon(
-            imageVector = Icons.Default.ErrorOutline,
+            imageVector = Icons.Filled.ErrorOutline,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.error
@@ -134,7 +134,7 @@ fun RaymiErrorState(
             onClick = onRetry,
             modifier = Modifier.padding(top = 8.dp)
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = null)
+            Icon(Icons.Filled.Refresh, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("Reintentar")
         }
@@ -181,12 +181,12 @@ fun RaymiSearchBar(
         modifier = modifier.fillMaxWidth(),
         placeholder = { Text(placeholder) },
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Buscar")
+            Icon(Icons.Filled.Search, contentDescription = "Buscar")
         },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                    Icon(Icons.Filled.Clear, contentDescription = "Limpiar")
                 }
             }
         },

@@ -53,7 +53,7 @@ fun DashboardScreen(
                 actions = {
                     IconButton(onClick = { viewModel.loadDashboardData() }) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Filled.Refresh,
                             contentDescription = "Actualizar"
                         )
                     }
@@ -109,7 +109,7 @@ fun DashboardScreen(
                             StatCard(
                                 title = "Clientes",
                                 value = "${uiState.estadisticas.totalClientes}",
-                                icon = Icons.Default.People,
+                                icon = Icons.Filled.People,
                                 iconTint = RaymiColors.Info,
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToClientes
@@ -118,7 +118,7 @@ fun DashboardScreen(
                             StatCard(
                                 title = "Vestuarios",
                                 value = "${uiState.estadisticas.totalVestuarios}",
-                                icon = Icons.Default.Checkroom,
+                                icon = Icons.Filled.Checkroom,
                                 iconTint = RaymiColors.PurpleLight,
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToVestuarios
@@ -133,7 +133,7 @@ fun DashboardScreen(
                             StatCard(
                                 title = "Disponibles",
                                 value = "${uiState.estadisticas.vestuariosDisponibles}",
-                                icon = Icons.Default.CheckCircle,
+                                icon = Icons.Filled.CheckCircle,
                                 iconTint = RaymiColors.Success,
                                 modifier = Modifier.weight(1f)
                             )
@@ -141,7 +141,7 @@ fun DashboardScreen(
                             StatCard(
                                 title = "Alquilados",
                                 value = "${uiState.estadisticas.alquileresActivos}",
-                                icon = Icons.Default.ShoppingCart,
+                                icon = Icons.Filled.ShoppingCart,
                                 iconTint = RaymiColors.Warning,
                                 modifier = Modifier.weight(1f),
                                 onClick = onNavigateToAlquileres
@@ -164,7 +164,7 @@ fun DashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Warning,
+                                        imageVector = Icons.Filled.Warning,
                                         contentDescription = null,
                                         tint = RaymiColors.Error,
                                         modifier = Modifier.size(40.dp)
@@ -205,7 +205,7 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.AttachMoney,
+                                        imageVector = Icons.Filled.AttachMoney,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary
                                     )
@@ -267,7 +267,7 @@ fun DashboardScreen(
                                 onClick = onNavigateToClientes,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                                Icon(Icons.Filled.PersonAdd, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Nuevo Cliente")
                             }
@@ -276,7 +276,7 @@ fun DashboardScreen(
                                 onClick = onNavigateToAlquileres,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null)
+                                Icon(Icons.Filled.Add, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Alquilar")
                             }
