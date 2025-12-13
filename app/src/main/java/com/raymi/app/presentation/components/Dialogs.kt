@@ -58,7 +58,7 @@ fun DeleteConfirmDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = Icons.Default.Delete,
+                imageVector = Icons.Filled.Delete,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error
             )
@@ -98,7 +98,7 @@ fun WarningDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = Icons.Default.Warning,
+                imageVector = Icons.Filled.Warning,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error
             )

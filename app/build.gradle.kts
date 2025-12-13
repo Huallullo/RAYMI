@@ -47,6 +47,10 @@ android {
     buildFeatures {
         compose = true
     }
+    
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.11"
+    }
 
     packaging {
         resources {
@@ -82,9 +86,10 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
 
-    // Hilt (Dependency Injection)
-    implementation("com.google.dagger:hilt-android:2.52")
-    ksp("com.google.dagger:hilt-compiler:2.52")
+    // Hilt (Dependency Injection) - ✅ VERSIÓN CORREGIDA
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    implementation(libs.junit.junit)
+    ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Coroutines
@@ -100,8 +105,7 @@ dependencies {
     // Coil (Image Loading)
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Accompanist (System UI Controller, Permissions)
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.36.0")
+    // Accompanist
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
     // Lottie (Animations) - OPCIONAL
@@ -115,4 +119,6 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
 }

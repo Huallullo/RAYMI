@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoVestuario
@@ -30,11 +32,18 @@ import com.raymi.app.presentation.components.*
 fun VestuariosScreen(
     viewModel: VestuariosViewModel = hiltViewModel(),
     onVestuarioClick: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    navigatedFromResult: Boolean
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showFilterMenu by remember { mutableStateOf(false) }
+
+    LaunchedEffect(navigatedFromResult) {
+        if (navigatedFromResult) {
+            viewModel.loadVestuarios()
+        }
+    }
 
     // Mostrar mensajes
     LaunchedEffect(uiState.error, uiState.successMessage) {
@@ -54,7 +63,7 @@ fun VestuariosScreen(
                 title = { Text("Vestuarios") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
@@ -67,7 +76,7 @@ fun VestuariosScreen(
                                 MaterialTheme.colorScheme.surfaceVariant
                             }
                         ) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
+                            Icon(Icons.Filled.FilterList, contentDescription = "Filtrar")
                         }
                     }
 
@@ -84,12 +93,12 @@ fun VestuariosScreen(
                             },
                             leadingIcon = {
                                 if (uiState.selectedEstado == null) {
-                                    Icon(Icons.Default.Check, contentDescription = null)
+                                    Icon(Icons.Filled.Check, contentDescription = null)
                                 }
                             }
                         )
 
-                        Divider()
+                        HorizontalDivider()
 
                         EstadoVestuario.values().forEach { estado ->
                             DropdownMenuItem(
@@ -100,15 +109,11 @@ fun VestuariosScreen(
                                 },
                                 leadingIcon = {
                                     if (uiState.selectedEstado == estado) {
-                                        Icon(Icons.Default.Check, contentDescription = null)
+                                        Icon(Icons.Filled.Check, contentDescription = null)
                                     }
                                 }
                             )
                         }
-                    }
-
-                    IconButton(onClick = { viewModel.loadVestuarios() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
                     }
                 }
             )
@@ -116,7 +121,7 @@ fun VestuariosScreen(
             FloatingActionButton(
                 onClick = { viewModel.showAddVestuarioDialog() }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar vestuario")
+                Icon(Icons.Filled.Add, contentDescription = "Agregar vestuario")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -133,7 +138,7 @@ fun VestuariosScreen(
 
                 uiState.vestuarios.isEmpty() -> {
                     RaymiEmptyState(
-                        icon = Icons.Default.Checkroom,
+                        icon = Icons.Filled.Checkroom,
                         title = "No hay vestuarios",
                         description = "Agrega vestuarios para comenzar"
                     )
@@ -164,7 +169,7 @@ fun VestuariosScreen(
                         // Grilla de vestuarios
                         if (uiState.filteredVestuarios.isEmpty()) {
                             RaymiEmptyState(
-                                icon = Icons.Default.SearchOff,
+                                icon = Icons.Filled.SearchOff,
                                 title = "No se encontraron resultados",
                                 description = "Intenta con otro término de búsqueda o filtro"
                             )
@@ -274,7 +279,7 @@ fun VestuarioCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
+                    imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -293,7 +298,7 @@ fun VestuarioCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Place,
+                    imageVector = Icons.Filled.Place,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -307,7 +312,7 @@ fun VestuarioCard(
                 )
             }
 
-            Divider()
+            HorizontalDivider()
 
             // Precio
             Text(

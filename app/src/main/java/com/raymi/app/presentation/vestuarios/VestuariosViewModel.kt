@@ -9,6 +9,7 @@ import com.raymi.app.domain.usecase.vestuario.AddVestuarioUseCase
 import com.raymi.app.domain.usecase.vestuario.GetVestuariosUseCase
 import com.raymi.app.domain.usecase.vestuario.UpdateVestuarioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +24,10 @@ import javax.inject.Inject
 class VestuariosViewModel @Inject constructor(
     private val getVestuariosUseCase: GetVestuariosUseCase,
     private val addVestuarioUseCase: AddVestuarioUseCase,
-    private val updateVestuarioUseCase: UpdateVestuarioUseCase
-) : ViewModel() {
+    private val updateVestuarioUseCase: UpdateVestuarioUseCase,
 
+) : ViewModel() {
+    private var observeJob: Job? = null
     // ========== ESTADOS UI ==========
 
     private val _uiState = MutableStateFlow(VestuariosUiState())
@@ -41,7 +43,8 @@ class VestuariosViewModel @Inject constructor(
      * Carga la lista de vestuarios
      */
     fun loadVestuarios() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             getVestuariosUseCase().collect { result ->
                 when (result) {
                     is Resource.Loading -> {
@@ -165,7 +168,6 @@ class VestuariosViewModel @Inject constructor(
                             showAddDialog = false,
                             successMessage = "Vestuario agregado correctamente"
                         )
-                        loadVestuarios()
                     }
 
                     is Resource.Error -> {

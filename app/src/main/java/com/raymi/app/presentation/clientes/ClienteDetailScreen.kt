@@ -1,11 +1,10 @@
 package com.raymi.app.presentation.clientes
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +14,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.theme.CustomShapes
-import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.presentation.alquileres.AlquilerItem
 
 import com.raymi.app.presentation.components.*
@@ -52,7 +50,7 @@ fun ClienteDetailScreen(
                 title = { Text("Detalle del Cliente") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
@@ -61,7 +59,7 @@ fun ClienteDetailScreen(
                             showEditDialog = true
                         }
                     }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                        Icon(Icons.Filled.Edit, contentDescription = "Editar")
                     }
                 }
             )
@@ -81,7 +79,7 @@ fun ClienteDetailScreen(
                 uiState.cliente == null -> {
                     RaymiErrorState(
                         message = "No se pudo cargar el cliente",
-                        onRetry = { /* Recargar */ }
+                        onRetry = { viewModel.loadClienteData() }
                     )
                 }
 
@@ -141,32 +139,32 @@ fun ClienteDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 InfoRow(
-                                    icon = Icons.Default.Badge,
+                                    icon = Icons.Filled.Badge,
                                     label = "DNI",
                                     value = cliente.dni
                                 )
 
-                                Divider()
+                                HorizontalDivider()
 
                                 InfoRow(
-                                    icon = Icons.Default.Phone,
+                                    icon = Icons.Filled.Phone,
                                     label = "Teléfono",
                                     value = cliente.telefono
                                 )
 
                                 if (cliente.email.isNotBlank()) {
-                                    Divider()
+                                    HorizontalDivider()
                                     InfoRow(
-                                        icon = Icons.Default.Email,
+                                        icon = Icons.Filled.Email,
                                         label = "Email",
                                         value = cliente.email
                                     )
                                 }
 
                                 if (cliente.direccion.isNotBlank()) {
-                                    Divider()
+                                    HorizontalDivider()
                                     InfoRow(
-                                        icon = Icons.Default.Home,
+                                        icon = Icons.Filled.Home,
                                         label = "Dirección",
                                         value = cliente.direccion
                                     )
@@ -254,7 +252,7 @@ fun ClienteDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.History,
+                                        imageVector = Icons.Filled.History,
                                         contentDescription = null,
                                         modifier = Modifier.size(48.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)

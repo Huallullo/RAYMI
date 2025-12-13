@@ -98,7 +98,7 @@ fun EditVestuarioDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
+                Icon(Icons.Filled.Edit, contentDescription = null)
                 Text("Editar Vestuario")
             }
         },
@@ -115,7 +115,7 @@ fun EditVestuarioDialog(
                     onValueChange = {},
                     label = { Text("Código") },
                     leadingIcon = {
-                        Icon(Icons.Default.Tag, contentDescription = null)
+                        Icon(Icons.Filled.Tag, contentDescription = null)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = false,
@@ -142,7 +142,7 @@ fun EditVestuarioDialog(
                     },
                     label = { Text("Nombre de la Danza *") },
                     leadingIcon = {
-                        Icon(Icons.Default.MusicNote, contentDescription = null)
+                        Icon(Icons.Filled.MusicNote, contentDescription = null)
                     },
                     isError = danzaError != null,
                     supportingText = {
@@ -164,7 +164,7 @@ fun EditVestuarioDialog(
                         readOnly = true,
                         label = { Text("Departamento *") },
                         leadingIcon = {
-                            Icon(Icons.Default.Place, contentDescription = null)
+                            Icon(Icons.Filled.Place, contentDescription = null)
                         },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDpto)
@@ -202,7 +202,7 @@ fun EditVestuarioDialog(
                         readOnly = true,
                         label = { Text("Talla *") },
                         leadingIcon = {
-                            Icon(Icons.Default.Straighten, contentDescription = null)
+                            Icon(Icons.Filled.Straighten, contentDescription = null)
                         },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTalla)
@@ -240,7 +240,7 @@ fun EditVestuarioDialog(
                         readOnly = true,
                         label = { Text("Estado *") },
                         leadingIcon = {
-                            Icon(Icons.Default.Info, contentDescription = null)
+                            Icon(Icons.Filled.Info, contentDescription = null)
                         },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEstado)
@@ -278,7 +278,7 @@ fun EditVestuarioDialog(
                     },
                     label = { Text("Precio por Día (S/.) *") },
                     leadingIcon = {
-                        Icon(Icons.Default.AttachMoney, contentDescription = null)
+                        Icon(Icons.Filled.AttachMoney, contentDescription = null)
                     },
                     isError = precioError != null,
                     supportingText = {
@@ -296,7 +296,7 @@ fun EditVestuarioDialog(
                     onValueChange = { descripcion = it },
                     label = { Text("Descripción (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Description, contentDescription = null)
+                        Icon(Icons.Filled.Description, contentDescription = null)
                     },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),

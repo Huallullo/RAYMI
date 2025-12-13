@@ -88,7 +88,7 @@ fun AddVestuarioDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Checkroom, contentDescription = null)
+                Icon(Icons.Filled.Checkroom, contentDescription = null)
                 Text("Agregar Vestuario")
             }
         },
@@ -109,7 +109,7 @@ fun AddVestuarioDialog(
                     },
                     label = { Text("Nombre de la Danza *") },
                     leadingIcon = {
-                        Icon(Icons.Default.MusicNote, contentDescription = null)
+                        Icon(Icons.Filled.MusicNote, contentDescription = null)
                     },
                     isError = danzaError != null,
                     supportingText = {
@@ -132,7 +132,7 @@ fun AddVestuarioDialog(
                         readOnly = true,
                         label = { Text("Departamento *") },
                         leadingIcon = {
-                            Icon(Icons.Default.Place, contentDescription = null)
+                            Icon(Icons.Filled.Place, contentDescription = null)
                         },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -170,7 +170,7 @@ fun AddVestuarioDialog(
                         readOnly = true,
                         label = { Text("Talla *") },
                         leadingIcon = {
-                            Icon(Icons.Default.Straighten, contentDescription = null)
+                            Icon(Icons.Filled.Straighten, contentDescription = null)
                         },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTalla)
@@ -208,7 +208,7 @@ fun AddVestuarioDialog(
                     },
                     label = { Text("Precio por Día (S/.) *") },
                     leadingIcon = {
-                        Icon(Icons.Default.AttachMoney, contentDescription = null)
+                        Icon(Icons.Filled.AttachMoney, contentDescription = null)
                     },
                     isError = precioError != null,
                     supportingText = {
@@ -227,7 +227,7 @@ fun AddVestuarioDialog(
                     onValueChange = { descripcion = it },
                     label = { Text("Descripción (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Description, contentDescription = null)
+                        Icon(Icons.Filled.Description, contentDescription = null)
                     },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),

@@ -19,15 +19,4 @@ object GeneradorCodigo {
         val random = (1..999).random().toString().padStart(3, '0')
         return "VES-$fecha-$random"
     }
-
-    /**
-     * Genera un código único para alquiler
-     * Formato: ALQ-YYMMDD-XXX
-     */
-    fun generarCodigoAlquiler(): String {
-        val fechaFormat = SimpleDateFormat("yyMMdd", Locale.getDefault())
-        val fecha = fechaFormat.format(Date())
-        val random = (1..999).random().toString().padStart(3, '0')
-        return "ALQ-$fecha-$random"
-    }
 }

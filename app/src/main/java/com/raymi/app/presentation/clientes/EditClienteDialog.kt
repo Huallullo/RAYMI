@@ -102,7 +102,7 @@ fun EditClienteDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
+                Icon(Icons.Filled.Edit, contentDescription = null)
                 Text("Editar Cliente")
             }
         },
@@ -119,7 +119,7 @@ fun EditClienteDialog(
                     onValueChange = {},
                     label = { Text("DNI") },
                     leadingIcon = {
-                        Icon(Icons.Default.Badge, contentDescription = null)
+                        Icon(Icons.Filled.Badge, contentDescription = null)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = false,
@@ -146,7 +146,7 @@ fun EditClienteDialog(
                     },
                     label = { Text("Nombre *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null)
+                        Icon(Icons.Filled.Person, contentDescription = null)
                     },
                     isError = nombreError != null,
                     supportingText = {
@@ -166,7 +166,7 @@ fun EditClienteDialog(
                     },
                     label = { Text("Apellidos *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null)
+                        Icon(Icons.Filled.Person, contentDescription = null)
                     },
                     isError = apellidosError != null,
                     supportingText = {
@@ -186,7 +186,7 @@ fun EditClienteDialog(
                     },
                     label = { Text("Teléfono *") },
                     leadingIcon = {
-                        Icon(Icons.Default.Phone, contentDescription = null)
+                        Icon(Icons.Filled.Phone, contentDescription = null)
                     },
                     isError = telefonoError != null,
                     supportingText = {
@@ -207,7 +207,7 @@ fun EditClienteDialog(
                     },
                     label = { Text("Email (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Email, contentDescription = null)
+                        Icon(Icons.Filled.Email, contentDescription = null)
                     },
                     isError = emailError != null,
                     supportingText = {
@@ -225,7 +225,7 @@ fun EditClienteDialog(
                     onValueChange = { direccion = it },
                     label = { Text("Dirección (opcional)") },
                     leadingIcon = {
-                        Icon(Icons.Default.Home, contentDescription = null)
+                        Icon(Icons.Filled.Home, contentDescription = null)
                     },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth(),

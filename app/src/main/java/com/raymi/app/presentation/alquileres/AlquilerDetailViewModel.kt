@@ -33,7 +33,7 @@ class AlquilerDetailViewModel @Inject constructor(
         loadAlquiler()
     }
 
-    private fun loadAlquiler() {
+    fun loadAlquiler() {
         viewModelScope.launch {
             getAlquilerByIdUseCase(alquilerId).collect { result ->
                 when (result) {

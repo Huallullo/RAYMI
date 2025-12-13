@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Círculo de fondo -->
+    <path
+        android:fillColor="#8B1E3F"
+        android:pathData="M60,6A54,54 0,1 1,59.99 6z" />
+
+    <!-- Sol andino -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M60,26A12,12 0,1 1,59.99 26z" />
+
+    <!-- Rayos -->
+    <path android:fillColor="#FFD700" android:pathData="M60,10 l2,8 h-4 z"/>
+    <path android:fillColor="#FFD700" android:pathData="M60,42 l2,8 h-4 z"/>
+    <path android:fillColor="#FFD700" android:pathData="M44,26 l8,2 v-4 z"/>
+    <path android:fillColor="#FFD700" android:pathData="M76,26 l8,2 v-4 z"/>
+
+    <!-- Montañas -->
+    <path
+        android:fillColor="#2A9D8F"
+        android:pathData="M18,88 L44,56 L70,88 Z" />
+    <path
+        android:fillColor="#1F7A6A"
+        android:pathData="M48,88 L74,50 L102,88 Z" />
+
+    <!-- Camino/greca andina -->
+    <path
+        android:fillColor="#F4A261"
+        android:pathData="M20,96 h80 v10 h-80 z" />
+    <path
+        android:fillColor="#8B1E3F"
+        android:pathData="M26,98 h8 v6 h-8 z M40,98 h8 v6 h-8 z M54,98 h8 v6 h-8 z M68,98 h8 v6 h-8 z M82,98 h8 v6 h-8 z" />
+</vector>

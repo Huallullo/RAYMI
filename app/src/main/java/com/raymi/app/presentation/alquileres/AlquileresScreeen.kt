@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,29 +14,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
 
-/**
- * Pantalla de gestión de alquileres
- * Muestra la lista de alquileres con sus estados
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlquileresScreen(
     viewModel: AlquileresViewModel = hiltViewModel(),
     onAlquilerClick: (String) -> Unit,
     onCreateAlquiler: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    navigatedFromResult: Boolean
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showFilterMenu by remember { mutableStateOf(false) }
 
-    // Mostrar mensajes
+    LaunchedEffect(navigatedFromResult) {
+        if (navigatedFromResult) {
+            viewModel.loadAlquileres()
+        }
+    }
+
     LaunchedEffect(uiState.error, uiState.successMessage) {
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(error)
@@ -53,11 +57,10 @@ fun AlquileresScreen(
                 title = { Text("Alquileres") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
-                    // Botón de filtro
                     IconButton(onClick = { showFilterMenu = true }) {
                         Badge(
                             containerColor = if (uiState.selectedEstado != null) {
@@ -66,11 +69,10 @@ fun AlquileresScreen(
                                 MaterialTheme.colorScheme.surfaceVariant
                             }
                         ) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
+                            Icon(Icons.Filled.FilterList, contentDescription = "Filtrar")
                         }
                     }
 
-                    // Menú de filtro
                     DropdownMenu(
                         expanded = showFilterMenu,
                         onDismissRequest = { showFilterMenu = false }
@@ -83,12 +85,12 @@ fun AlquileresScreen(
                             },
                             leadingIcon = {
                                 if (uiState.selectedEstado == null) {
-                                    Icon(Icons.Default.Check, contentDescription = null)
+                                    Icon(Icons.Filled.Check, contentDescription = null)
                                 }
                             }
                         )
 
-                        Divider()
+                        HorizontalDivider()
 
                         EstadoAlquiler.values().forEach { estado ->
                             DropdownMenuItem(
@@ -99,15 +101,11 @@ fun AlquileresScreen(
                                 },
                                 leadingIcon = {
                                     if (uiState.selectedEstado == estado) {
-                                        Icon(Icons.Default.Check, contentDescription = null)
+                                        Icon(Icons.Filled.Check, contentDescription = null)
                                     }
                                 }
                             )
                         }
-                    }
-
-                    IconButton(onClick = { viewModel.loadAlquileres() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
                     }
                 }
             )
@@ -116,7 +114,7 @@ fun AlquileresScreen(
             FloatingActionButton(
                 onClick = onCreateAlquiler
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Nuevo alquiler")
+                Icon(Icons.Filled.Add, contentDescription = "Nuevo alquiler")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -133,7 +131,7 @@ fun AlquileresScreen(
 
                 uiState.alquileres.isEmpty() -> {
                     RaymiEmptyState(
-                        icon = Icons.Default.ShoppingCart,
+                        icon = Icons.Filled.ShoppingCart,
                         title = "No hay alquileres",
                         description = "Crea tu primer alquiler para comenzar",
                         actionText = "Crear Alquiler",
@@ -145,7 +143,6 @@ fun AlquileresScreen(
                     Column(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Barra de búsqueda
                         RaymiSearchBar(
                             query = uiState.searchQuery,
                             onQueryChange = { viewModel.searchAlquileres(it) },
@@ -153,20 +150,9 @@ fun AlquileresScreen(
                             modifier = Modifier.padding(16.dp)
                         )
 
-                        // Contador de resultados
-                        if (uiState.selectedEstado != null || uiState.searchQuery.isNotBlank()) {
-                            Text(
-                                text = "${uiState.filteredAlquileres.size} alquiler(es) encontrado(s)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        // Lista de alquileres
                         if (uiState.filteredAlquileres.isEmpty()) {
                             RaymiEmptyState(
-                                icon = Icons.Default.SearchOff,
+                                icon = Icons.Filled.SearchOff,
                                 title = "No se encontraron resultados",
                                 description = "Intenta con otro término de búsqueda o filtro"
                             )
@@ -194,9 +180,6 @@ fun AlquileresScreen(
     }
 }
 
-/**
- * Item de alquiler en la lista
- */
 @Composable
 fun AlquilerItem(
     alquiler: Alquiler,
@@ -217,7 +200,6 @@ fun AlquilerItem(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Cabecera con cliente y estado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -247,34 +229,32 @@ fun AlquilerItem(
                 )
             }
 
-            Divider()
+            HorizontalDivider()
 
-            // Información del alquiler
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     InfoRowCompact(
-                        icon = Icons.Default.CalendarToday,
+                        icon = Icons.Filled.CalendarToday,
                         text = "Inicio: ${alquiler.fechaInicioFormatted}"
                     )
                     InfoRowCompact(
-                        icon = Icons.Default.Event,
+                        icon = Icons.Filled.Event,
                         text = "Fin: ${alquiler.fechaFinFormatted}"
                     )
 
-                    // Mostrar días restantes o vencidos
                     if (alquiler.estado == EstadoAlquiler.ACTIVO) {
                         if (alquiler.estaVencido) {
                             InfoRowCompact(
-                                icon = Icons.Default.Warning,
+                                icon = Icons.Filled.Warning,
                                 text = "Vencido hace ${-alquiler.diasRestantes} día(s)",
                                 color = RaymiColors.Error
                             )
                         } else {
                             InfoRowCompact(
-                                icon = Icons.Default.Info,
+                                icon = Icons.Filled.Info,
                                 text = "${alquiler.diasRestantes} día(s) restantes",
                                 color = if (alquiler.diasRestantes <= 2) {
                                     RaymiColors.Warning
@@ -286,7 +266,6 @@ fun AlquilerItem(
                     }
                 }
 
-                // Precio
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = alquiler.precioFormateado,
@@ -307,9 +286,6 @@ fun AlquilerItem(
     }
 }
 
-/**
- * Fila de información compacta con icono
- */
 @Composable
 fun InfoRowCompact(
     icon: androidx.compose.ui.graphics.vector.ImageVector,

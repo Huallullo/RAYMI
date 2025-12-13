@@ -73,6 +73,20 @@ data class VestuarioDto(
                 createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now()
             )
         }
+        private fun buildSearchTerms(vararg fields: String): List<String> {
+            val baseTokens = fields.toList()
+                .flatMap { it.trim().lowercase().split("\\s+".toRegex()) }
+                .filter { it.isNotBlank() }
+
+            val prefixes = mutableSetOf<String>()
+            baseTokens.forEach { token ->
+                val clean = token.take(30)
+                for (i in 1..clean.length) {
+                    prefixes.add(clean.substring(0, i))
+                }
+            }
+            return prefixes.toList()
+        }
     }
 
     /**
@@ -88,7 +102,8 @@ data class VestuarioDto(
             "precio" to precio,
             "estado" to estado,
             "imagenUrl" to imagenUrl,
-            "createdAt" to createdAt
+            "createdAt" to createdAt,
+            "searchTerms" to buildSearchTerms(codigo, danza, departamento, descripcion)
         )
     }
 }

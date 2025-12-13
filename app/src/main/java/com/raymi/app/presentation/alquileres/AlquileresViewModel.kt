@@ -7,6 +7,7 @@ import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,9 +20,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class AlquileresViewModel @Inject constructor(
-    private val getAlquileresUseCase: GetAlquileresUseCase
-) : ViewModel() {
+    private val getAlquileresUseCase: GetAlquileresUseCase,
 
+) : ViewModel() {
+    private var observeJob: Job? = null
     // ========== ESTADOS UI ==========
 
     private val _uiState = MutableStateFlow(AlquileresUiState())
@@ -37,7 +39,8 @@ class AlquileresViewModel @Inject constructor(
      * Carga la lista de alquileres
      */
     fun loadAlquileres() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             getAlquileresUseCase().collect { result ->
                 when (result) {
                     is Resource.Loading -> {

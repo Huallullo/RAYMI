@@ -6,8 +6,12 @@ import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ClienteRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Implementación del repositorio de clientes
@@ -21,27 +25,24 @@ class ClienteRepositoryImpl @Inject constructor(
      * Obtiene todos los clientes de Firebase
      * @return Flow con la lista de clientes o error
      */
-    override suspend fun getClientes(): Flow<Resource<List<Cliente>>> = flow {
-        try {
-            emit(Resource.Loading())
+    override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
+        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_CLIENTES)
+            .map { documents ->
+                val source = if (documents.isEmpty()) {
+                    dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_CLIENTES)
+                } else {
+                    documents
+                }
 
-            // Obtener documentos de Firebase
-            val documents = dataSource.getAllDocuments(
-                FirebaseDataSource.COLLECTION_CLIENTES
-            )
+                val clientes = source
+                    .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
+                    .sortedByDescending { it.createdAt }
 
-            // Convertir a modelos de dominio
-            val clientes = documents.map { (id, data) ->
-                ClienteDto.fromMap(id, data).toDomain()
-            }.sortedByDescending { it.createdAt }
-
-            emit(Resource.Success(clientes))
-
-        } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener clientes: ${e.message}"))
-        }
+                Resource.Success(clientes) as Resource<List<Cliente>>
+            }
+            .onStart { emit(Resource.Loading()) }
+            .catch { e -> emit(Resource.Error("Error al obtener clientes: ${e.message}")) }
     }
-
     /**
      * Obtiene un cliente específico por su ID
      * @param id ID del cliente
@@ -63,6 +64,8 @@ class ClienteRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Cliente no encontrado"))
             }
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al obtener cliente: ${e.message}"))
         }
@@ -91,6 +94,8 @@ class ClienteRepositoryImpl @Inject constructor(
                 emit(Resource.Success(null))
             }
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al buscar cliente: ${e.message}"))
         }
@@ -105,28 +110,17 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Validar que no exista un cliente con el mismo DNI
-            val existente = dataSource.queryDocuments(
-                FirebaseDataSource.COLLECTION_CLIENTES,
-                "dni",
-                cliente.dni
-            )
-
-            if (existente.isNotEmpty()) {
-                emit(Resource.Error("Ya existe un cliente con este DNI"))
-                return@flow
-            }
-
-            // Convertir a DTO y guardar
             val dto = ClienteDto.fromDomain(cliente)
-            val documentId = dataSource.addDocument(
-                FirebaseDataSource.COLLECTION_CLIENTES,
-                dto.toMap()
+            val documentId = dataSource.addClienteWithUniqueDni(
+                clienteData = dto.toMap(),
+                dniRaw = cliente.dni
             )
 
             emit(Resource.Success(documentId))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al agregar cliente: ${e.message}"))
         }
     }
@@ -155,7 +149,9 @@ class ClienteRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al actualizar cliente: ${e.message}"))
         }
     }
@@ -193,7 +189,9 @@ class ClienteRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al eliminar cliente: ${e.message}"))
         }
     }
@@ -207,24 +205,32 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Obtener todos los clientes (Firebase no soporta búsqueda por texto)
-            val documents = dataSource.getAllDocuments(
-                FirebaseDataSource.COLLECTION_CLIENTES
+            val q = query.trim().lowercase()
+            if (q.isBlank()) {
+                val documents = dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_CLIENTES)
+                val clientes = documents
+                    .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
+                    .sortedByDescending { it.createdAt }
+
+                emit(Resource.Success(clientes))
+                return@flow
+            }
+
+            val documents = dataSource.queryArrayContains(
+                collection = FirebaseDataSource.COLLECTION_CLIENTES,
+                field = "searchTerms",
+                value = q
             )
 
-            // Filtrar localmente por nombre o apellidos
             val clientes = documents
                 .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-                .filter { cliente ->
-                    cliente.nombre.contains(query, ignoreCase = true) ||
-                            cliente.apellidos.contains(query, ignoreCase = true) ||
-                            cliente.dni.contains(query, ignoreCase = true)
-                }
                 .sortedByDescending { it.createdAt }
 
             emit(Resource.Success(clientes))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al buscar clientes: ${e.message}"))
         }
     }

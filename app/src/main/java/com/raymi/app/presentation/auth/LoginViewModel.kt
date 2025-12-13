@@ -2,6 +2,7 @@ package com.raymi.app.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.auth.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -67,7 +68,7 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             loginUseCase(
-                email = _uiState.value.email,
+                email = _uiState.value.email.trim(),
                 password = _uiState.value.password
             ).collect { result ->
                 when (result) {
@@ -101,25 +102,18 @@ class LoginViewModel @Inject constructor(
      * Valida los campos del formulario
      */
     private fun validateFields(): Boolean {
-        var isValid = true
+        val emailTrim = _uiState.value.email.trim()
+        val passwordTrim = _uiState.value.password
 
-        // Validar email
-        if (_uiState.value.email.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                emailError = "El email es requerido"
-            )
-            isValid = false
-        }
+        val emailValidation = Validators.validateEmail(emailTrim, isRequired = true)
+        val passwordValidation = Validators.validatePassword(passwordTrim)
 
-        // Validar contraseña
-        if (_uiState.value.password.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                passwordError = "La contraseña es requerida"
-            )
-            isValid = false
-        }
+        _uiState.value = _uiState.value.copy(
+            emailError = if (emailValidation.isValid) null else emailValidation.errorMessage,
+            passwordError = if (passwordValidation.isValid) null else passwordValidation.errorMessage
+        )
 
-        return isValid
+        return emailValidation.isValid && passwordValidation.isValid
     }
 
     /**

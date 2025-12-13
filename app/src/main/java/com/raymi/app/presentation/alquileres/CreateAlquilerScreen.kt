@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +27,6 @@ import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Vestuario
 import com.raymi.app.presentation.clientes.ClienteItem
 import com.raymi.app.presentation.components.RaymiSearchBar
-import com.raymi.app.presentation.vestuarios.VestuarioCard
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,7 +66,7 @@ fun CreateAlquilerScreen(
                 title = { Text("Nuevo Alquiler") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -94,7 +94,7 @@ fun CreateAlquilerScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = Icons.Filled.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -149,7 +149,7 @@ fun CreateAlquilerScreen(
                                 )
                             }
                             IconButton(onClick = { viewModel.showClienteDialog() }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Cambiar")
+                                Icon(Icons.Filled.Edit, contentDescription = "Cambiar")
                             }
                         }
                     } else {
@@ -158,7 +158,7 @@ fun CreateAlquilerScreen(
                             onClick = { viewModel.showClienteDialog() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Person, contentDescription = null)
+                            Icon(Icons.Filled.Person, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text("Seleccionar Cliente")
                         }
@@ -209,7 +209,7 @@ fun CreateAlquilerScreen(
                                 )
                             }
                             IconButton(onClick = { viewModel.showVestuarioDialog() }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Cambiar")
+                                Icon(Icons.Filled.Edit, contentDescription = "Cambiar")
                             }
                         }
                     } else {
@@ -218,7 +218,7 @@ fun CreateAlquilerScreen(
                             onClick = { viewModel.showVestuarioDialog() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Checkroom, contentDescription = null)
+                            Icon(Icons.Filled.Checkroom, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text("Seleccionar Vestuario")
                         }
@@ -247,7 +247,7 @@ fun CreateAlquilerScreen(
                         onValueChange = { viewModel.onCantidadChange(it) },
                         label = { Text("Cantidad *") },
                         leadingIcon = {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = null)
+                            Icon(Icons.Filled.ShoppingCart, contentDescription = null)
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -255,7 +255,7 @@ fun CreateAlquilerScreen(
                     )
 
                     if (uiState.selectedVestuario != null && uiState.cantidad.isNotBlank()) {
-                        Divider()
+                        HorizontalDivider()
 
                         // Mostrar cálculo
                         Row(
@@ -313,7 +313,7 @@ fun CreateAlquilerScreen(
                         onValueChange = {},
                         label = { Text("Fecha de Inicio") },
                         leadingIcon = {
-                            Icon(Icons.Default.CalendarToday, contentDescription = null)
+                            Icon(Icons.Filled.CalendarToday, contentDescription = null)
                         },
                         trailingIcon = {
                             IconButton(onClick = {
@@ -329,7 +329,7 @@ fun CreateAlquilerScreen(
                                     calendar.get(Calendar.DAY_OF_MONTH)
                                 ).show()
                             }) {
-                                Icon(Icons.Default.EditCalendar, contentDescription = "Seleccionar")
+                                Icon(Icons.Filled.EditCalendar, contentDescription = "Seleccionar")
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -342,7 +342,7 @@ fun CreateAlquilerScreen(
                         onValueChange = {},
                         label = { Text("Fecha de Devolución Prevista") },
                         leadingIcon = {
-                            Icon(Icons.Default.Event, contentDescription = null)
+                            Icon(Icons.Filled.Event, contentDescription = null)
                         },
                         trailingIcon = {
                             IconButton(onClick = {
@@ -361,7 +361,7 @@ fun CreateAlquilerScreen(
                                     calendar.get(Calendar.DAY_OF_MONTH)
                                 ).show()
                             }) {
-                                Icon(Icons.Default.EditCalendar, contentDescription = "Seleccionar")
+                                Icon(Icons.Filled.EditCalendar, contentDescription = "Seleccionar")
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -402,7 +402,7 @@ fun CreateAlquilerScreen(
                         onValueChange = {},
                         label = { Text("Precio Total") },
                         leadingIcon = {
-                            Icon(Icons.Default.AttachMoney, contentDescription = null)
+                            Icon(Icons.Filled.AttachMoney, contentDescription = null)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         readOnly = true,
@@ -414,13 +414,13 @@ fun CreateAlquilerScreen(
                         onValueChange = { viewModel.onAdelantoChange(it) },
                         label = { Text("Adelanto (opcional)") },
                         leadingIcon = {
-                            Icon(Icons.Default.Payments, contentDescription = null)
+                            Icon(Icons.Filled.Payments, contentDescription = null)
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Divider()
+                    HorizontalDivider()
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -450,7 +450,7 @@ fun CreateAlquilerScreen(
                 onValueChange = { viewModel.onObservacionesChange(it) },
                 label = { Text("Observaciones (opcional)") },
                 leadingIcon = {
-                    Icon(Icons.Default.Notes, contentDescription = null)
+                    Icon(Icons.Filled.Notes, contentDescription = null)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 3
@@ -470,7 +470,7 @@ fun CreateAlquilerScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Icon(Icons.Default.Check, contentDescription = null)
+                    Icon(Icons.Filled.Check, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Crear Alquiler")
                 }

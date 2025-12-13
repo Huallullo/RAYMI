@@ -1,14 +1,19 @@
 package com.raymi.app.data.repository
 
 import com.google.firebase.Timestamp
+import com.raymi.app.core.utils.AppLogger
 import com.raymi.app.data.model.dto.AlquilerDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AlquilerRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 
 /**
@@ -23,23 +28,16 @@ class AlquilerRepositoryImpl @Inject constructor(
      * Obtiene todos los alquileres de Firebase
      * @return Flow con la lista de alquileres o error
      */
-    override suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>> = flow {
-        try {
-            emit(Resource.Loading())
-
-            val documents = dataSource.getAllDocuments(
-                FirebaseDataSource.COLLECTION_ALQUILERES
-            )
-
-            val alquileres = documents.map { (id, data) ->
-                AlquilerDto.fromMap(id, data).toDomain()
-            }.sortedByDescending { it.createdAt }
-
-            emit(Resource.Success(alquileres))
-
-        } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
-        }
+    override suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>> {
+        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_ALQUILERES)
+            .map { documents ->
+                val alquileres = documents
+                    .map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+                    .sortedByDescending { it.createdAt }
+                Resource.Success(alquileres) as Resource<List<Alquiler>>
+            }
+            .onStart { emit(Resource.Loading()) }
+            .catch { e -> emit(Resource.Error("Error al obtener alquileres: ${e.message}")) }
     }
 
     /**
@@ -63,7 +61,9 @@ class AlquilerRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Alquiler no encontrado"))
             }
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al obtener alquiler: ${e.message}"))
         }
     }
@@ -91,7 +91,9 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(alquileres))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al obtener alquileres por estado: ${e.message}"))
         }
     }
@@ -119,6 +121,8 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(alquileres))
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al obtener alquileres del cliente: ${e.message}"))
         }
@@ -147,7 +151,9 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(alquileres))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al obtener alquileres del vestuario: ${e.message}"))
         }
     }
@@ -162,40 +168,22 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Verificar que el vestuario esté disponible
-            val vestuarioData = dataSource.getDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                alquiler.vestuarioId
-            )
-
-            if (vestuarioData == null) {
-                emit(Resource.Error("Vestuario no encontrado"))
-                return@flow
-            }
-
-            val estadoVestuario = vestuarioData["estado"] as? String
-            if (estadoVestuario != "DISPONIBLE") {
-                emit(Resource.Error("El vestuario no está disponible"))
-                return@flow
-            }
-
-            // Crear el alquiler
             val dto = AlquilerDto.fromDomain(alquiler)
-            val documentId = dataSource.addDocument(
-                FirebaseDataSource.COLLECTION_ALQUILERES,
-                dto.toMap()
-            )
-
-            // Actualizar estado del vestuario a ALQUILADO
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                alquiler.vestuarioId,
-                mapOf("estado" to "ALQUILADO")
+            val documentId = dataSource.createAlquilerAndMarkVestuarioAlquilado(
+                alquilerData = dto.toMap(),
+                vestuarioId = alquiler.vestuarioId
             )
 
             emit(Resource.Success(documentId))
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            AppLogger.e(
+                tag = "AlquilerRepository",
+                message = "Error al crear alquiler. vestuarioId=${alquiler.vestuarioId}, clienteId=${alquiler.clienteId}",
+                throwable = e
+            )
             emit(Resource.Error("Error al crear alquiler: ${e.message}"))
         }
     }
@@ -226,7 +214,9 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al actualizar alquiler: ${e.message}"))
         }
     }
@@ -241,45 +231,18 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Obtener el alquiler
-            val alquilerData = dataSource.getDocument(
-                FirebaseDataSource.COLLECTION_ALQUILERES,
-                alquilerId
-            )
-
-            if (alquilerData == null) {
-                emit(Resource.Error("Alquiler no encontrado"))
-                return@flow
-            }
-
-            val vestuarioId = alquilerData["vestuarioId"] as? String
-
-            if (vestuarioId == null) {
-                emit(Resource.Error("Vestuario no encontrado en el alquiler"))
-                return@flow
-            }
-
-            // Actualizar alquiler a DEVUELTO con fecha de devolución
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_ALQUILERES,
-                alquilerId,
-                mapOf(
-                    "estado" to "DEVUELTO",
-                    "fechaDevolucion" to Timestamp.now(),
-                    "updatedAt" to Timestamp.now()
-                )
-            )
-
-            // Liberar vestuario (DISPONIBLE)
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                vestuarioId,
-                mapOf("estado" to "DISPONIBLE")
-            )
+            dataSource.registrarDevolucionAtomica(alquilerId)
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
+            AppLogger.e(
+                tag = "AlquilerRepository",
+                message = "Error al registrar devolución. alquilerId=$alquilerId",
+                throwable = e
+            )
             emit(Resource.Error("Error al registrar devolución: ${e.message}"))
         }
     }
@@ -308,6 +271,8 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar estado: ${e.message}"))
         }
@@ -329,7 +294,9 @@ class AlquilerRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al eliminar alquiler: ${e.message}"))
         }
     }

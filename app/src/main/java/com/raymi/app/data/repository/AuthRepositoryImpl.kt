@@ -1,12 +1,15 @@
 package com.raymi.app.data.repository
 
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
+import com.raymi.app.core.utils.AppLogger
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Implementación del repositorio de autenticación
@@ -52,18 +55,26 @@ class AuthRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Error al iniciar sesión"))
             }
 
-        } catch (e: Exception) {
-            // Manejar errores específicos de Firebase Auth
-            val errorMessage = when {
-                e.message?.contains("password") == true ->
-                    "Contraseña incorrecta"
-                e.message?.contains("user") == true ->
-                    "Usuario no encontrado"
-                e.message?.contains("network") == true ->
-                    "Error de conexión. Verifica tu internet"
-                else ->
-                    "Error al iniciar sesión: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
+            val errorMessage = when (e) {
+                is FirebaseAuthException -> when (e.errorCode) {
+                    "ERROR_INVALID_EMAIL" -> "Email inválido"
+                    "ERROR_USER_NOT_FOUND" -> "Usuario no encontrado"
+                    "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
+                    "ERROR_NETWORK_REQUEST_FAILED" -> "Error de conexión. Verifica tu internet"
+                    else -> "Error de autenticación: ${e.localizedMessage}"
+                }
+                else -> "Error al iniciar sesión: ${e.localizedMessage}"
             }
+
+            AppLogger.e(
+                tag = "AuthRepository",
+                message = "Fallo en login para email=$email",
+                throwable = e
+            )
+
             emit(Resource.Error(errorMessage))
         }
     }
@@ -103,7 +114,9 @@ class AuthRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Error al registrar usuario"))
             }
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             // Manejar errores específicos
             val errorMessage = when {
                 e.message?.contains("already in use") == true ->
@@ -128,6 +141,8 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Resource.Loading())
             dataSource.signOut()
             emit(Resource.Success(Unit))
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al cerrar sesión: ${e.message}"))
         }

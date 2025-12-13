@@ -43,7 +43,7 @@ fun EditAlquilerDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
         title = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Edit, contentDescription = null)
+                Icon(Icons.Filled.Edit, contentDescription = null)
                 Text("Editar Alquiler")
             }
         },
@@ -67,7 +67,7 @@ fun EditAlquilerDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 // Cantidad
                 OutlinedTextField(
@@ -79,7 +79,7 @@ fun EditAlquilerDialog(
                     },
                     label = { Text("Cantidad *") },
                     leadingIcon = {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = null)
+                        Icon(Icons.Filled.ShoppingCart, contentDescription = null)
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -92,7 +92,7 @@ fun EditAlquilerDialog(
                     onValueChange = {},
                     label = { Text("Fecha de Devolución Prevista") },
                     leadingIcon = {
-                        Icon(Icons.Default.Event, contentDescription = null)
+                        Icon(Icons.Filled.Event, contentDescription = null)
                     },
                     trailingIcon = {
                         IconButton(onClick = {
@@ -109,7 +109,7 @@ fun EditAlquilerDialog(
                                 calendar.get(Calendar.DAY_OF_MONTH)
                             ).show()
                         }) {
-                            Icon(Icons.Default.EditCalendar, contentDescription = null)
+                            Icon(Icons.Filled.EditCalendar, contentDescription = null)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -127,7 +127,7 @@ fun EditAlquilerDialog(
                     },
                     label = { Text("Adelanto") },
                     leadingIcon = {
-                        Icon(Icons.Default.Payments, contentDescription = null)
+                        Icon(Icons.Filled.Payments, contentDescription = null)
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
@@ -176,7 +176,7 @@ fun EditAlquilerDialog(
                     onValueChange = { observaciones = it },
                     label = { Text("Observaciones") },
                     leadingIcon = {
-                        Icon(Icons.Default.Notes, contentDescription = null)
+                        Icon(Icons.Filled.Notes, contentDescription = null)
                     },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),

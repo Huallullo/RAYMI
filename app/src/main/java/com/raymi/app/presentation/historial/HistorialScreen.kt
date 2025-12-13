@@ -1,12 +1,31 @@
 package com.raymi.app.presentation.historial
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -15,7 +34,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.core.utils.formatTo
 import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.presentation.components.*
+import com.raymi.app.presentation.components.EstadoBadge
+import com.raymi.app.presentation.components.RaymiEmptyState
+import com.raymi.app.presentation.components.RaymiLoadingIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,14 +52,9 @@ fun HistorialScreen(
                 title = { Text("Historial de Alquileres") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { viewModel.loadHistorial() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
-                    }
-                }
             )
         }
     ) { paddingValues ->
@@ -54,7 +70,7 @@ fun HistorialScreen(
 
                 uiState.alquileres.isEmpty() -> {
                     RaymiEmptyState(
-                        icon = Icons.Default.History,
+                        icon = Icons.Filled.History,
                         title = "Sin historial",
                         description = "El historial de alquileres aparecerá aquí"
                     )
@@ -112,7 +128,7 @@ fun HistorialScreen(
                                         )
                                     }
 
-                                    Divider()
+                                    HorizontalDivider()
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),

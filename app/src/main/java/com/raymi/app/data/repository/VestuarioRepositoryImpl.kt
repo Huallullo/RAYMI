@@ -7,8 +7,12 @@ import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.Vestuario
 import com.raymi.app.domain.repository.VestuarioRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Implementación del repositorio de vestuarios
@@ -22,23 +26,16 @@ class VestuarioRepositoryImpl @Inject constructor(
      * Obtiene todos los vestuarios de Firebase
      * @return Flow con la lista de vestuarios o error
      */
-    override suspend fun getVestuarios(): Flow<Resource<List<Vestuario>>> = flow {
-        try {
-            emit(Resource.Loading())
-
-            val documents = dataSource.getAllDocuments(
-                FirebaseDataSource.COLLECTION_VESTUARIOS
-            )
-
-            val vestuarios = documents.map { (id, data) ->
-                VestuarioDto.fromMap(id, data).toDomain()
-            }.sortedBy { it.codigo }
-
-            emit(Resource.Success(vestuarios))
-
-        } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener vestuarios: ${e.message}"))
-        }
+    override suspend fun getVestuarios(): Flow<Resource<List<Vestuario>>> {
+        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_VESTUARIOS)
+            .map { documents ->
+                val vestuarios = documents
+                    .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
+                    .sortedBy { it.codigo }
+                Resource.Success(vestuarios) as Resource<List<Vestuario>>
+            }
+            .onStart { emit(Resource.Loading()) }
+            .catch { e -> emit(Resource.Error("Error al obtener vestuarios: ${e.message}")) }
     }
 
     /**
@@ -62,7 +59,9 @@ class VestuarioRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Vestuario no encontrado"))
             }
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al obtener vestuario: ${e.message}"))
         }
     }
@@ -90,7 +89,9 @@ class VestuarioRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(vestuarios))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al obtener vestuarios por estado: ${e.message}"))
         }
     }
@@ -120,6 +121,8 @@ class VestuarioRepositoryImpl @Inject constructor(
                 emit(Resource.Success(null))
             }
 
+        }catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al buscar vestuario: ${e.message}"))
         }
@@ -134,28 +137,17 @@ class VestuarioRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Validar que no exista un vestuario con el mismo código
-            val existente = dataSource.queryDocuments(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                "codigo",
-                vestuario.codigo
-            )
-
-            if (existente.isNotEmpty()) {
-                emit(Resource.Error("Ya existe un vestuario con este código"))
-                return@flow
-            }
-
-            // Convertir a DTO y guardar
             val dto = VestuarioDto.fromDomain(vestuario)
-            val documentId = dataSource.addDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                dto.toMap()
+            val documentId = dataSource.addVestuarioWithUniqueCodigo(
+                vestuarioData = dto.toMap(),
+                codigoRaw = vestuario.codigo
             )
 
             emit(Resource.Success(documentId))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al agregar vestuario: ${e.message}"))
         }
     }
@@ -183,7 +175,9 @@ class VestuarioRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al actualizar vestuario: ${e.message}"))
         }
     }
@@ -209,7 +203,9 @@ class VestuarioRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al actualizar estado: ${e.message}"))
         }
     }
@@ -246,7 +242,9 @@ class VestuarioRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(Unit))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al eliminar vestuario: ${e.message}"))
         }
     }
@@ -260,24 +258,32 @@ class VestuarioRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.getAllDocuments(
-                FirebaseDataSource.COLLECTION_VESTUARIOS
+            val q = query.trim().lowercase()
+            if (q.isBlank()) {
+                val documents = dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_VESTUARIOS)
+                val vestuarios = documents
+                    .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
+                    .sortedBy { it.codigo }
+
+                emit(Resource.Success(vestuarios))
+                return@flow
+            }
+
+            val documents = dataSource.queryArrayContains(
+                collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
+                field = "searchTerms",
+                value = q
             )
 
-            // Filtrar localmente
             val vestuarios = documents
                 .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
-                .filter { vestuario ->
-                    vestuario.danza.contains(query, ignoreCase = true) ||
-                            vestuario.departamento.contains(query, ignoreCase = true) ||
-                            vestuario.descripcion.contains(query, ignoreCase = true) ||
-                            vestuario.codigo.contains(query, ignoreCase = true)
-                }
                 .sortedBy { it.codigo }
 
             emit(Resource.Success(vestuarios))
 
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        }catch (e: Exception) {
             emit(Resource.Error("Error al buscar vestuarios: ${e.message}"))
         }
     }

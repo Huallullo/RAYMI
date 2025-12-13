@@ -9,16 +9,13 @@ import com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase
 import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
 import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel para la gestión de clientes
- * Maneja la lista de clientes, búsqueda y operaciones CRUD
- */
 @HiltViewModel
 class ClientesViewModel @Inject constructor(
     private val getClientesUseCase: GetClientesUseCase,
@@ -27,22 +24,18 @@ class ClientesViewModel @Inject constructor(
     private val deleteClienteUseCase: DeleteClienteUseCase
 ) : ViewModel() {
 
-    // ========== ESTADOS UI ==========
-
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
+
+    private var observeJob: Job? = null
 
     init {
         loadClientes()
     }
 
-    // ========== ACCIONES ==========
-
-    /**
-     * Carga la lista de clientes
-     */
     fun loadClientes() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             getClientesUseCase().collect { result ->
                 when (result) {
                     is Resource.Loading -> {
@@ -50,9 +43,10 @@ class ClientesViewModel @Inject constructor(
                     }
 
                     is Resource.Success -> {
+                        val clientes = result.data ?: emptyList()
                         _uiState.value = _uiState.value.copy(
-                            clientes = result.data ?: emptyList(),
-                            filteredClientes = result.data ?: emptyList(),
+                            clientes = clientes,
+                            filteredClientes = applySearchFilter(clientes, _uiState.value.searchQuery),
                             isLoading = false,
                             error = null
                         )
@@ -69,46 +63,31 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Busca clientes por texto
-     */
     fun searchClientes(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        _uiState.value = _uiState.value.copy(
+            searchQuery = query,
+            filteredClientes = applySearchFilter(_uiState.value.clientes, query)
+        )
+    }
 
-        if (query.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                filteredClientes = _uiState.value.clientes
-            )
-            return
-        }
-
-        val filtered = _uiState.value.clientes.filter { cliente ->
+    private fun applySearchFilter(clientes: List<Cliente>, query: String): List<Cliente> {
+        if (query.isBlank()) return clientes
+        return clientes.filter { cliente ->
             cliente.nombre.contains(query, ignoreCase = true) ||
                     cliente.apellidos.contains(query, ignoreCase = true) ||
                     cliente.dni.contains(query, ignoreCase = true) ||
                     cliente.telefono.contains(query, ignoreCase = true)
         }
-
-        _uiState.value = _uiState.value.copy(filteredClientes = filtered)
     }
 
-    /**
-     * Muestra el diálogo para agregar cliente
-     */
     fun showAddClienteDialog() {
         _uiState.value = _uiState.value.copy(showAddDialog = true)
     }
 
-    /**
-     * Oculta el diálogo de agregar cliente
-     */
     fun hideAddClienteDialog() {
         _uiState.value = _uiState.value.copy(showAddDialog = false)
     }
 
-    /**
-     * Muestra el diálogo para editar cliente
-     */
     fun showEditClienteDialog(cliente: Cliente) {
         _uiState.value = _uiState.value.copy(
             showEditDialog = true,
@@ -116,9 +95,6 @@ class ClientesViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Oculta el diálogo de editar cliente
-     */
     fun hideEditClienteDialog() {
         _uiState.value = _uiState.value.copy(
             showEditDialog = false,
@@ -126,9 +102,6 @@ class ClientesViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Agrega un nuevo cliente
-     */
     fun addCliente(cliente: Cliente) {
         viewModelScope.launch {
             addClienteUseCase(cliente).collect { result ->
@@ -143,7 +116,7 @@ class ClientesViewModel @Inject constructor(
                             showAddDialog = false,
                             successMessage = "Cliente agregado correctamente"
                         )
-                        loadClientes()
+                        // sin recarga manual: realtime lo actualiza
                     }
 
                     is Resource.Error -> {
@@ -157,9 +130,6 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Actualiza un cliente existente
-     */
     fun updateCliente(cliente: Cliente) {
         viewModelScope.launch {
             updateClienteUseCase(cliente).collect { result ->
@@ -175,7 +145,6 @@ class ClientesViewModel @Inject constructor(
                             selectedCliente = null,
                             successMessage = "Cliente actualizado correctamente"
                         )
-                        loadClientes()
                     }
 
                     is Resource.Error -> {
@@ -189,9 +158,6 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Elimina un cliente
-     */
     fun deleteCliente(clienteId: String) {
         viewModelScope.launch {
             deleteClienteUseCase(clienteId).collect { result ->
@@ -205,7 +171,6 @@ class ClientesViewModel @Inject constructor(
                             isDeleting = false,
                             successMessage = "Cliente eliminado correctamente"
                         )
-                        loadClientes()
                     }
 
                     is Resource.Error -> {
@@ -219,9 +184,6 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Limpia los mensajes
-     */
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(
             error = null,
@@ -230,9 +192,6 @@ class ClientesViewModel @Inject constructor(
     }
 }
 
-/**
- * Estado UI para la pantalla de clientes
- */
 data class ClientesUiState(
     val clientes: List<Cliente> = emptyList(),
     val filteredClientes: List<Cliente> = emptyList(),
