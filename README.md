@@ -231,12 +231,12 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más información.
+Este proyecto está bajo la Licencia Propia.
 
 ## 📞 Contacto
 
 Proyecto RAYMI - Sistema de Gestión de Alquiler de Vestuarios
-
+988461129 - Abel huallullo matos
 ---
 
-**Hecho con ❤️ en Perú 🇵🇪**
+**Hecho con ❤️ en Perú **
