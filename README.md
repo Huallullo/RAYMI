@@ -64,20 +64,33 @@ com.raymi.app/
 // Compose
 androidx.compose:compose-bom:2024.11.00
 androidx.compose.material3:material3
+androidx.navigation:navigation-compose:2.8.5
 
 // Firebase
 com.google.firebase:firebase-bom:33.7.0
 com.google.firebase:firebase-auth
 com.google.firebase:firebase-firestore
+com.google.firebase:firebase-analytics
 
 // Hilt
-com.google.dagger:hilt-android:2.52
+com.google.dagger:hilt-android:2.51.1
 androidx.hilt:hilt-navigation-compose:1.2.0
 
-// Navigation
-androidx.navigation:navigation-compose:2.8.5
+// Coroutines
+org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0
+org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0
 ```
 
+
+## 🧩 Notas Técnicas
+```md
+- Las operaciones de alquiler/devolución usan transacciones atómicas en Firestore para evitar inconsistencias.
+- Se implementó unicidad transaccional para:
+  - `clientes.dni`
+  - `vestuarios.codigo`
+  usando colecciones índice:
+  - `clientes_dni_index`
+  - `vestuarios_codigo_index`
 ## 🚀 Instalación
 
 1. **Clonar el repositorio**
@@ -182,11 +195,18 @@ service cloud.firestore {
 
 ## 🧪 Testing
 
-```bash
-# Tests unitarios
-./gradlew test
+### Estructura de pruebas
 
-# Tests instrumentados
+- `app/src/test` → pruebas unitarias (JVM local)
+- `app/src/androidTest` → pruebas instrumentadas (emulador/dispositivo)
+
+### Ejecutar pruebas
+
+```bash
+# Unit tests
+./gradlew testDebugUnitTest
+
+# Instrumented tests (requiere emulador/dispositivo)
 ./gradlew connectedAndroidTest
 ```
 
@@ -211,12 +231,12 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más información.
+Este proyecto está bajo la Licencia Propia.
 
 ## 📞 Contacto
 
 Proyecto RAYMI - Sistema de Gestión de Alquiler de Vestuarios
-
+988461129 - Abel huallullo matos
 ---
 
-**Hecho con ❤️ en Perú 🇵🇪**
+**Hecho con ❤️ en Perú **
