@@ -64,6 +64,24 @@ data class ClienteDto(
                 createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now()
             )
         }
+        private fun buildSearchTerms(
+            dni: String,
+            nombre: String,
+            apellidos: String
+        ): List<String> {
+            val baseTokens = listOf(dni, nombre, apellidos)
+                .flatMap { it.trim().lowercase().split("\\s+".toRegex()) }
+                .filter { it.isNotBlank() }
+
+            val prefixes = mutableSetOf<String>()
+            baseTokens.forEach { token ->
+                val clean = token.take(30)
+                for (i in 1..clean.length) {
+                    prefixes.add(clean.substring(0, i))
+                }
+            }
+            return prefixes.toList()
+        }
     }
 
     /**
@@ -77,7 +95,8 @@ data class ClienteDto(
             "telefono" to telefono,
             "email" to email,
             "direccion" to direccion,
-            "createdAt" to createdAt
+            "createdAt" to createdAt,
+            "searchTerms" to buildSearchTerms(dni, nombre, apellidos)
         )
     }
 }
