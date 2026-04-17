@@ -86,7 +86,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
 
-    // Hilt (Dependency Injection) - ✅ VERSIÓN CORREGIDA
+    // Hilt (Dependency Injection)
     implementation("com.google.dagger:hilt-android:2.51.1")
     implementation(libs.junit.junit)
     ksp("com.google.dagger:hilt-compiler:2.51.1")
@@ -121,4 +121,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("app.cash.turbine:turbine:1.1.0")
+// Pruebas Unitarias (JUnit, Truth, MockK, Coroutines Test)
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.google.truth:truth:1.1.5")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+
+// Pruebas de Integración / Android (Espresso, Compose UI Test)
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.0")
+
 }
