@@ -2,7 +2,7 @@ name: Android CI for RAYMI
 
 on:
   push:
-    branches: [ "master" ]  # Cambié "main" por "master" porque tu rama principal se llama master
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -21,7 +21,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Cache Gradle
-        uses: actions/cache@v3
+        uses: actions/cache@v4  # Actualizado a v4
         with:
           path: |
             ~/.gradle/caches
@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4  # Cambio crítico
         with:
           name: test-results
           path: app/build/reports/tests/
