@@ -1,32 +1,66 @@
 package com.raymi.app.presentation.auth
 
 import com.raymi.app.domain.usecase.auth.LoginUseCase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelValidationTest {
 
-    @Test
-    fun login_con_campos_vacios_muestra_errores() {
-        val viewModel = LoginViewModel(LoginUseCase(FakeAuthRepositoryNoOp()))
+    private val testDispatcher = StandardTestDispatcher()
 
-        viewModel.login()
+    @Before
+    fun setUp() {
+        // Configura el Main dispatcher para que use nuestro dispatcher de prueba
+        Dispatchers.setMain(testDispatcher)
+    }
 
-        val state = viewModel.uiState.value
-        assertEquals("El email es requerido", state.emailError)
-        assertEquals("La contraseña es requerida", state.passwordError)
-        assertFalse(state.isLoginSuccessful)
+    @After
+    fun tearDown() {
+        // Restaura el Main dispatcher original después de las pruebas
+        Dispatchers.resetMain()
     }
 
     @Test
-    fun togglePasswordVisibility_cambia_estado() {
+    fun login_con_credenciales_correctas_esExitoso() {
         val viewModel = LoginViewModel(LoginUseCase(FakeAuthRepositoryNoOp()))
 
-        val initial = viewModel.uiState.value.isPasswordVisible
-        viewModel.togglePasswordVisibility()
-        val after = viewModel.uiState.value.isPasswordVisible
+        viewModel.onEmailChange("admin@raymi.com")
+        viewModel.onPasswordChange("admin123")
+        viewModel.login()
 
-        assertFalse(initial == after)
+        // Avanzar el dispatcher para que se ejecuten las corutinas lanzadas
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isLoginSuccessful)
+        assertNull(state.emailError)
+        assertNull(state.passwordError)
+    }
+
+    @Test
+    fun login_con_credenciales_incorrectas_muestraError() {
+        val viewModel = LoginViewModel(LoginUseCase(FakeAuthRepositoryNoOp()))
+
+        viewModel.onEmailChange("admin@raymi.com")
+        viewModel.onPasswordChange("claveIncorrecta")
+        viewModel.login()
+
+        // Avanzar el dispatcher para resolver las corutinas pendientes
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoginSuccessful)
+        assertEquals("Credenciales inválidas", state.error)
     }
 }

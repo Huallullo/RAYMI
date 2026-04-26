@@ -7,264 +7,264 @@ class ValidatorsTest {
 
     // ==================== DNI ====================
     @Test
-    fun validateDni_correctLength_allDigits_returnsValid() {
-        val result = Validators.validateDni("12345678")
-        assertThat(result.isValid).isTrue()
+    fun validarDni_correcto_8DigitosNumericos_devuelveValido() {
+        val resultado = Validators.validateDni("12345678")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateDni_blank_returnsError() {
-        val result = Validators.validateDni("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El DNI es requerido")
+    fun validarDni_vacio_devuelveError() {
+        val resultado = Validators.validateDni("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El DNI es requerido")
     }
 
     @Test
-    fun validateDni_lessThanRequiredDigits_returnsError() {
-        val result = Validators.validateDni("123")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El DNI debe tener 8 dígitos")
+    fun validarDni_menosDe8Digitos_devuelveError() {
+        val resultado = Validators.validateDni("1234567")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El DNI debe tener 8 dígitos")
     }
 
     @Test
-    fun validateDni_moreThanRequiredDigits_returnsError() {
-        val result = Validators.validateDni("123456789")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El DNI debe tener 8 dígitos")
+    fun validarDni_masDe8Digitos_devuelveError() {
+        val resultado = Validators.validateDni("123456789")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El DNI debe tener 8 dígitos")
     }
 
     @Test
-    fun validateDni_containsLetters_returnsError() {
-        val result = Validators.validateDni("1234A678")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El DNI solo debe contener números")
+    fun validarDni_contieneLetras_devuelveError() {
+        val resultado = Validators.validateDni("1234A678")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El DNI solo debe contener números")
     }
 
     @Test
-    fun validateDni_containsSpecialCharacters_returnsError() {
-        val result = Validators.validateDni("1234-678")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El DNI solo debe contener números")
+    fun validarDni_contieneCaracteresEspeciales_devuelveError() {
+        val resultado = Validators.validateDni("1234-678")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El DNI solo debe contener números")
     }
 
     // ==================== NOMBRE ====================
     @Test
-    fun validateNombre_valid_returnsValid() {
-        val result = Validators.validateNombre("Juan Carlos")
-        assertThat(result.isValid).isTrue()
+    fun validarNombre_valido_devuelveValido() {
+        val resultado = Validators.validateNombre("Juan Carlos")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateNombre_blank_returnsError() {
-        val result = Validators.validateNombre("  ")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El nombre es requerido")
+    fun validarNombre_vacio_devuelveError() {
+        val resultado = Validators.validateNombre("  ")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El nombre es requerido")
     }
 
     @Test
-    fun validateNombre_tooShort_returnsError() {
-        val result = Validators.validateNombre("J")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El nombre debe tener al menos 2 caracteres")
+    fun validarNombre_muyCorto_devuelveError() {
+        val resultado = Validators.validateNombre("J")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El nombre debe tener al menos 2 caracteres")
     }
 
     @Test
-    fun validateNombre_containsDigits_returnsError() {
-        val result = Validators.validateNombre("Juan1")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El nombre solo debe contener letras")
+    fun validarNombre_contieneDigitos_devuelveError() {
+        val resultado = Validators.validateNombre("Juan1")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El nombre solo debe contener letras")
     }
 
     // ==================== APELLIDOS ====================
     @Test
-    fun validateApellidos_valid_returnsValid() {
-        val result = Validators.validateApellidos("Pérez García")
-        assertThat(result.isValid).isTrue()
+    fun validarApellidos_validos_devuelveValido() {
+        val resultado = Validators.validateApellidos("Pérez García")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateApellidos_blank_returnsError() {
-        val result = Validators.validateApellidos("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("Los apellidos son requeridos")
+    fun validarApellidos_vacio_devuelveError() {
+        val resultado = Validators.validateApellidos("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("Los apellidos son requeridos")
     }
 
     @Test
-    fun validateApellidos_tooShort_returnsError() {
-        val result = Validators.validateApellidos("P")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("Los apellidos deben tener al menos 2 caracteres")
+    fun validarApellidos_muyCorto_devuelveError() {
+        val resultado = Validators.validateApellidos("P")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("Los apellidos deben tener al menos 2 caracteres")
     }
 
     // ==================== TELEFONO ====================
     @Test
-    fun validateTelefono_valid_returnsValid() {
-        val result = Validators.validateTelefono("987654321")
-        assertThat(result.isValid).isTrue()
+    fun validarTelefono_valido_9DigitosEmpiezaCon9_devuelveValido() {
+        val resultado = Validators.validateTelefono("987654321")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateTelefono_blank_returnsError() {
-        val result = Validators.validateTelefono("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El teléfono es requerido")
+    fun validarTelefono_vacio_devuelveError() {
+        val resultado = Validators.validateTelefono("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El teléfono es requerido")
     }
 
     @Test
-    fun validateTelefono_tooShort_returnsError() {
-        val result = Validators.validateTelefono("12345")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El teléfono debe tener al menos 9 dígitos")
+    fun validarTelefono_menosDe9Digitos_devuelveError() {
+        val resultado = Validators.validateTelefono("12345")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El teléfono debe tener al menos 9 dígitos")
     }
 
     @Test
-    fun validateTelefono_containsLetters_returnsError() {
-        val result = Validators.validateTelefono("98765A321")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El teléfono solo debe contener números")
+    fun validarTelefono_contieneLetras_devuelveError() {
+        val resultado = Validators.validateTelefono("98765A321")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El teléfono solo debe contener números")
     }
 
     // ==================== EMAIL ====================
     @Test
-    fun validateEmail_optionalBlank_returnsValid() {
-        val result = Validators.validateEmail("", isRequired = false)
-        assertThat(result.isValid).isTrue()
+    fun validarEmail_opcionalVacio_devuelveValido() {
+        val resultado = Validators.validateEmail("", isRequired = false)
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateEmail_requiredBlank_returnsError() {
-        val result = Validators.validateEmail("", isRequired = true)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El email es requerido")
+    fun validarEmail_requeridoVacio_devuelveError() {
+        val resultado = Validators.validateEmail("", isRequired = true)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El email es requerido")
     }
 
     @Test
-    fun validateEmail_invalidFormat_returnsError() {
-        val result = Validators.validateEmail("notanemail", isRequired = true)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("Email inválido")
+    fun validarEmail_formatoInvalido_devuelveError() {
+        val resultado = Validators.validateEmail("correoInvalido", isRequired = true)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("Email inválido")
     }
 
     @Test
-    fun validateEmail_validFormat_returnsValid() {
-        val result = Validators.validateEmail("test@example.com")
-        assertThat(result.isValid).isTrue()
+    fun validarEmail_formatoValido_devuelveValido() {
+        val resultado = Validators.validateEmail("usuario@dominio.com")
+        assertThat(resultado.isValid).isTrue()
     }
 
     // ==================== CODIGO VESTUARIO ====================
     @Test
-    fun validateCodigo_valid_returnsValid() {
-        val result = Validators.validateCodigo("V001")
-        assertThat(result.isValid).isTrue()
+    fun validarCodigoVestuario_valido_devuelveValido() {
+        val resultado = Validators.validateCodigo("V001")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateCodigo_blank_returnsError() {
-        val result = Validators.validateCodigo("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El código es requerido")
+    fun validarCodigoVestuario_vacio_devuelveError() {
+        val resultado = Validators.validateCodigo("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El código es requerido")
     }
 
     @Test
-    fun validateCodigo_tooShort_returnsError() {
-        val result = Validators.validateCodigo("A")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El código debe tener al menos 2 caracteres")
+    fun validarCodigoVestuario_muyCorto_devuelveError() {
+        val resultado = Validators.validateCodigo("A")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El código debe tener al menos 2 caracteres")
     }
 
     // ==================== PRECIO ====================
     @Test
-    fun validatePrecio_positive_returnsValid() {
-        val result = Validators.validatePrecio(100.0)
-        assertThat(result.isValid).isTrue()
+    fun validarPrecio_positivo_devuelveValido() {
+        val resultado = Validators.validatePrecio(100.0)
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validatePrecio_zero_returnsError() {
-        val result = Validators.validatePrecio(0.0)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El precio debe ser mayor a 0")
+    fun validarPrecio_cero_devuelveError() {
+        val resultado = Validators.validatePrecio(0.0)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El precio debe ser mayor a 0")
     }
 
     @Test
-    fun validatePrecio_tooHigh_returnsError() {
-        val result = Validators.validatePrecio(20000.0)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El precio parece muy alto")
+    fun validarPrecio_muyAlto_devuelveError() {
+        val resultado = Validators.validatePrecio(20000.0)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El precio parece muy alto")
     }
 
     @Test
-    fun validatePrecioText_valid_returnsValid() {
-        val result = Validators.validatePrecioText("150.50")
-        assertThat(result.isValid).isTrue()
+    fun validarPrecioTexto_valido_devuelveValido() {
+        val resultado = Validators.validatePrecioText("150.50")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validatePrecioText_blank_returnsError() {
-        val result = Validators.validatePrecioText("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El precio es requerido")
+    fun validarPrecioTexto_vacio_devuelveError() {
+        val resultado = Validators.validatePrecioText("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El precio es requerido")
     }
 
     @Test
-    fun validatePrecioText_notANumber_returnsError() {
-        val result = Validators.validatePrecioText("abc")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El precio debe ser un número válido")
+    fun validarPrecioTexto_noEsNumero_devuelveError() {
+        val resultado = Validators.validatePrecioText("abc")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El precio debe ser un número válido")
     }
 
     // ==================== ADELANTO ====================
     @Test
-    fun validateAdelanto_lessThanTotal_returnsValid() {
-        val result = Validators.validateAdelanto(50.0, 100.0)
-        assertThat(result.isValid).isTrue()
+    fun validarAdelanto_menorQueTotal_devuelveValido() {
+        val resultado = Validators.validateAdelanto(50.0, 100.0)
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validateAdelanto_negative_returnsError() {
-        val result = Validators.validateAdelanto(-10.0, 100.0)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El adelanto no puede ser negativo")
+    fun validarAdelanto_negativo_devuelveError() {
+        val resultado = Validators.validateAdelanto(-10.0, 100.0)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El adelanto no puede ser negativo")
     }
 
     @Test
-    fun validateAdelanto_greaterThanTotal_returnsError() {
-        val result = Validators.validateAdelanto(150.0, 100.0)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("El adelanto no puede ser mayor al precio total")
+    fun validarAdelanto_mayorQueTotal_devuelveError() {
+        val resultado = Validators.validateAdelanto(150.0, 100.0)
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("El adelanto no puede ser mayor al precio total")
     }
 
-    // ==================== PASSWORD ====================
+    // ==================== CONTRASEÑA ====================
     @Test
-    fun validatePassword_valid_returnsValid() {
-        val result = Validators.validatePassword("password123")
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun validatePassword_blank_returnsError() {
-        val result = Validators.validatePassword("")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("La contraseña es requerida")
+    fun validarPassword_valida_devuelveValido() {
+        val resultado = Validators.validatePassword("clave123")
+        assertThat(resultado.isValid).isTrue()
     }
 
     @Test
-    fun validatePassword_tooShort_returnsError() {
-        val result = Validators.validatePassword("12345")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).contains("caracteres")
+    fun validarPassword_vacia_devuelveError() {
+        val resultado = Validators.validatePassword("")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("La contraseña es requerida")
     }
 
     @Test
-    fun validatePasswordMatch_match_returnsValid() {
-        val result = Validators.validatePasswordMatch("abc123", "abc123")
-        assertThat(result.isValid).isTrue()
+    fun validarPassword_muyCorta_devuelveError() {
+        val resultado = Validators.validatePassword("12345")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).contains("caracteres")
     }
 
     @Test
-    fun validatePasswordMatch_mismatch_returnsError() {
-        val result = Validators.validatePasswordMatch("abc123", "abc124")
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errorMessage).isEqualTo("Las contraseñas no coinciden")
+    fun validarPasswordCoinciden_coinciden_devuelveValido() {
+        val resultado = Validators.validatePasswordMatch("abc123", "abc123")
+        assertThat(resultado.isValid).isTrue()
+    }
+
+    @Test
+    fun validarPasswordCoinciden_noCoinciden_devuelveError() {
+        val resultado = Validators.validatePasswordMatch("abc123", "abc124")
+        assertThat(resultado.isValid).isFalse()
+        assertThat(resultado.errorMessage).isEqualTo("Las contraseñas no coinciden")
     }
 }
