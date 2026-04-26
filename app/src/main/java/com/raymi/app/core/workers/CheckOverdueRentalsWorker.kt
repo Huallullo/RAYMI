@@ -4,16 +4,19 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.Timestamp
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Alquiler
+import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.first
 
 /**
- * Worker que verifica alquileres vencidos y envía notificaciones push y mensajes
+ * Worker que verifica diariamente alquileres vencidos y notifica a los clientes.
+ *
+ * Se programa desde [ScheduleOverdueCheckUseCase] con periodicidad de 1 día.
  */
 @HiltWorker
 class CheckOverdueRentalsWorker @AssistedInject constructor(
@@ -25,127 +28,103 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            // Obtener todos los alquileres
-            val alquileres = firebaseDataSource.getAllDocuments(FirebaseDataSource.COLLECTION_ALQUILERES)
-                .map { (id, data) ->
-                    // Convertir a Alquiler (simplificado)
-                    Alquiler(
-                        id = id,
-                        clienteId = data["clienteId"] as? String ?: "",
-                        clienteNombre = data["clienteNombre"] as? String ?: "",
-                        vestuarioId = data["vestuarioId"] as? String ?: "",
-                        vestuarioNombre = data["vestuarioNombre"] as? String ?: "",
-                        vestuarioCodigo = data["vestuarioCodigo"] as? String ?: "",
-                        cantidad = (data["cantidad"] as? Long)?.toInt() ?: 1,
-                        fechaInicio = data["fechaInicio"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                        fechaFinPrevista = data["fechaFinPrevista"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                        fechaDevolucion = data["fechaDevolucion"] as? com.google.firebase.Timestamp,
-                        precioUnitario = (data["precioUnitario"] as? Double) ?: 0.0,
-                        precioTotal = (data["precioTotal"] as? Double) ?: 0.0,
-                        adelanto = (data["adelanto"] as? Double) ?: 0.0,
-                        saldo = (data["saldo"] as? Double) ?: 0.0,
-                        estado = when (data["estado"] as? String) {
-                            "ACTIVO" -> com.raymi.app.domain.model.EstadoAlquiler.ACTIVO
-                            "DEVUELTO" -> com.raymi.app.domain.model.EstadoAlquiler.DEVUELTO
-                            "VENCIDO" -> com.raymi.app.domain.model.EstadoAlquiler.VENCIDO
-                            "CANCELADO" -> com.raymi.app.domain.model.EstadoAlquiler.CANCELADO
-                            else -> com.raymi.app.domain.model.EstadoAlquiler.ACTIVO
-                        },
-                        observaciones = data["observaciones"] as? String ?: "",
-                        createdAt = data["createdAt"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                        updatedAt = data["updatedAt"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now()
-                    )
-                }
+            val vencidos = obtenerAlquileresVencidos()
 
-            // Filtrar alquileres vencidos
-            val vencidos = alquileres.filter { it.estaVencido }
+            if (vencidos.isEmpty()) {
+                return Result.success()
+            }
 
-            if (vencidos.isNotEmpty()) {
-                // Enviar notificación push
-                sendOverdueNotification(vencidos.size)
+            // Notificar a cada cliente con alquiler vencido
+            vencidos.forEach { alquiler ->
+                notificarClienteVencido(alquiler)
             }
 
             Result.success()
         } catch (e: Exception) {
-            Result.failure()
+            // Reintentar si hay error de red; fallar definitivamente en errores de lógica
+            if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
 
-    private suspend fun sendOverdueNotification(count: Int) {
+    /**
+     * Obtiene todos los alquileres activos que están vencidos desde Firestore.
+     */
+    private suspend fun obtenerAlquileresVencidos(): List<Alquiler> {
+        return firebaseDataSource
+            .getAllDocuments(FirebaseDataSource.COLLECTION_ALQUILERES)
+            .mapNotNull { (id, data) -> mapToAlquiler(id, data) }
+            .filter { it.estado == EstadoAlquiler.ACTIVO && it.estaVencido }
+    }
+
+    /**
+     * Envía notificación WhatsApp/SMS al cliente del alquiler vencido.
+     * Los errores de envío se ignoran para no bloquear el resto de notificaciones.
+     */
+    private suspend fun notificarClienteVencido(alquiler: Alquiler) {
         try {
-            // Obtener token FCM (en producción, enviar a servidor)
-            val token = FirebaseMessaging.getInstance().token.await()
+            val telefonoCliente = obtenerTelefonoCliente(alquiler.clienteId)
+            if (telefonoCliente.isBlank()) return
 
-            // Aquí normalmente enviarías la notificación desde un servidor
-            // Por simplicidad, solo logueamos
-            println("Alquileres vencidos: $count")
-
-            // Enviar mensajes a clientes con alquileres vencidos
-            val vencidos = getVencidos() // Necesitamos obtener los alquileres vencidos
-            for (alquiler in vencidos) {
-                enviarMensajeUseCase.enviarRecordatorioVencido(
-                    telefonoCliente = getTelefonoCliente(alquiler.clienteId),
-                    nombreCliente = alquiler.clienteNombre,
-                    vestuarioNombre = alquiler.vestuarioNombre,
-                    diasVencido = alquiler.diasRestantes * -1 // Días vencido
-                ).collect { result ->
-                    when (result) {
-                        is com.raymi.app.domain.model.Resource.Success -> {
-                            println("Mensaje enviado a ${alquiler.clienteNombre}: ${result.data}")
-                        }
-                        is com.raymi.app.domain.model.Resource.Error -> {
-                            println("Error enviando mensaje a ${alquiler.clienteNombre}: ${result.message}")
-                        }
-                        is com.raymi.app.domain.model.Resource.Loading -> {
-                            // Loading
-                        }
-                    }
-                }
-            }
-
-            // En una implementación real, usarías Firebase Functions o un servidor
-            // para enviar notificaciones push a administradores
-
-        } catch (e: Exception) {
-            // Manejar error
+            // Ignoramos el resultado; si falla, el siguiente ciclo lo reintentará
+            enviarMensajeUseCase.enviarRecordatorioVencido(
+                telefonoCliente = telefonoCliente,
+                nombreCliente   = alquiler.clienteNombre,
+                vestuarioNombre = alquiler.vestuarioNombre,
+                diasVencido     = (-alquiler.diasRestantes).coerceAtLeast(1)
+            ).first()
+        } catch (_: Exception) {
+            // No propagamos el error para seguir con el resto de alquileres
         }
     }
 
-    private suspend fun getVencidos(): List<Alquiler> {
-        // Reutilizar la lógica del doWork para obtener alquileres vencidos
-        return firebaseDataSource.getAllDocuments(FirebaseDataSource.COLLECTION_ALQUILERES)
-            .map { (id, data) ->
-                Alquiler(
-                    id = id,
-                    clienteId = data["clienteId"] as? String ?: "",
-                    clienteNombre = data["clienteNombre"] as? String ?: "",
-                    vestuarioId = data["vestuarioId"] as? String ?: "",
-                    vestuarioNombre = data["vestuarioNombre"] as? String ?: "",
-                    vestuarioCodigo = data["vestuarioCodigo"] as? String ?: "",
-                    cantidad = (data["cantidad"] as? Long)?.toInt() ?: 1,
-                    fechaInicio = data["fechaInicio"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                    fechaFinPrevista = data["fechaFinPrevista"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                    fechaDevolucion = data["fechaDevolucion"] as? com.google.firebase.Timestamp,
-                    precioUnitario = (data["precioUnitario"] as? Double) ?: 0.0,
-                    precioTotal = (data["precioTotal"] as? Double) ?: 0.0,
-                    adelanto = (data["adelanto"] as? Double) ?: 0.0,
-                    saldo = (data["saldo"] as? Double) ?: 0.0,
-                    estado = when (data["estado"] as? String) {
-                        "ACTIVO" -> com.raymi.app.domain.model.EstadoAlquiler.ACTIVO
-                        "DEVUELTO" -> com.raymi.app.domain.model.EstadoAlquiler.DEVUELTO
-                        "VENCIDO" -> com.raymi.app.domain.model.EstadoAlquiler.VENCIDO
-                        "CANCELADO" -> com.raymi.app.domain.model.EstadoAlquiler.CANCELADO
-                        else -> com.raymi.app.domain.model.EstadoAlquiler.ACTIVO
-                    },
-                    observaciones = data["observaciones"] as? String ?: "",
-                    createdAt = data["createdAt"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now(),
-                    updatedAt = data["updatedAt"] as? com.google.firebase.Timestamp ?: com.google.firebase.Timestamp.now()
-                )
-            }.filter { it.estaVencido }
+    /**
+     * Obtiene el teléfono de un cliente desde Firestore.
+     */
+    private suspend fun obtenerTelefonoCliente(clienteId: String): String {
+        if (clienteId.isBlank()) return ""
+        return try {
+            val data = firebaseDataSource.getDocument(
+                FirebaseDataSource.COLLECTION_CLIENTES,
+                clienteId
+            )
+            data?.get("telefono") as? String ?: ""
+        } catch (_: Exception) {
+            ""
+        }
     }
 
-    private suspend fun getTelefonoCliente(clienteId: String): String {
-        val clienteData = firebaseDataSource.getDocument(FirebaseDataSource.COLLECTION_CLIENTES, clienteId)
-        return clienteData?.get("telefono") as? String ?: ""
+    // ─── Mapeo de datos ──────────────────────────────────────────────────────
+
+    private fun mapToAlquiler(id: String, data: Map<String, Any>): Alquiler? {
+        return try {
+            Alquiler(
+                id              = id,
+                clienteId       = data["clienteId"]       as? String    ?: return null,
+                clienteNombre   = data["clienteNombre"]   as? String    ?: "",
+                vestuarioId     = data["vestuarioId"]     as? String    ?: return null,
+                vestuarioNombre = data["vestuarioNombre"] as? String    ?: "",
+                vestuarioCodigo = data["vestuarioCodigo"] as? String    ?: "",
+                cantidad        = (data["cantidad"]       as? Long)?.toInt() ?: 1,
+                fechaInicio     = data["fechaInicio"]     as? Timestamp ?: Timestamp.now(),
+                fechaFinPrevista= data["fechaFinPrevista"]as? Timestamp ?: Timestamp.now(),
+                fechaDevolucion = data["fechaDevolucion"] as? Timestamp,
+                precioUnitario  = (data["precioUnitario"] as? Number)?.toDouble() ?: 0.0,
+                precioTotal     = (data["precioTotal"]    as? Number)?.toDouble() ?: 0.0,
+                adelanto        = (data["adelanto"]       as? Number)?.toDouble() ?: 0.0,
+                saldo           = (data["saldo"]          as? Number)?.toDouble() ?: 0.0,
+                estado = when (data["estado"] as? String) {
+                    "ACTIVO"    -> EstadoAlquiler.ACTIVO
+                    "DEVUELTO"  -> EstadoAlquiler.DEVUELTO
+                    "VENCIDO"   -> EstadoAlquiler.VENCIDO
+                    "CANCELADO" -> EstadoAlquiler.CANCELADO
+                    else        -> EstadoAlquiler.ACTIVO
+                },
+                observaciones   = data["observaciones"]   as? String    ?: "",
+                createdAt       = data["createdAt"]       as? Timestamp ?: Timestamp.now(),
+                updatedAt       = data["updatedAt"]       as? Timestamp ?: Timestamp.now()
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 }

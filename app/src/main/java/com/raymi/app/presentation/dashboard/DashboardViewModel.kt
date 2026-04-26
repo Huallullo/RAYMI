@@ -39,47 +39,32 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
         dashboardJob = viewModelScope.launch {
-            // Clientes
             launch {
                 getClientesUseCase().collect { result ->
-                    when (result) {
-                        is Resource.Success -> {
-                            val totalClientes = result.data?.size ?: 0
-                            updateEstadisticas { copy(totalClientes = totalClientes) }
-                        }
-                        is Resource.Error -> {
-                            _uiState.value = _uiState.value.copy(error = result.message)
-                        }
-                        is Resource.Loading -> {}
+                    if (result is Resource.Success) {
+                        updateEstadisticas { copy(totalClientes = result.data?.size ?: 0) }
+                    } else if (result is Resource.Error) {
+                        _uiState.value = _uiState.value.copy(error = result.message)
                     }
                 }
             }
 
-            // Vestuarios
             launch {
                 getVestuariosUseCase().collect { result ->
-                    when (result) {
-                        is Resource.Success -> {
-                            val vestuarios = result.data ?: emptyList()
-                            val totalVestuarios = vestuarios.size
-                            val disponibles = vestuarios.count { it.estado.name == "DISPONIBLE" }
-
-                            updateEstadisticas {
-                                copy(
-                                    totalVestuarios = totalVestuarios,
-                                    vestuariosDisponibles = disponibles
-                                )
-                            }
+                    if (result is Resource.Success) {
+                        val vestuarios = result.data ?: emptyList()
+                        updateEstadisticas {
+                            copy(
+                                totalVestuarios      = vestuarios.size,
+                                vestuariosDisponibles = vestuarios.count { it.estado.name == "DISPONIBLE" }
+                            )
                         }
-                        is Resource.Error -> {
-                            _uiState.value = _uiState.value.copy(error = result.message)
-                        }
-                        is Resource.Loading -> {}
+                    } else if (result is Resource.Error) {
+                        _uiState.value = _uiState.value.copy(error = result.message)
                     }
                 }
             }
 
-            // Alquileres
             launch {
                 getAlquileresUseCase().collect { result ->
                     when (result) {
@@ -87,13 +72,10 @@ class DashboardViewModel @Inject constructor(
                             val alquileres = result.data ?: emptyList()
                             latestAlquileres = alquileres
 
-                            val activos = alquileres.count { it.estado.name == "ACTIVO" }
-                            val vencidos = alquileres.count { it.estaVencido }
-
                             updateEstadisticas {
                                 copy(
-                                    alquileresActivos = activos,
-                                    alquileresVencidos = vencidos
+                                    alquileresActivos  = alquileres.count { it.estado.name == "ACTIVO" },
+                                    alquileresVencidos = alquileres.count { it.estaVencido }
                                 )
                             }
 
@@ -125,49 +107,52 @@ class DashboardViewModel @Inject constructor(
 
     private fun recalculateIngresos() {
         val selectedMonth = _uiState.value.selectedMonth
-        val selectedYear = _uiState.value.selectedYear
+        val selectedYear  = _uiState.value.selectedYear
 
-        val ingresosMes = ingresoPeriodo(latestAlquileres, selectedMonth, selectedYear)
-        val ingresosTotales = latestAlquileres.sumOf { it.adelanto }
+        // ✅ FIX: se usa precioTotal (ingreso real del período), no adelanto
+        val ingresosMes     = ingresoPeriodo(latestAlquileres, selectedMonth, selectedYear)
+        // Acumulado total: suma de todos los precios cobrados históricamente
+        val ingresosTotales = latestAlquileres.sumOf { it.precioTotal }
 
         val (prevMonth, prevYear) = previousMonthYear(selectedMonth, selectedYear)
-        val ingresosMesAnterior = ingresoPeriodo(latestAlquileres, prevMonth, prevYear)
+        val ingresosMesAnterior   = ingresoPeriodo(latestAlquileres, prevMonth, prevYear)
 
-        val variacionPct = if (ingresosMesAnterior > 0.0) {
-            ((ingresosMes - ingresosMesAnterior) / ingresosMesAnterior) * 100.0
-        } else {
-            if (ingresosMes > 0.0) 100.0 else 0.0
+        val variacionPct = when {
+            ingresosMesAnterior > 0.0 ->
+                ((ingresosMes - ingresosMesAnterior) / ingresosMesAnterior) * 100.0
+            ingresosMes > 0.0 -> 100.0
+            else -> 0.0
         }
 
         updateEstadisticas {
             copy(
-                ingresosMes = ingresosMes,
+                ingresosMes     = ingresosMes,
                 ingresosTotales = ingresosTotales
             )
         }
 
         _uiState.value = _uiState.value.copy(
-            ingresoMesAnterior = ingresosMesAnterior,
-            variacionMensualPct = variacionPct
+            ingresoMesAnterior   = ingresosMesAnterior,
+            variacionMensualPct  = variacionPct
         )
     }
 
-    private fun ingresoPeriodo(
-        alquileres: List<Alquiler>,
-        month: Int,
-        year: Int
-    ): Double {
+    /**
+     * Suma el precioTotal de los alquileres creados en el mes/año indicado.
+     * Usar precioTotal (precio acordado) es más representativo del ingreso del período.
+     * Si se prefiere "dinero recibido", usar adelanto en su lugar.
+     */
+    private fun ingresoPeriodo(alquileres: List<Alquiler>, month: Int, year: Int): Double {
         return alquileres
             .filter { alquiler ->
                 val cal = Calendar.getInstance().apply { time = alquiler.createdAt.toDate() }
                 cal.get(Calendar.MONTH) == month && cal.get(Calendar.YEAR) == year
             }
-            .sumOf { it.adelanto }
+            .sumOf { it.precioTotal }   // ✅ era it.adelanto (incorrecto)
     }
 
-    private fun previousMonthYear(month: Int, year: Int): Pair<Int, Int> {
-        return if (month == 0) 11 to (year - 1) else (month - 1) to year
-    }
+    private fun previousMonthYear(month: Int, year: Int): Pair<Int, Int> =
+        if (month == 0) 11 to (year - 1) else (month - 1) to year
 
     private fun updateEstadisticas(update: Estadisticas.() -> Estadisticas) {
         _uiState.value = _uiState.value.copy(
@@ -179,19 +164,18 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-
     override fun onCleared() {
         dashboardJob?.cancel()
         super.onCleared()
     }
 
     data class DashboardUiState(
-        val estadisticas: Estadisticas = Estadisticas(),
-        val isLoading: Boolean = false,
-        val error: String? = null,
-        val selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH),
-        val selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR),
-        val ingresoMesAnterior: Double = 0.0,
-        val variacionMensualPct: Double = 0.0
+        val estadisticas        : Estadisticas = Estadisticas(),
+        val isLoading           : Boolean      = false,
+        val error               : String?      = null,
+        val selectedMonth       : Int          = Calendar.getInstance().get(Calendar.MONTH),
+        val selectedYear        : Int          = Calendar.getInstance().get(Calendar.YEAR),
+        val ingresoMesAnterior  : Double       = 0.0,
+        val variacionMensualPct : Double       = 0.0
     )
 }
