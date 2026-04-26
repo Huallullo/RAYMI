@@ -35,7 +35,14 @@ class VestuarioRepositoryImpl @Inject constructor(
                 Resource.Success(vestuarios) as Resource<List<Vestuario>>
             }
             .onStart { emit(Resource.Loading()) }
-            .catch { e -> emit(Resource.Error("Error al obtener vestuarios: ${e.message}")) }
+            .catch { e ->
+                // Manejar error de autenticación
+                if (e.message?.contains("Usuario no autenticado") == true) {
+                    emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
+                } else {
+                    emit(Resource.Error("Error al obtener vestuarios: ${e.message}"))
+                }
+            }
     }
 
     /**

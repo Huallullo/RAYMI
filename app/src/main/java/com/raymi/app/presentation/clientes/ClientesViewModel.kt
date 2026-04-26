@@ -8,6 +8,7 @@ import com.raymi.app.domain.usecase.cliente.AddClienteUseCase
 import com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase
 import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
 import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
+import com.raymi.app.domain.usecase.reniec.ConsultarReniecUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,8 @@ class ClientesViewModel @Inject constructor(
     private val getClientesUseCase: GetClientesUseCase,
     private val addClienteUseCase: AddClienteUseCase,
     private val updateClienteUseCase: UpdateClienteUseCase,
-    private val deleteClienteUseCase: DeleteClienteUseCase
+    private val deleteClienteUseCase: DeleteClienteUseCase,
+    private val consultarReniecUseCase: ConsultarReniecUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ClientesUiState())
@@ -189,6 +191,26 @@ class ClientesViewModel @Inject constructor(
             error = null,
             successMessage = null
         )
+    }
+
+    fun consultarReniec(dni: String, onResult: (Result<com.raymi.app.data.remote.ReniecData>) -> Unit) {
+        viewModelScope.launch {
+            consultarReniecUseCase(dni).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> {
+                        // Loading state handled in dialog
+                    }
+                    is Resource.Success -> {
+                        resource.data?.let { data ->
+                            onResult(Result.success(data))
+                        }
+                    }
+                    is Resource.Error -> {
+                        onResult(Result.failure(Exception(resource.message)))
+                    }
+                }
+            }
+        }
     }
 }
 

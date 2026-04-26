@@ -41,6 +41,14 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version =
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
+# WorkManager
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version = "2.9.1" }
+androidx-work-hilt = { group = "androidx.hilt", name = "hilt-work", version = "1.2.0" }
+
+# Twilio
+twilio = { group = "com.twilio.sdk", name = "twilio", version = "9.13.1" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

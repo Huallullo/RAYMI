@@ -56,6 +56,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 }
@@ -86,6 +87,14 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.messaging)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.work.hilt)
+
+    // Twilio
+    implementation(libs.twilio)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -110,6 +119,15 @@ dependencies {
 
     // Lottie (opcional)
     implementation(libs.lottie.compose)
+
+    // PDF generation
+    implementation("com.itextpdf:itext7-core:8.0.2")
+
+    // Ktor for HTTP client
+    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+    implementation("io.ktor:ktor-client-logging:2.3.12")
 
     // ========== PRUEBAS ==========
     // Unit Tests

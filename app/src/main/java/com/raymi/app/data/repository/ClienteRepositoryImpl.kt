@@ -41,7 +41,14 @@ class ClienteRepositoryImpl @Inject constructor(
                 Resource.Success(clientes) as Resource<List<Cliente>>
             }
             .onStart { emit(Resource.Loading()) }
-            .catch { e -> emit(Resource.Error("Error al obtener clientes: ${e.message}")) }
+            .catch { e ->
+                // Manejar error de autenticación
+                if (e.message?.contains("Usuario no autenticado") == true) {
+                    emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
+                } else {
+                    emit(Resource.Error("Error al obtener clientes: ${e.message}"))
+                }
+            }
     }
     /**
      * Obtiene un cliente específico por su ID

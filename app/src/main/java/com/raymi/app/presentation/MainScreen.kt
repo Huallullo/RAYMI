@@ -9,15 +9,20 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
 import com.raymi.app.core.navigation.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 
 /**
  * Pantalla principal que contiene el Scaffold con Bottom Navigation
  * Maneja la navegación entre las pantallas principales de la app
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    isUserAuthenticated: Boolean
+    isUserAuthenticated: Boolean,
+    auth: FirebaseAuth
 ) {
     val navController = rememberNavController()
 
@@ -36,6 +41,28 @@ fun MainScreen(
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
     Scaffold(
+        topBar = {
+            if (showBottomBar) {
+                TopAppBar(
+                    title = { Text("RAYMI") },
+                    actions = {
+                        IconButton(onClick = {
+                            auth.signOut()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = "Cerrar sesión"
+                            )
+                        }
+                    }
+                )
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(

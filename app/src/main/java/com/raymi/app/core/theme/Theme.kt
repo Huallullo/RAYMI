@@ -1,7 +1,6 @@
 package com.raymi.app.core.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -12,28 +11,28 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = RaymiColors.Gold,
-    onPrimary = RaymiColors.DarkBackground,
-    primaryContainer = RaymiColors.GoldVariant,
-    onPrimaryContainer = RaymiColors.DarkBackground,
+    primary = RaymiColors.ElectricBlue,
+    onPrimary = RaymiColors.TextPrimary,
+    primaryContainer = RaymiColors.ElectricBlueGlow,
+    onPrimaryContainer = RaymiColors.TextPrimary,
 
-    secondary = RaymiColors.IncaRed,
+    secondary = RaymiColors.MagentaFuture,
     onSecondary = RaymiColors.TextPrimary,
-    secondaryContainer = RaymiColors.IncaRedDark,
+    secondaryContainer = RaymiColors.MagentaGlow,
     onSecondaryContainer = RaymiColors.TextPrimary,
 
-    tertiary = RaymiColors.Terracota,
+    tertiary = RaymiColors.EmeraldMatrix,
     onTertiary = RaymiColors.TextPrimary,
 
-    background = RaymiColors.DarkBackground,
-    onBackground = RaymiColors.TextPrimary,
+    background = RaymiColors.DarkCyber,
+    onBackground = RaymiColors.TextCyber,
 
     surface = RaymiColors.DarkSurface,
-    onSurface = RaymiColors.TextPrimary,
+    onSurface = RaymiColors.TextCyber,
     surfaceVariant = RaymiColors.DarkCard,
     onSurfaceVariant = RaymiColors.TextSecondary,
 
-    error = RaymiColors.Error,
+    error = RaymiColors.ErrorNeon,
     onError = RaymiColors.TextPrimary,
 
     outline = RaymiColors.TextTertiary,
@@ -41,29 +40,29 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = RaymiColors.IncaRed,
-    onPrimary = RaymiColors.TextPrimary,
-    primaryContainer = RaymiColors.IncaRedLight,
+    primary = RaymiColors.CyanHolo,
+    onPrimary = RaymiColors.TextPrimaryLight,
+    primaryContainer = RaymiColors.CyanQuantum,
     onPrimaryContainer = RaymiColors.TextPrimaryLight,
 
-    secondary = RaymiColors.Gold,
-    onSecondary = RaymiColors.DarkBackground,
-    secondaryContainer = RaymiColors.GoldLight,
+    secondary = RaymiColors.GoldCyber,
+    onSecondary = RaymiColors.TextPrimaryLight,
+    secondaryContainer = RaymiColors.GoldQuantum,
     onSecondaryContainer = RaymiColors.TextPrimaryLight,
 
-    tertiary = RaymiColors.Terracota,
-    onTertiary = RaymiColors.TextPrimary,
+    tertiary = RaymiColors.PurpleElectric,
+    onTertiary = RaymiColors.TextPrimaryLight,
 
-    background = RaymiColors.LightBackground,
-    onBackground = RaymiColors.TextPrimaryLight,
+    background = RaymiColors.LightCyber,
+    onBackground = RaymiColors.TextCyberLight,
 
     surface = RaymiColors.LightSurface,
-    onSurface = RaymiColors.TextPrimaryLight,
+    onSurface = RaymiColors.TextCyberLight,
     surfaceVariant = RaymiColors.LightCard,
     onSurfaceVariant = RaymiColors.TextSecondaryLight,
 
-    error = RaymiColors.Error,
-    onError = RaymiColors.TextPrimary,
+    error = RaymiColors.ErrorNeon,
+    onError = RaymiColors.TextPrimaryLight,
 
     outline = RaymiColors.TextSecondaryLight,
     outlineVariant = RaymiColors.TextSecondaryLight.copy(alpha = 0.3f)
@@ -71,7 +70,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun RaymiTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Cambiado para forzar tema claro
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

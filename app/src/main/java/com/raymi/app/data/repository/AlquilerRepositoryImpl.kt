@@ -37,7 +37,14 @@ class AlquilerRepositoryImpl @Inject constructor(
                 Resource.Success(alquileres) as Resource<List<Alquiler>>
             }
             .onStart { emit(Resource.Loading()) }
-            .catch { e -> emit(Resource.Error("Error al obtener alquileres: ${e.message}")) }
+            .catch { e ->
+                // Manejar error de autenticación
+                if (e.message?.contains("Usuario no autenticado") == true) {
+                    emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
+                } else {
+                    emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
+                }
+            }
     }
 
     /**

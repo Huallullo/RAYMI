@@ -30,7 +30,10 @@ class MainActivity : ComponentActivity() {
                 val isUserAuthenticated = auth.currentUser != null
 
                 // Mostrar la pantalla principal con navegación
-                MainScreen(isUserAuthenticated = isUserAuthenticated)
+                MainScreen(
+                    isUserAuthenticated = isUserAuthenticated,
+                    auth = auth
+                )
             }
         }
     }

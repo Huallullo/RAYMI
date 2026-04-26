@@ -16,12 +16,14 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,18 +35,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.Timestamp
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Cliente
+import com.raymi.app.presentation.clientes.ClientesViewModel
 
 /**
  * Diálogo para agregar un nuevo cliente
- * Incluye validación de campos
+ * Incluye validación de campos y consulta a RENIEC
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddClienteDialog(
+    viewModel: ClientesViewModel = hiltViewModel(),
     onDismiss: () -> Unit,
     onConfirm: (Cliente) -> Unit,
     isLoading: Boolean = false
@@ -62,7 +67,29 @@ fun AddClienteDialog(
     var telefonoError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
 
+    var isConsultingReniec by remember { mutableStateOf(false) }
+
     val scrollState = rememberScrollState()
+
+    /**
+     * Consulta datos en RENIEC
+     */
+    fun consultarReniec() {
+        if (dni.length == 8) {
+            isConsultingReniec = true
+            viewModel.consultarReniec(dni) { result ->
+                isConsultingReniec = false
+                result.onSuccess { reniecData ->
+                    nombre = reniecData.nombres
+                    apellidos = "${reniecData.apellidoPaterno} ${reniecData.apellidoMaterno}"
+                    nombreError = null
+                    apellidosError = null
+                }.onFailure { error ->
+                    dniError = error.message ?: "Error al consultar RENIEC"
+                }
+            }
+        }
+    }
 
     /**
      * Valida todos los campos
@@ -250,6 +277,31 @@ fun AddClienteDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading
                 )
+
+                // Botón para consultar RENIEC
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            dniError = null
+                            consultarReniec()
+                        },
+                        enabled = !isLoading && !isConsultingReniec
+                    ) {
+                        if (isConsultingReniec) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Filled.Search, contentDescription = null)
+                            Text("Consultar RENIEC")
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
