@@ -62,5 +62,6 @@ class LoginViewModelValidationTest {
         val state = viewModel.uiState.value
         assertFalse(state.isLoginSuccessful)
         assertEquals("Credenciales inválidas", state.error)
+        dasdasdasdas
     }
 }
