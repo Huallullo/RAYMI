@@ -64,10 +64,10 @@ class EnviarMensajeUseCase @Inject constructor(
     /**
      * Comparte PDF por WhatsApp
      */
-    fun compartirPdfPorWhatsApp(pdfFile: java.io.File, mensaje: String = ""): Flow<Resource<String>> = flow {
+    fun compartirPdfPorWhatsApp(pdfUri: android.net.Uri, mensaje: String = ""): Flow<Resource<String>> = flow {
         try {
             emit(Resource.Loading())
-            val result = twilioService.compartirPdfPorWhatsApp(pdfFile, mensaje)
+            val result = twilioService.compartirPdfPorWhatsApp(pdfUri, mensaje)
             emit(result)
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Error desconocido"))

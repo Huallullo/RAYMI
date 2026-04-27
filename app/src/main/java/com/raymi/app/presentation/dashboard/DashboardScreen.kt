@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -33,7 +32,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -57,6 +56,7 @@ import com.raymi.app.presentation.components.RaymiErrorState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
 import com.raymi.app.presentation.components.StatCard
 import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -183,7 +183,7 @@ fun DashboardScreen(
                                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = monthExpanded)
                                     },
                                     modifier = Modifier
-                                        .menuAnchor()
+                                        .menuAnchor(type = MenuAnchorType.PrimaryEditable, enabled = true)
                                         .fillMaxWidth()
                                 )
                                 ExposedDropdownMenu(
@@ -216,7 +216,7 @@ fun DashboardScreen(
                                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = yearExpanded)
                                     },
                                     modifier = Modifier
-                                        .menuAnchor()
+                                        .menuAnchor(type = MenuAnchorType.PrimaryEditable, enabled = true)
                                         .fillMaxWidth()
                                 )
                                 ExposedDropdownMenu(
@@ -343,12 +343,12 @@ fun DashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Mes anterior: S/. ${String.format("%.2f", uiState.ingresoMesAnterior)}",
+                                        text = "Mes anterior: S/. ${String.format(Locale.getDefault(), "%.2f", uiState.ingresoMesAnterior)}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "$variacionSigno${String.format("%.1f", variacion)}%",
+                                        text = "$variacionSigno${String.format(Locale.getDefault(), "%.1f", variacion)}%",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = if (variacionPositiva) RaymiColors.Success else RaymiColors.Error
@@ -366,7 +366,7 @@ fun DashboardScreen(
                                         Column(Modifier.padding(12.dp)) {
                                             Text("Ingreso periodo", style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "S/. ${String.format("%.2f", ingresosMes)}",
+                                                "S/. ${String.format(Locale.getDefault(), "%.2f", ingresosMes)}",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -380,7 +380,7 @@ fun DashboardScreen(
                                         Column(Modifier.padding(12.dp)) {
                                             Text("Acumulado", style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "S/. ${String.format("%.2f", ingresosTotales)}",
+                                                "S/. ${String.format(Locale.getDefault(), "%.2f", ingresosTotales)}",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -399,7 +399,7 @@ fun DashboardScreen(
                                         Column(Modifier.padding(12.dp)) {
                                             Text("Promedio por activo", style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "S/. ${String.format("%.2f", promedioPorAlquilerActivo)}",
+                                                "S/. ${String.format(Locale.getDefault(), "%.2f", promedioPorAlquilerActivo)}",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -413,7 +413,7 @@ fun DashboardScreen(
                                         Column(Modifier.padding(12.dp)) {
                                             Text("Proyección mensual", style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "S/. ${String.format("%.2f", proyeccionMes)}",
+                                                "S/. ${String.format(Locale.getDefault(), "%.2f", proyeccionMes)}",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -451,19 +451,19 @@ fun DashboardScreen(
                                     fontWeight = FontWeight.Bold
                                 )
 
-                                Text("Ocupación: ${String.format("%.0f", ocupacionPct)}%")
+                                Text("Ocupación: ${String.format(Locale.getDefault(), "%.0f", ocupacionPct)}%")
                                 LinearProgressIndicator(
                                     progress = { ocupacionPct / 100f },
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
-                                Text("Disponibilidad: ${String.format("%.0f", disponibilidadPct)}%")
+                                Text("Disponibilidad: ${String.format(Locale.getDefault(), "%.0f", disponibilidadPct)}%")
                                 LinearProgressIndicator(
                                     progress = { disponibilidadPct / 100f },
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
-                                Text("Riesgo de mora: ${String.format("%.0f", moraPct)}%")
+                                Text("Riesgo de mora: ${String.format(Locale.getDefault(), "%.0f", moraPct)}%")
                                 LinearProgressIndicator(
                                     progress = { moraPct / 100f },
                                     modifier = Modifier.fillMaxWidth(),

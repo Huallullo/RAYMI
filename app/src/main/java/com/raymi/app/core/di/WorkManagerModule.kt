@@ -1,21 +1,2 @@
-package com.raymi.app.core.di
-
-import android.content.Context
-import androidx.work.WorkManager
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
-
-@Module
-@InstallIn(SingletonComponent::class)
-object WorkManagerModule {
-
-    @Provides
-    @Singleton
-    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
-        return WorkManager.getInstance(context)
-    }
-}
+// Este módulo ha sido reemplazado por WorkerFactoryModule.kt
+// Mantener vacío para evitar errores de compilación

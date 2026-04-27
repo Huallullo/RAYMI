@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
@@ -33,8 +33,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -89,8 +89,10 @@ fun AlquilerDetailScreen(
         uiState.successMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
             viewModel.clearMessages()
-            // Navegar atrás después de éxito
-            onNavigateBack()
+            // Solo navegar atrás si no es mensaje de PDF generado
+            if (!message.contains("PDF generado correctamente")) {
+                onNavigateBack()
+            }
         }
     }
 
@@ -100,7 +102,7 @@ fun AlquilerDetailScreen(
                 title = { Text("Detalle del Alquiler") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
@@ -292,7 +294,7 @@ fun AlquilerDetailScreen(
                                     value = alquiler.fechaInicioFormatted
                                 )
 
-                                Divider()
+                                HorizontalDivider()
 
                                 InfoRow(
                                     icon = Icons.Default.Event,
@@ -301,7 +303,7 @@ fun AlquilerDetailScreen(
                                 )
 
                                 if (alquiler.estado == EstadoAlquiler.ACTIVO) {
-                                    Divider()
+                                    HorizontalDivider()
 
                                     if (alquiler.estaVencido) {
                                         InfoRow(
@@ -373,7 +375,7 @@ fun AlquilerDetailScreen(
                                     )
                                 }
 
-                                Divider()
+                                HorizontalDivider()
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
@@ -405,7 +407,7 @@ fun AlquilerDetailScreen(
                                     )
                                 }
 
-                                Divider()
+                                HorizontalDivider()
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -590,7 +592,7 @@ fun AlquilerDetailScreen(
                             Button(
                                 onClick = { viewModel.compartirPdfPorWhatsApp() },
                                 modifier = Modifier.weight(1f),
-                                enabled = !uiState.isProcessing && uiState.pdfFile != null,
+                                enabled = !uiState.isProcessing && uiState.pdfUri != null,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = RaymiColors.Info
                                 )

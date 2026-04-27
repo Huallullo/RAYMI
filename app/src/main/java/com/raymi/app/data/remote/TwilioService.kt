@@ -2,6 +2,7 @@ package com.raymi.app.data.remote
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.content.FileProvider
 import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +26,12 @@ class TwilioService @Inject constructor(
         return withContext(Dispatchers.Main) {
             try {
                 // Lista de paquetes de WhatsApp posibles
-                val whatsappPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
+                val whatsappPackages = listOf(
+                    "com.whatsapp",
+                    "com.whatsapp.w4b",
+                    "com.whatsapp.w4b.alpha",
+                    "com.whatsapp.w4b.beta"
+                )
 
                 // Buscar el primer paquete de WhatsApp disponible
                 var selectedPackage: String? = null
@@ -113,24 +119,23 @@ class TwilioService @Inject constructor(
     /**
      * Comparte archivo PDF por WhatsApp
      */
-    suspend fun compartirPdfPorWhatsApp(pdfFile: File, mensaje: String = ""): Resource<String> {
+    suspend fun compartirPdfPorWhatsApp(pdfUri: Uri, mensaje: String = ""): Resource<String> {
         return withContext(Dispatchers.Main) {
             try {
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    pdfFile
-                )
-
                 // Lista de paquetes de WhatsApp posibles
-                val whatsappPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
+                val whatsappPackages = listOf(
+                    "com.whatsapp",
+                    "com.whatsapp.w4b",
+                    "com.whatsapp.w4b.alpha",
+                    "com.whatsapp.w4b.beta"
+                )
 
                 // Buscar el primer paquete de WhatsApp disponible
                 var selectedPackage: String? = null
                 for (packageName in whatsappPackages) {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "application/pdf"
-                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_STREAM, pdfUri)
                         putExtra(Intent.EXTRA_TEXT, mensaje)
                         setPackage(packageName)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -145,7 +150,7 @@ class TwilioService @Inject constructor(
                 if (selectedPackage != null) {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "application/pdf"
-                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_STREAM, pdfUri)
                         putExtra(Intent.EXTRA_TEXT, mensaje)
                         setPackage(selectedPackage)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

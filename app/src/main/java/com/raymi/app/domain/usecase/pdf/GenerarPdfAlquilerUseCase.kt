@@ -1,11 +1,11 @@
 package com.raymi.app.domain.usecase.pdf
 
+import android.net.Uri
 import com.raymi.app.data.remote.PdfService
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import java.io.File
 import javax.inject.Inject
 
 /**
@@ -17,7 +17,7 @@ class GenerarPdfAlquilerUseCase @Inject constructor(
     /**
      * Genera PDF del detalle del alquiler
      */
-    fun generarPdf(alquiler: Alquiler): Flow<Resource<File>> = flow {
+    fun generarPdf(alquiler: Alquiler): Flow<Resource<Uri>> = flow {
         try {
             emit(Resource.Loading())
             val result = pdfService.generarPdfAlquiler(alquiler)

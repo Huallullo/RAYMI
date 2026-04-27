@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
@@ -138,12 +139,6 @@ dependencies {
     // Versión ligera de BouncyCastle compatible con Android
     implementation("org.bouncycastle:bcprov-jdk18on:1.77")
 
-    // ── Ktor HTTP client (para ReniecService) ───────────────────────────────
-    implementation("io.ktor:ktor-client-android:2.3.12")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
-    implementation("io.ktor:ktor-client-logging:2.3.12")
-    implementation("io.ktor:ktor-client-plugins:2.3.12")
 
     // ── Kotlin Serialization (requerida por Ktor) ───────────────────────────
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")

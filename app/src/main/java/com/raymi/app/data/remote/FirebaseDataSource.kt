@@ -356,8 +356,9 @@ class FirebaseDataSource @Inject constructor(
 
     /**
      * Pobla la base de datos con datos de prueba si está vacía
+     * COMENTADO: No poblar datos de prueba en producción
      */
-    suspend fun populateTestDataIfEmpty() {
+    /*suspend fun populateTestDataIfEmpty() {
         // Verificar si ya hay datos
         val existingClientes = getAllDocuments(COLLECTION_CLIENTES)
         val existingVestuarios = getAllDocuments(COLLECTION_VESTUARIOS)
@@ -373,6 +374,7 @@ class FirebaseDataSource @Inject constructor(
 
     /**
      * Pobla la base de datos con datos de prueba
+     * COMENTADO: No poblar datos de prueba en producción
      */
     suspend fun populateTestData() {
         // Clientes de prueba (20)
@@ -443,5 +445,5 @@ class FirebaseDataSource @Inject constructor(
         for (alquiler in alquileres) {
             firestore.collection(COLLECTION_ALQUILERES).add(alquiler).await()
         }
-    }
+    }*/
 }

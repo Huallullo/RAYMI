@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.Alquiler
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +169,7 @@ fun RegistrarPagoDialog(
                         ) {
                             Text("Nuevo adelanto:")
                             Text(
-                                "S/. ${String.format("%.2f", nuevoAdelanto)}",
+                                "S/. ${String.format(Locale.getDefault(), "%.2f", nuevoAdelanto)}",
                                 color = RaymiColors.Success,
                                 fontWeight = FontWeight.Bold
                             )
@@ -179,7 +180,7 @@ fun RegistrarPagoDialog(
                         ) {
                             Text("Nuevo saldo:")
                             Text(
-                                "S/. ${String.format("%.2f", nuevoSaldo)}",
+                                "S/. ${String.format(Locale.getDefault(), "%.2f", nuevoSaldo)}",
                                 color = if (nuevoSaldo <= 0) RaymiColors.Success else RaymiColors.Warning,
                                 fontWeight = FontWeight.Bold
                             )

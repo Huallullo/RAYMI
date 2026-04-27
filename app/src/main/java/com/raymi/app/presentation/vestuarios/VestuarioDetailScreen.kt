@@ -20,6 +20,7 @@ import com.raymi.app.presentation.alquileres.AlquilerItem
 
 
 import com.raymi.app.presentation.components.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -248,7 +249,7 @@ fun VestuarioDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = "S/. ${String.format("%.2f", uiState.totalIngresos)}",
+                                        text = "S/. ${String.format(Locale.getDefault(), "%.2f", uiState.totalIngresos)}",
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

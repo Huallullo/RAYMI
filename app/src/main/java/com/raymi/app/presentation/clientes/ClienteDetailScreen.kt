@@ -17,6 +17,7 @@ import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.presentation.alquileres.AlquilerItem
 
 import com.raymi.app.presentation.components.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 
@@ -218,7 +219,7 @@ fun ClienteDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = "S/. ${String.format("%.2f", uiState.totalGastado)}",
+                                        text = "S/. ${String.format(Locale.getDefault(), "%.2f", uiState.totalGastado)}",
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

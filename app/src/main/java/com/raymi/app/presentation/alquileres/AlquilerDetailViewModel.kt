@@ -1,6 +1,7 @@
 // ========== AlquilerDetailViewModel.kt ==========
 package com.raymi.app.presentation.alquileres
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -111,7 +111,7 @@ class AlquilerDetailViewModel @Inject constructor(
                         val mensaje = if (nuevoSaldo <= 0) {
                             "Pago registrado. ¡Deuda saldada! Ahora puedes devolver el vestuario."
                         } else {
-                            "Pago registrado. Saldo restante: S/. ${String.format("%.2f", nuevoSaldo)}"
+                            "Pago registrado. Saldo restante: S/. ${String.format(java.util.Locale.getDefault(), "%.2f", nuevoSaldo)}"
                         }
 
                         _uiState.value = _uiState.value.copy(
@@ -175,8 +175,8 @@ class AlquilerDetailViewModel @Inject constructor(
                             isProcessing = false,
                             successMessage = "PDF generado correctamente"
                         )
-                        // Aquí podrías almacenar el archivo generado para compartirlo después
-                        _uiState.value = _uiState.value.copy(pdfFile = result.data)
+                        // Aquí almacenamos el Uri generado para compartirlo después
+                        _uiState.value = _uiState.value.copy(pdfUri = result.data)
                     }
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
@@ -190,7 +190,7 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun compartirPdfPorWhatsApp() {
-        val pdfFile = _uiState.value.pdfFile ?: run {
+        val pdfUri = _uiState.value.pdfUri ?: run {
             _uiState.value = _uiState.value.copy(error = "Primero genera el PDF")
             return
         }
@@ -199,7 +199,7 @@ class AlquilerDetailViewModel @Inject constructor(
         val mensaje = "Detalle del alquiler de ${alquiler.vestuarioNombre} para ${alquiler.clienteNombre}"
 
         viewModelScope.launch {
-            enviarMensajeUseCase.compartirPdfPorWhatsApp(pdfFile, mensaje).collect { result ->
+            enviarMensajeUseCase.compartirPdfPorWhatsApp(pdfUri, mensaje).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
                         _uiState.value = _uiState.value.copy(isProcessing = true)
@@ -228,5 +228,5 @@ data class AlquilerDetailUiState(
     val isProcessing: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
-    val pdfFile: File? = null // Agregado para almacenar el archivo PDF generado
+    val pdfUri: Uri? = null // Cambiado a Uri para el PDF generado
 )

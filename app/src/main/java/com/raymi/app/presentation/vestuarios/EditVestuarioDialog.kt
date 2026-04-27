@@ -171,7 +171,7 @@ fun EditVestuarioDialog(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(type = MenuAnchorType.PrimaryEditable, enabled = true),
                         enabled = !isLoading
                     )
 
@@ -209,7 +209,7 @@ fun EditVestuarioDialog(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(type = MenuAnchorType.PrimaryEditable, enabled = true),
                         enabled = !isLoading
                     )
 
@@ -247,7 +247,7 @@ fun EditVestuarioDialog(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(type = MenuAnchorType.PrimaryEditable, enabled = true),
                         enabled = !isLoading
                     )
 

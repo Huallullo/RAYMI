@@ -110,7 +110,7 @@ class CreateAlquilerViewModel @Inject constructor(
         val total = precioUnit * cantidad
 
         _uiState.value = _uiState.value.copy(
-            precioTotal = String.format("%.2f", total)
+            precioTotal = String.format(Locale.getDefault(), "%.2f", total)
         )
         calcularSaldo()
     }

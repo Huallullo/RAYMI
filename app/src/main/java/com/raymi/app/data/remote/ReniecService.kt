@@ -2,16 +2,12 @@ package com.raymi.app.data.remote
 
 import com.raymi.app.BuildConfig
 import com.raymi.app.domain.model.Resource
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.net.HttpURLConnection
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,18 +34,10 @@ class ReniecService @Inject constructor() {
         private const val RENIEC_API_TOKEN    = BuildConfig.RENIEC_API_TOKEN
     }
 
-    private val client = HttpClient(Android) {
-        install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = true
-                isLenient = true
-                ignoreUnknownKeys = true
-            })
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 10_000
-            connectTimeoutMillis = 5_000
-        }
+    private val json = Json {
+        prettyPrint = true
+        isLenient = true
+        ignoreUnknownKeys = true
     }
 
     /**
@@ -62,45 +50,66 @@ class ReniecService @Inject constructor() {
         }
 
         // Si el token no está configurado, ir directo al mock para no hacer requests inútiles
-        if (RENIEC_API_TOKEN == "REEMPLAZA_CON_TU_TOKEN" || RENIEC_API_TOKEN.isBlank()) {
+        if (RENIEC_API_TOKEN.isBlank()) {
             return getMockResource(dni)
         }
 
-        return try {
-            val response = client.get("$RENIEC_API_BASE_URL?numero=$dni") {
-                header("Authorization", "Bearer $RENIEC_API_TOKEN")
-                header("Content-Type", "application/json")
-                header("Accept", "application/json")
-            }
-
-            when (response.status.value) {
-                200 -> {
-                    val apiResponse: ReniecApiResponse = response.body()
-                    val nombres = apiResponse.nombres?.trim() ?: ""
-                    val apPat = apiResponse.apellidoPaterno?.trim() ?: ""
-                    val apMat = apiResponse.apellidoMaterno?.trim() ?: ""
-
-                    if (nombres.isBlank() && apPat.isBlank()) {
-                        Resource.Error("La respuesta de RENIEC no contiene datos válidos")
-                    } else {
-                        Resource.Success(
-                            ReniecData(
-                                nombres = nombres,
-                                apellidoPaterno = apPat,
-                                apellidoMaterno = apMat,
-                                fechaNacimiento = apiResponse.fechaNacimiento ?: ""
-                            )
-                        )
-                    }
+        return withContext(Dispatchers.IO) {
+            try {
+                // Construir la URL de consulta - soporta múltiples proveedores
+                // Para apisperu.com: https://dniruc.apisperu.com/api/v1/dni/{dni}?token={token}
+                val url = if (RENIEC_API_BASE_URL.contains("apisperu")) {
+                    "$RENIEC_API_BASE_URL/$dni?token=$RENIEC_API_TOKEN"
+                } else if (RENIEC_API_BASE_URL.contains("decolecta")) {
+                    "$RENIEC_API_BASE_URL/dnis/$dni"
+                } else {
+                    "$RENIEC_API_BASE_URL/$dni"
                 }
-                404 -> Resource.Error("DNI $dni no encontrado en RENIEC")
-                401, 403 -> Resource.Error("Token de API inválido o expirado. Revisa tu configuración.")
-                429 -> Resource.Error("Límite de consultas excedido. Intenta más tarde.")
-                else -> Resource.Error("Error del servidor RENIEC (código ${response.status.value})")
+
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android) RAYMI-App/1.0")
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    doInput = true
+                }
+
+                val responseCode = connection.responseCode
+                when (responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+                        val apiResponse: ReniecApiResponse = json.decodeFromString(responseBody)
+                        
+                        val nombres = apiResponse.nombres?.trim() ?: apiResponse.name?.trim() ?: ""
+                        val apPat = apiResponse.apellidoPaterno?.trim() ?: apiResponse.fatherSurname?.trim() ?: ""
+                        val apMat = apiResponse.apellidoMaterno?.trim() ?: apiResponse.motherSurname?.trim() ?: ""
+
+                        if (nombres.isBlank() && apPat.isBlank()) {
+                            Resource.Error("La respuesta de RENIEC no contiene datos válidos")
+                        } else {
+                            Resource.Success(
+                                ReniecData(
+                                    nombres = nombres,
+                                    apellidoPaterno = apPat,
+                                    apellidoMaterno = apMat,
+                                    fechaNacimiento = apiResponse.fechaNacimiento ?: apiResponse.dateOfBirth ?: ""
+                                )
+                            )
+                        }
+                    }
+                    HttpURLConnection.HTTP_NOT_FOUND -> Resource.Error("DNI $dni no encontrado en RENIEC")
+                    HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN -> 
+                        Resource.Error("Token de API inválido o expirado. Revisa tu configuración.")
+                    429 -> Resource.Error("Límite de consultas excedido. Intenta más tarde.")
+                    else -> Resource.Error("Error del servidor RENIEC (código $responseCode)")
+                }
+            } catch (e: Exception) {
+                // Mostrar el error real en lugar de fallback a mock
+                Resource.Error("Error de conexión: ${e.localizedMessage ?: e.message}")
             }
-        } catch (e: Exception) {
-            // Fallback a mock solo en modo de desarrollo
-            getMockResource(dni)
         }
     }
 
@@ -113,7 +122,7 @@ class ReniecService @Inject constructor() {
         return if (data != null) {
             Resource.Success(data)
         } else {
-            Resource.Error("DNI no encontrado. (Modo desarrollo: configura tu API Key de RENIEC)")
+            Resource.Error("DNI no encontrado en la base de datos de desarrollo")
         }
     }
 
@@ -147,9 +156,13 @@ class ReniecService @Inject constructor() {
 data class ReniecApiResponse(
     val dni: String? = null,
     val nombres: String? = null,
+    val name: String? = null,
     val apellidoPaterno: String? = null,
+    val fatherSurname: String? = null,
     val apellidoMaterno: String? = null,
+    val motherSurname: String? = null,
     val fechaNacimiento: String? = null,
+    val dateOfBirth: String? = null,
     val codVerifica: String? = null,
     val estado: String? = null
 )

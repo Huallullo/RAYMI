@@ -1,7 +1,11 @@
 package com.raymi.app.data.remote
 
+import android.annotation.TargetApi
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
+import android.provider.MediaStore
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.colors.ColorConstants
 import com.itextpdf.kernel.colors.DeviceRgb
@@ -20,7 +24,6 @@ import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,16 +48,21 @@ class PdfService @Inject constructor(
 
     /**
      * Genera un PDF con el detalle completo del alquiler y lo guarda en
-     * el directorio externo privado de la app (no requiere permiso WRITE_EXTERNAL_STORAGE).
+     * el directorio Downloads público del dispositivo.
      *
-     * @return [Resource.Success] con el [File] generado, o [Resource.Error] con el mensaje.
+     * @return [Resource.Success] con el [Uri] generado, o [Resource.Error] con el mensaje.
      */
-    suspend fun generarPdfAlquiler(alquiler: Alquiler): Resource<File> =
+    suspend fun generarPdfAlquiler(alquiler: Alquiler): Resource<Uri> =
         withContext(Dispatchers.IO) {
             try {
-                val pdfFile = crearArchivo(alquiler.id)
-                buildPdf(pdfFile, alquiler)
-                Resource.Success(pdfFile)
+                val pdfUri = crearArchivo(alquiler.id)
+                buildPdf(pdfUri, alquiler)
+                // Marcar el archivo como completado
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.IS_PENDING, 0)
+                }
+                context.contentResolver.update(pdfUri, contentValues, null, null)
+                Resource.Success(pdfUri)
             } catch (e: Exception) {
                 Resource.Error("Error al generar PDF: ${e.localizedMessage ?: e.message}")
             }
@@ -62,19 +70,21 @@ class PdfService @Inject constructor(
 
     // ─── Construcción del PDF ────────────────────────────────────────────────
 
-    private fun buildPdf(file: File, alquiler: Alquiler) {
-        PdfWriter(file).use { writer ->
-            PdfDocument(writer).use { pdf ->
-                Document(pdf).use { doc ->
-                    doc.setMargins(36f, 36f, 36f, 36f)
-                    agregarLogo(doc)
-                    agregarTitulo(doc)
-                    agregarInfoAlquiler(doc, alquiler)
-                    agregarInfoPago(doc, alquiler)
-                    if (alquiler.observaciones.isNotBlank()) {
-                        agregarObservaciones(doc, alquiler.observaciones)
+    private fun buildPdf(uri: Uri, alquiler: Alquiler) {
+        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            PdfWriter(outputStream).use { writer ->
+                PdfDocument(writer).use { pdf ->
+                    Document(pdf).use { doc ->
+                        doc.setMargins(36f, 36f, 36f, 36f)
+                        agregarLogo(doc)
+                        agregarTitulo(doc)
+                        agregarInfoAlquiler(doc, alquiler)
+                        agregarInfoPago(doc, alquiler)
+                        if (alquiler.observaciones.isNotBlank()) {
+                            agregarObservaciones(doc, alquiler.observaciones)
+                        }
+                        agregarPieDePagina(doc)
                     }
-                    agregarPieDePagina(doc)
                 }
             }
         }
@@ -226,14 +236,20 @@ class PdfService @Inject constructor(
 
     // ─── Sistema de archivos ─────────────────────────────────────────────────
 
-    private fun crearArchivo(alquilerId: String): File {
-        val dir = File(
-            context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
-            "RAYMI_PDFs"
-        )
-        if (!dir.exists()) dir.mkdirs()
-
+    @TargetApi(29)
+    private fun crearArchivo(alquilerId: String): Uri {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        return File(dir, "alquiler_${alquilerId}_$timestamp.pdf")
+        val fileName = "alquiler_${alquilerId}_$timestamp.pdf"
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+
+        val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw Exception("No se pudo crear el archivo PDF")
+
+        return uri
     }
 }
