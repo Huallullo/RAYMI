@@ -8,7 +8,7 @@ class ValidatorsTest {
     // ==================== DNI ====================
     @Test
     fun validarDni_correcto_8DigitosNumericos_devuelveValido() {
-        val resultado = Validators.validateDni("12345678")
+        val resultado = Validators.validateDni("123456789")
         assertThat(resultado.isValid).isTrue()
     }
 
