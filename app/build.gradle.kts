@@ -26,6 +26,10 @@ android {
         }
         buildConfigField("String", "RENIEC_API_URL", "\"${project.findProperty("RENIEC_API_URL")}\"")
         buildConfigField("String", "RENIEC_API_TOKEN", "\"${project.findProperty("RENIEC_API_TOKEN")}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK", "\"${project.findProperty("RENIEC_API_URL_FALLBACK")}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK")}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${project.findProperty("RENIEC_API_URL_FALLBACK2")}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2")}\"")
     }
 
     buildTypes {
