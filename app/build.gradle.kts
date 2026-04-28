@@ -24,12 +24,14 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        buildConfigField("String", "RENIEC_API_URL", "\"${project.findProperty("RENIEC_API_URL")}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN", "\"${project.findProperty("RENIEC_API_TOKEN")}\"")
-        buildConfigField("String", "RENIEC_API_URL_FALLBACK", "\"${project.findProperty("RENIEC_API_URL_FALLBACK")}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK")}\"")
-        buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${project.findProperty("RENIEC_API_URL_FALLBACK2")}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2")}\"")
+
+        // RENIEC API Configuration
+        buildConfigField("String", "RENIEC_API_URL", "\"${project.findProperty("RENIEC_API_URL") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN", "\"${project.findProperty("RENIEC_API_TOKEN") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK", "\"${project.findProperty("RENIEC_API_URL_FALLBACK") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${project.findProperty("RENIEC_API_URL_FALLBACK2") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2") ?: ""}\"")
     }
 
     buildTypes {
@@ -46,7 +48,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        // Requerido por iText para usar java.time en minSdk < 26
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -63,26 +64,23 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/DEPENDENCIES"
-            // iText trae varias licencias y manifests que entran en conflicto
-            excludes += "META-INF/LICENSE"
-            excludes += "META-INF/LICENSE.txt"
-            excludes += "META-INF/NOTICE"
-            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/LICENSE*"
+            excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
         }
     }
 }
 
 dependencies {
-    // ── Core desugaring (necesario para iText en Android < API 26) ──────────
+    // Core desugaring for iText compatibility
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
-    // ── AndroidX Core ───────────────────────────────────────────────────────
+    // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // ── Compose BOM ─────────────────────────────────────────────────────────
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -90,64 +88,58 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
 
-    // ── Compose Navigation ──────────────────────────────────────────────────
+    // Compose Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // ── Lifecycle ViewModel ─────────────────────────────────────────────────
+    // Lifecycle ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // ── Firebase ────────────────────────────────────────────────────────────
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)
 
-    // ── WorkManager ─────────────────────────────────────────────────────────
+    // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.work.hilt)
 
-    // ── Hilt ────────────────────────────────────────────────────────────────
+    // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // ── Coroutines ──────────────────────────────────────────────────────────
+    // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
 
-    // ── Splash Screen ───────────────────────────────────────────────────────
+    // Splash Screen
     implementation(libs.androidx.core.splashscreen)
 
-    // ── DataStore ───────────────────────────────────────────────────────────
+    // DataStore
     implementation(libs.androidx.datastore.preferences)
 
-    // ── Coil ────────────────────────────────────────────────────────────────
+    // Coil
     implementation(libs.coil.compose)
 
-    // ── Accompanist ─────────────────────────────────────────────────────────
+    // Accompanist
     implementation(libs.accompanist.permissions)
 
-    // ── Lottie ──────────────────────────────────────────────────────────────
+    // Lottie
     implementation(libs.lottie.compose)
 
-    // ── PDF – iText para Android ────────────────────────────────────────────
-    // NOTA: iText7-core 8.x requiere desugaring (isCoreLibraryDesugaringEnabled = true).
-    // Si el tamaño del APK es crítico, considera usar AndroidPdfDocument (nativo) o
-    // la librería "com.itextpdf:itext7-core:7.2.5" que tiene menos dependencias.
+    // PDF - iText for Android
     implementation("com.itextpdf:itext7-core:7.2.6") {
-        // BouncyCastle completo es muy pesado en Android; excluir módulos no necesarios.
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15on")
     }
-    // Versión ligera de BouncyCastle compatible con Android
     implementation("org.bouncycastle:bcprov-jdk18on:1.77")
 
-
-    // ── Kotlin Serialization (requerida por Ktor) ───────────────────────────
+    // Kotlin Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
-    // ────────────────────────── PRUEBAS ────────────────────────────────────
+    // Tests
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.mockk)
@@ -162,15 +154,14 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }
 
-// ── JUnit para tests unitarios ──────────────────────────────────────────────
+// Test configuration
 tasks.withType<Test> {
     useJUnit()
 }
 
-// ── Reporte de cobertura Jacoco ─────────────────────────────────────────────
+// Jacoco coverage report
 tasks.register<JacocoReport>("jacocoTestReport") {
     dependsOn("testDebugUnitTest")
     reports {
