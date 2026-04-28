@@ -106,7 +106,19 @@ class AlquileresViewModel @Inject constructor(
 
         // Filtrar por estado
         _uiState.value.selectedEstado?.let { estado ->
-            filtered = filtered.filter { it.estado == estado }
+            filtered = filtered.filter { alquiler ->
+                when (estado) {
+                    EstadoAlquiler.VENCIDO -> {
+                        alquiler.estado == EstadoAlquiler.VENCIDO ||
+                                (alquiler.estado == EstadoAlquiler.ACTIVO && alquiler.estaVencido)
+                    }
+                    EstadoAlquiler.ACTIVO -> {
+                        alquiler.estado == EstadoAlquiler.ACTIVO
+                    }
+                    EstadoAlquiler.DEVUELTO -> alquiler.estado == EstadoAlquiler.DEVUELTO
+                    EstadoAlquiler.CANCELADO -> alquiler.estado == EstadoAlquiler.CANCELADO
+                }
+            }
         }
 
         return filtered

@@ -1,14 +1,50 @@
 package com.raymi.app.presentation.alquileres
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -19,7 +55,10 @@ import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.presentation.components.*
+import com.raymi.app.presentation.components.EstadoBadge
+import com.raymi.app.presentation.components.RaymiEmptyState
+import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.presentation.components.RaymiSearchBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,8 +258,8 @@ fun AlquilerItem(
                 }
 
                 EstadoBadge(
-                    texto = alquiler.estado.name,
-                    color = when (alquiler.estado) {
+                    texto = alquiler.estadoEtiqueta,
+                    color = when (alquiler.estadoVisual) {
                         EstadoAlquiler.ACTIVO -> RaymiColors.Success
                         EstadoAlquiler.DEVUELTO -> RaymiColors.Info
                         EstadoAlquiler.VENCIDO -> RaymiColors.Error
@@ -285,6 +324,19 @@ fun AlquilerItem(
         }
     }
 }
+private val Alquiler.estadoVisual: EstadoAlquiler
+    get() = if (estado == EstadoAlquiler.ACTIVO && estaVencido) {
+        EstadoAlquiler.VENCIDO
+    } else {
+        estado
+    }
+
+private val Alquiler.estadoEtiqueta: String
+    get() = if (estado == EstadoAlquiler.ACTIVO && estaVencido) {
+        "ACTIVO • VENCIDO"
+    } else {
+        estado.name
+    }
 
 @Composable
 fun InfoRowCompact(
