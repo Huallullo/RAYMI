@@ -1,5 +1,6 @@
 package com.raymi.app.presentation.dashboard
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raymi.app.domain.model.Alquiler
@@ -7,6 +8,8 @@ import com.raymi.app.domain.model.Estadisticas
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
+import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
+import com.raymi.app.domain.usecase.pdf.GenerarPdfResumenFinancieroUseCase
 import com.raymi.app.domain.usecase.vestuario.GetVestuariosUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -21,7 +24,9 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val getClientesUseCase: GetClientesUseCase,
     private val getVestuariosUseCase: GetVestuariosUseCase,
-    private val getAlquileresUseCase: GetAlquileresUseCase
+    private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val generarPdfResumenFinancieroUseCase: GenerarPdfResumenFinancieroUseCase,
+    private val enviarMensajeUseCase: EnviarMensajeUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -163,7 +168,56 @@ class DashboardViewModel @Inject constructor(
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
+    fun exportarResumenFinancieroPdf() {
+        viewModelScope.launch {
+            generarPdfResumenFinancieroUseCase
+                .generarPdf(latestAlquileres, _uiState.value.selectedYear)
+                .collect { result ->
+                    when (result) {
+                        is Resource.Loading -> _uiState.value = _uiState.value.copy(isExportingPdf = true)
+                        is Resource.Success -> _uiState.value = _uiState.value.copy(
+                            isExportingPdf = false,
+                            successMessage = "PDF generado en Descargas",
+                            pdfResumenUri = result.data
+                        )
+                        is Resource.Error -> _uiState.value = _uiState.value.copy(
+                            isExportingPdf = false,
+                            error = result.message
+                        )
+                    }
+                }
+        }
+    }
 
+    fun clearMessages() {
+        _uiState.value = _uiState.value.copy(error = null, successMessage = null)
+    }
+
+    fun compartirResumenFinancieroPorWhatsApp() {
+        val pdfUri = _uiState.value.pdfResumenUri ?: run {
+            _uiState.value = _uiState.value.copy(error = "Primero genera el PDF del resumen")
+            return
+        }
+
+        viewModelScope.launch {
+            enviarMensajeUseCase.compartirPdfPorWhatsApp(
+                pdfUri = pdfUri,
+                mensaje = "Resumen financiero ${_uiState.value.selectedYear} - RAYMI"
+            ).collect { result ->
+                when (result) {
+                    is Resource.Loading -> _uiState.value = _uiState.value.copy(isExportingPdf = true)
+                    is Resource.Success -> _uiState.value = _uiState.value.copy(
+                        isExportingPdf = false,
+                        successMessage = result.data ?: "Compartido por WhatsApp"
+                    )
+                    is Resource.Error -> _uiState.value = _uiState.value.copy(
+                        isExportingPdf = false,
+                        error = result.message
+                    )
+                }
+            }
+        }
+    }
     override fun onCleared() {
         dashboardJob?.cancel()
         super.onCleared()
@@ -176,6 +230,9 @@ class DashboardViewModel @Inject constructor(
         val selectedMonth       : Int          = Calendar.getInstance().get(Calendar.MONTH),
         val selectedYear        : Int          = Calendar.getInstance().get(Calendar.YEAR),
         val ingresoMesAnterior  : Double       = 0.0,
-        val variacionMensualPct : Double       = 0.0
+        val variacionMensualPct : Double       = 0.0,
+        val isExportingPdf      : Boolean      = false,
+        val successMessage      : String?      = null,
+        val pdfResumenUri       : Uri?         = null
     )
 }

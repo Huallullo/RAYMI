@@ -35,9 +35,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,24 +71,31 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val months = listOf(
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     )
     val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-    val years = (currentYear - 3..currentYear + 1).toList()
+    //val years = (currentYear - 3..currentYear + 1).toList()
+    val years = remember(uiState.selectedYear, currentYear) {
+        val minYear = uiState.selectedYear - 3
+        val maxYear = minOf(currentYear + 1, uiState.selectedYear + 1)
+        (minYear..maxYear).toList().reversed()
+    }
 
     var monthExpanded by remember { mutableStateOf(false) }
     var yearExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_raymi_logo),
@@ -111,6 +121,16 @@ fun DashboardScreen(
             )
         }
     ) { paddingValues ->
+        LaunchedEffect(uiState.error, uiState.successMessage) {
+            uiState.error?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearMessages()
+            }
+            uiState.successMessage?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearMessages()
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -430,6 +450,26 @@ fun DashboardScreen(
                                     progress = { monthProgress },
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                Button(
+                                    onClick = { viewModel.exportarResumenFinancieroPdf() },
+                                    enabled = !uiState.isExportingPdf,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        if (uiState.isExportingPdf) {
+                                            "Generando PDF..."
+                                        } else {
+                                            "Exportar resumen en PDF"
+                                        }
+                                    )
+                                }
+                                Button(
+                                    onClick = { viewModel.compartirResumenFinancieroPorWhatsApp() },
+                                    enabled = !uiState.isExportingPdf && uiState.pdfResumenUri != null,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Compartir PDF por WhatsApp")
+                                }
                             }
                         }
 

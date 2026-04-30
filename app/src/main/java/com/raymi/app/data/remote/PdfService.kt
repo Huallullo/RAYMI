@@ -4,7 +4,6 @@ import android.annotation.TargetApi
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.os.Environment
 import android.provider.MediaStore
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.colors.ColorConstants
@@ -55,7 +54,7 @@ class PdfService @Inject constructor(
     suspend fun generarPdfAlquiler(alquiler: Alquiler): Resource<Uri> =
         withContext(Dispatchers.IO) {
             try {
-                val pdfUri = crearArchivo(alquiler.id)
+                val pdfUri = crearArchivo("alquiler_${alquiler.id}")
                 buildPdf(pdfUri, alquiler)
                 // Marcar el archivo como completado
                 val contentValues = ContentValues().apply {
@@ -67,6 +66,22 @@ class PdfService @Inject constructor(
                 Resource.Error("Error al generar PDF: ${e.localizedMessage ?: e.message}")
             }
         }
+    suspend fun generarPdfResumenFinanciero(
+        alquileres: List<Alquiler>,
+        year: Int
+    ): Resource<Uri> = withContext(Dispatchers.IO) {
+        try {
+            val pdfUri = crearArchivo("resumen_financiero_$year")
+            buildPdfResumenFinanciero(pdfUri, alquileres, year)
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Downloads.IS_PENDING, 0)
+            }
+            context.contentResolver.update(pdfUri, contentValues, null, null)
+            Resource.Success(pdfUri)
+        } catch (e: Exception) {
+            Resource.Error("Error al generar PDF financiero: ${e.localizedMessage ?: e.message}")
+        }
+    }
 
     // ─── Construcción del PDF ────────────────────────────────────────────────
 
@@ -207,7 +222,60 @@ class PdfService @Inject constructor(
                 .setMarginTop(24f)
         )
     }
+    private fun buildPdfResumenFinanciero(uri: Uri, alquileres: List<Alquiler>, year: Int) {
+        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            PdfWriter(outputStream).use { writer ->
+                PdfDocument(writer).use { pdf ->
+                    Document(pdf).use { doc ->
+                        doc.setMargins(36f, 36f, 36f, 36f)
+                        agregarLogo(doc)
+                        doc.add(
+                            Paragraph("RESUMEN FINANCIERO ANUAL - $year")
+                                .setFontSize(18f)
+                                .setBold()
+                                .setTextAlignment(TextAlignment.CENTER)
+                                .setFontColor(colorInca)
+                                .setMarginBottom(16f)
+                        )
 
+                        val months = listOf(
+                            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                        )
+
+                        val tabla = Table(UnitValue.createPercentArray(floatArrayOf(45f, 25f, 30f)))
+                            .setWidth(UnitValue.createPercentValue(100f))
+                        tabla.addHeaderCell(labelCell("Mes"))
+                        tabla.addHeaderCell(labelCell("Alquileres"))
+                        tabla.addHeaderCell(labelCell("Ingresos (S/.)"))
+
+                        var totalAnual = 0.0
+                        months.forEachIndexed { monthIndex, monthName ->
+                            val delMes = alquileres.filter {
+                                val cal = java.util.Calendar.getInstance().apply { time = it.createdAt.toDate() }
+                                cal.get(java.util.Calendar.YEAR) == year && cal.get(java.util.Calendar.MONTH) == monthIndex
+                            }
+                            val totalMes = delMes.sumOf { it.precioTotal }
+                            totalAnual += totalMes
+
+                            tabla.addCell(valorCell(monthName))
+                            tabla.addCell(valorCell(delMes.size.toString()))
+                            tabla.addCell(valorCell(formato(totalMes)))
+                        }
+
+                        doc.add(tabla)
+                        doc.add(
+                            Paragraph("TOTAL ANUAL: S/. ${formato(totalAnual)}")
+                                .setBold()
+                                .setFontSize(13f)
+                                .setMarginTop(12f)
+                        )
+                        agregarPieDePagina(doc)
+                    }
+                }
+            }
+        }
+    }
     // ─── Helpers de estilo ───────────────────────────────────────────────────
 
     private fun tabla2Col(): Table =
@@ -237,9 +305,9 @@ class PdfService @Inject constructor(
     // ─── Sistema de archivos ─────────────────────────────────────────────────
 
     @TargetApi(29)
-    private fun crearArchivo(alquilerId: String): Uri {
+    private fun crearArchivo(prefijo: String): Uri {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "alquiler_${alquilerId}_$timestamp.pdf"
+        val fileName = "${prefijo}_$timestamp.pdf"
 
         val contentValues = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
