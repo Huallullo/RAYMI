@@ -25,7 +25,9 @@ class ClientesViewModel @Inject constructor(
     private val deleteClienteUseCase: DeleteClienteUseCase,
     private val consultarReniecUseCase: ConsultarReniecUseCase
 ) : ViewModel() {
-
+    companion object {
+        private const val CLIENTES_PAGE_SIZE = 50
+    }
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
 
@@ -46,9 +48,12 @@ class ClientesViewModel @Inject constructor(
 
                     is Resource.Success -> {
                         val clientes = result.data ?: emptyList()
+                        val filtered = applySearchFilter(clientes, _uiState.value.searchQuery)
                         _uiState.value = _uiState.value.copy(
                             clientes = clientes,
-                            filteredClientes = applySearchFilter(clientes, _uiState.value.searchQuery),
+                            filteredClientes = filtered,
+                            visibleClientes = filtered.take(_uiState.value.visibleLimit),
+                            hasMoreClientes = filtered.size > _uiState.value.visibleLimit,
                             isLoading = false,
                             error = null
                         )
@@ -68,7 +73,23 @@ class ClientesViewModel @Inject constructor(
     fun searchClientes(query: String) {
         _uiState.value = _uiState.value.copy(
             searchQuery = query,
-            filteredClientes = applySearchFilter(_uiState.value.clientes, query)
+            filteredClientes = applySearchFilter(_uiState.value.clientes, query),
+            visibleLimit = CLIENTES_PAGE_SIZE
+        )
+        val filtered = _uiState.value.filteredClientes
+        _uiState.value = _uiState.value.copy(
+            visibleClientes = filtered.take(_uiState.value.visibleLimit),
+            hasMoreClientes = filtered.size > _uiState.value.visibleLimit
+        )
+    }
+
+    fun loadMoreClientes() {
+        val nextLimit = _uiState.value.visibleLimit + CLIENTES_PAGE_SIZE
+        val filtered = _uiState.value.filteredClientes
+        _uiState.value = _uiState.value.copy(
+            visibleLimit = nextLimit,
+            visibleClientes = filtered.take(nextLimit),
+            hasMoreClientes = filtered.size > nextLimit
         )
     }
 
@@ -225,5 +246,8 @@ data class ClientesUiState(
     val showEditDialog: Boolean = false,
     val selectedCliente: Cliente? = null,
     val error: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val visibleClientes: List<Cliente> = emptyList(),
+    val visibleLimit: Int = 50,
+    val hasMoreClientes: Boolean = false,
 )

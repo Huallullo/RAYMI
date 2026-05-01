@@ -57,6 +57,7 @@ import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.EstadoBadge
 import com.raymi.app.presentation.components.RaymiEmptyState
+import com.raymi.app.presentation.components.RaymiLoadMoreSection
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
 import com.raymi.app.presentation.components.RaymiSearchBar
 
@@ -188,7 +189,16 @@ fun AlquileresScreen(
                             placeholder = "Buscar por cliente o vestuario...",
                             modifier = Modifier.padding(16.dp)
                         )
-
+                        RaymiLoadMoreSection(
+                            showing = uiState.visibleAlquileres.size,
+                            total = uiState.filteredAlquileres.size,
+                            itemLabelSingular = "alquiler",
+                            itemLabelPlural = "alquileres",
+                            hasMore = false,
+                            onLoadMore = {},
+                            icon = Icons.Filled.ShoppingCart,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         if (uiState.filteredAlquileres.isEmpty()) {
                             RaymiEmptyState(
                                 icon = Icons.Filled.SearchOff,
@@ -202,13 +212,26 @@ fun AlquileresScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(
-                                    items = uiState.filteredAlquileres,
+                                    items = uiState.visibleAlquileres,
                                     key = { it.id }
                                 ) { alquiler ->
                                     AlquilerItem(
                                         alquiler = alquiler,
                                         onClick = { onAlquilerClick(alquiler.id) }
                                     )
+                                }
+                                if (uiState.hasMoreAlquileres) {
+                                    item(key = "load_more_alquileres") {
+                                        RaymiLoadMoreSection(
+                                            showing = uiState.visibleAlquileres.size,
+                                            total = uiState.filteredAlquileres.size,
+                                            itemLabelSingular = "alquiler",
+                                            itemLabelPlural = "alquileres",
+                                            hasMore = true,
+                                            onLoadMore = { viewModel.loadMoreAlquileres() },
+                                            showCounter = false
+                                        )
+                                    }
                                 }
                             }
                         }

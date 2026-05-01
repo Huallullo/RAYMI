@@ -27,11 +27,15 @@ class VestuarioRepositoryImpl @Inject constructor(
      * @return Flow con la lista de vestuarios o error
      */
     override suspend fun getVestuarios(): Flow<Resource<List<Vestuario>>> {
-        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_VESTUARIOS)
+        return dataSource.observeCollectionOrderedLimited(
+            collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
+            orderByField = "codigo",
+            descending = false,
+            limit = 500
+        )
             .map { documents ->
                 val vestuarios = documents
                     .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
-                    .sortedBy { it.codigo }
                 Resource.Success(vestuarios) as Resource<List<Vestuario>>
             }
             .onStart { emit(Resource.Loading()) }
@@ -84,10 +88,11 @@ class VestuarioRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocuments(
+            val documents = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_VESTUARIOS,
                 "estado",
-                estado.name
+                estado.name,
+                limit = 300
             )
 
             val vestuarios = documents.map { (id, data) ->
@@ -114,10 +119,11 @@ class VestuarioRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocuments(
+            val documents = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_VESTUARIOS,
                 "codigo",
-                codigo
+                codigo,
+                limit = 5
             )
 
             if (documents.isNotEmpty()) {
@@ -227,10 +233,11 @@ class VestuarioRepositoryImpl @Inject constructor(
             emit(Resource.Loading())
 
             // Verificar que no tenga alquileres activos
-            val alquileres = dataSource.queryDocuments(
+            val alquileres = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_ALQUILERES,
                 "vestuarioId",
-                vestuarioId
+                vestuarioId,
+                limit =300
             )
 
             val tieneAlquileresActivos = alquileres.any { (_, data) ->
@@ -267,19 +274,24 @@ class VestuarioRepositoryImpl @Inject constructor(
 
             val q = query.trim().lowercase()
             if (q.isBlank()) {
-                val documents = dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_VESTUARIOS)
+                val documents = dataSource.getAllDocumentsOrderedLimited(
+                    collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
+                    orderByField = "codigo",
+                    descending = false,
+                    limit = 300
+                )
                 val vestuarios = documents
                     .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
-                    .sortedBy { it.codigo }
 
                 emit(Resource.Success(vestuarios))
                 return@flow
             }
 
-            val documents = dataSource.queryArrayContains(
+            val documents = dataSource.queryArrayContainsLimited(
                 collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
                 field = "searchTerms",
-                value = q
+                value = q,
+                limit = 200
             )
 
             val vestuarios = documents

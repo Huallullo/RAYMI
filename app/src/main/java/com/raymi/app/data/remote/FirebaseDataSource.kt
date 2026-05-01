@@ -1,6 +1,7 @@
 package com.raymi.app.data.remote
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -28,6 +29,8 @@ class FirebaseDataSource @Inject constructor(
         const val COLLECTION_ALQUILERES = "alquileres"
         const val COLLECTION_CLIENTES_DNI_INDEX = "clientes_dni_index"
         const val COLLECTION_VESTUARIOS_CODIGO_INDEX = "vestuarios_codigo_index"
+
+        const val DEFAULT_QUERY_LIMIT = 500L
     }
 
     // ========== OPERACIONES GENÉRICAS ==========
@@ -86,7 +89,47 @@ class FirebaseDataSource @Inject constructor(
             }
         }
     }
+    suspend fun getAllDocumentsOrderedLimited(
+        collection: String,
+        orderByField: String,
+        descending: Boolean = true,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        return getDocumentsPageOrdered(
+            collection = collection,
+            orderByField = orderByField,
+            descending = descending,
+            pageSize = limit,
+            startAfter = null
+        ).first
+    }
+    /**
+     * Obtiene una página ordenada de documentos con cursor para paginación incremental.
+     * Retorna: (items, lastSnapshot) para solicitar la siguiente página.
+     */
+    suspend fun getDocumentsPageOrdered(
+        collection: String,
+        orderByField: String,
+        descending: Boolean = true,
+        pageSize: Long = DEFAULT_QUERY_LIMIT,
+        startAfter: DocumentSnapshot? = null
+    ): Pair<List<Pair<String, Map<String, Any>>>, DocumentSnapshot?> {
+        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
+        var query: Query = firestore.collection(collection)
+            .orderBy(orderByField, direction)
+            .limit(pageSize)
 
+        if (startAfter != null) {
+            query = query.startAfter(startAfter)
+        }
+
+        val snapshot = query.get().await()
+        val documents = snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+        val lastSnapshot = snapshot.documents.lastOrNull()
+        return documents to lastSnapshot
+    }
     /**
      * Actualiza un documento
      * @param collection Nombre de la colección
@@ -142,7 +185,25 @@ class FirebaseDataSource @Inject constructor(
             }
         }
     }
+    /**
+    * Busca documentos por campo con límite para controlar costo/latencia.
+    */
+    suspend fun queryDocumentsLimited(
+        collection: String,
+        field: String,
+        value: Any,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collection(collection)
+            .whereEqualTo(field, value)
+            .limit(limit)
+            .get()
+            .await()
 
+        return snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+    }
     /**
      * Observa cambios en tiempo real de una colección
      * @param collection Nombre de la colección
@@ -176,7 +237,40 @@ class FirebaseDataSource @Inject constructor(
 
         awaitClose { subscription.remove() }
     }
+    /**
+     * Observa cambios en tiempo real con orden y límite para reducir costo de lecturas.
+     */
+    fun observeCollectionOrderedLimited(
+        collection: String,
+        orderByField: String,
+        descending: Boolean = true,
+        limit: Long = 200
+    ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
+        if (auth.currentUser == null) {
+            close(Exception("Usuario no autenticado"))
+            return@callbackFlow
+        }
 
+        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
+        val subscription = firestore.collection(collection)
+            .orderBy(orderByField, direction)
+            .limit(limit)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val documents = snapshot.documents.mapNotNull { doc ->
+                        doc.data?.let { data -> doc.id to data }
+                    }
+                    trySend(documents)
+                }
+            }
+
+        awaitClose { subscription.remove() }
+    }
     /**
      * Busca documentos con query personalizada
      * @param collection Nombre de la colección
@@ -351,7 +445,22 @@ class FirebaseDataSource @Inject constructor(
             doc.data?.let { data -> doc.id to data }
         }
     }
+    suspend fun queryArrayContainsLimited(
+        collection: String,
+        field: String,
+        value: String,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collection(collection)
+            .whereArrayContains(field, value)
+            .limit(limit)
+            .get()
+            .await()
 
+        return snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+    }
     // ========== POBLAR DATA DE PRUEBA ==========
 
     /**

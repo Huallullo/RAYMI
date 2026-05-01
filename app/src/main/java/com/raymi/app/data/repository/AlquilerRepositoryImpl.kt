@@ -29,11 +29,15 @@ class AlquilerRepositoryImpl @Inject constructor(
      * @return Flow con la lista de alquileres o error
      */
     override suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>> {
-        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_ALQUILERES)
+        return dataSource.observeCollectionOrderedLimited(
+            collection = FirebaseDataSource.COLLECTION_ALQUILERES,
+            orderByField = "createdAt",
+            descending = true,
+            limit = 500
+        )
             .map { documents ->
                 val alquileres = documents
                     .map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
-                    .sortedByDescending { it.createdAt }
                 Resource.Success(alquileres) as Resource<List<Alquiler>>
             }
             .onStart { emit(Resource.Loading()) }
@@ -86,10 +90,11 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocuments(
+            val documents = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_ALQUILERES,
                 "estado",
-                estado.name
+                estado.name,
+                limit = 300
             )
 
             val alquileres = documents.map { (id, data) ->
@@ -116,10 +121,11 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocuments(
+            val documents = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_ALQUILERES,
                 "clienteId",
-                clienteId
+                clienteId,
+                limit = 300
             )
 
             val alquileres = documents.map { (id, data) ->
@@ -146,10 +152,11 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocuments(
+            val documents = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_ALQUILERES,
                 "vestuarioId",
-                vestuarioId
+                vestuarioId,
+                limit = 300
             )
 
             val alquileres = documents.map { (id, data) ->

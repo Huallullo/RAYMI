@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,6 +48,7 @@ import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.AvatarWithInitials
 import com.raymi.app.presentation.components.RaymiEmptyState
 import com.raymi.app.presentation.components.RaymiErrorState
+import com.raymi.app.presentation.components.RaymiLoadMoreSection
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
 import com.raymi.app.presentation.components.RaymiSearchBar
 
@@ -135,7 +137,16 @@ fun ClientesScreen(
                             placeholder = "Buscar por nombre, DNI o teléfono...",
                             modifier = Modifier.padding(16.dp)
                         )
-
+                        RaymiLoadMoreSection(
+                            showing = uiState.visibleClientes.size,
+                            total = uiState.filteredClientes.size,
+                            itemLabelSingular = "cliente",
+                            itemLabelPlural = "clientes",
+                            hasMore = false,
+                            onLoadMore = {},
+                            icon = Icons.Filled.ShoppingCart,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         if (uiState.filteredClientes.isEmpty()) {
                             RaymiEmptyState(
                                 icon = Icons.Filled.SearchOff,
@@ -149,13 +160,26 @@ fun ClientesScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(
-                                    items = uiState.filteredClientes,
+                                    items = uiState.visibleClientes,
                                     key = { it.id }
                                 ) { cliente ->
                                     ClienteItem(
                                         cliente = cliente,
                                         onClick = { onClienteClick(cliente.id) }
                                     )
+                                }
+                                if (uiState.hasMoreClientes) {
+                                    item(key = "load_more_clientes") {
+                                        RaymiLoadMoreSection(
+                                            showing = uiState.visibleClientes.size,
+                                            total = uiState.filteredClientes.size,
+                                            itemLabelSingular = "cliente",
+                                            itemLabelPlural = "clientes",
+                                            hasMore = true,
+                                            onLoadMore = { viewModel.loadMoreClientes() },
+                                            showCounter = false
+                                        )
+                                    }
                                 }
                             }
                         }

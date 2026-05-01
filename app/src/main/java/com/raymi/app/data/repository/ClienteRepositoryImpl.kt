@@ -22,11 +22,15 @@ class ClienteRepositoryImpl @Inject constructor(
      * ✅ FIX: eliminado el doble-fetch innecesario (getAllDocuments dentro del map).
      */
     override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
-        return dataSource.observeCollection(FirebaseDataSource.COLLECTION_CLIENTES)
+        return dataSource.observeCollectionOrderedLimited(
+            collection = FirebaseDataSource.COLLECTION_CLIENTES,
+            orderByField = "createdAt",
+            descending = true,
+            limit = 500
+        )
             .map { documents ->
                 val clientes = documents
                     .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-                    .sortedByDescending { it.createdAt }
                 Resource.Success(clientes) as Resource<List<Cliente>>
             }
             .onStart { emit(Resource.Loading()) }
@@ -141,20 +145,25 @@ class ClienteRepositoryImpl @Inject constructor(
             val q = query.trim().lowercase()
 
             if (q.isBlank()) {
-                val documents = dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_CLIENTES)
+                val documents = dataSource.getAllDocumentsOrderedLimited(
+                    collection = FirebaseDataSource.COLLECTION_CLIENTES,
+                    orderByField = "createdAt",
+                    descending = true,
+                    limit = 300
+                )
                 val clientes = documents
                     .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-                    .sortedByDescending { it.createdAt }
                 emit(Resource.Success(clientes))
                 return@flow
             }
 
             // Usar searchTerms (índice de prefijos) para queries de 2+ chars
             if (q.length >= 2) {
-                val documents = dataSource.queryArrayContains(
+                val documents = dataSource.queryArrayContainsLimited(
                     collection = FirebaseDataSource.COLLECTION_CLIENTES,
                     field      = "searchTerms",
-                    value      = q
+                    value      = q,
+                    limit=200
                 )
                 val clientes = documents
                     .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
@@ -162,7 +171,12 @@ class ClienteRepositoryImpl @Inject constructor(
                 emit(Resource.Success(clientes))
             } else {
                 // Para queries de 1 carácter, búsqueda local sobre todos los clientes
-                val documents = dataSource.getAllDocuments(FirebaseDataSource.COLLECTION_CLIENTES)
+                val documents = dataSource.getAllDocumentsOrderedLimited(
+                    collection = FirebaseDataSource.COLLECTION_CLIENTES,
+                    orderByField = "createdAt",
+                    descending = true,
+                    limit = 300
+                )
                 val clientes = documents
                     .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
                     .filter { c ->

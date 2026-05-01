@@ -23,6 +23,9 @@ class AlquileresViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
 
 ) : ViewModel() {
+    companion object {
+        private const val ALQUILERES_PAGE_SIZE = 50
+    }
     private var observeJob: Job? = null
     // ========== ESTADOS UI ==========
 
@@ -49,9 +52,12 @@ class AlquileresViewModel @Inject constructor(
 
                     is Resource.Success -> {
                         val alquileres = result.data ?: emptyList()
+                        val filtered = filterAlquileres(alquileres)
                         _uiState.value = _uiState.value.copy(
                             alquileres = alquileres,
-                            filteredAlquileres = filterAlquileres(alquileres),
+                            filteredAlquileres = filtered,
+                            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
+                            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit,
                             isLoading = false,
                             error = null
                         )
@@ -73,8 +79,14 @@ class AlquileresViewModel @Inject constructor(
      */
     fun searchAlquileres(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
+        _uiState.value = _uiState.value.copy(visibleLimit = ALQUILERES_PAGE_SIZE)
         _uiState.value = _uiState.value.copy(
             filteredAlquileres = filterAlquileres(_uiState.value.alquileres)
+        )
+        val filtered = _uiState.value.filteredAlquileres
+        _uiState.value = _uiState.value.copy(
+            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
+            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit
         )
     }
 
@@ -83,8 +95,24 @@ class AlquileresViewModel @Inject constructor(
      */
     fun filterByEstado(estado: EstadoAlquiler?) {
         _uiState.value = _uiState.value.copy(selectedEstado = estado)
+        _uiState.value = _uiState.value.copy(visibleLimit = ALQUILERES_PAGE_SIZE)
         _uiState.value = _uiState.value.copy(
             filteredAlquileres = filterAlquileres(_uiState.value.alquileres)
+        )
+        val filtered = _uiState.value.filteredAlquileres
+        _uiState.value = _uiState.value.copy(
+            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
+            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit
+        )
+    }
+
+    fun loadMoreAlquileres() {
+        val nextLimit = _uiState.value.visibleLimit + ALQUILERES_PAGE_SIZE
+        val filtered = _uiState.value.filteredAlquileres
+        _uiState.value = _uiState.value.copy(
+            visibleLimit = nextLimit,
+            visibleAlquileres = filtered.take(nextLimit),
+            hasMoreAlquileres = filtered.size > nextLimit
         )
     }
 
@@ -145,5 +173,8 @@ data class AlquileresUiState(
     val selectedEstado: EstadoAlquiler? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val visibleAlquileres: List<Alquiler> = emptyList(),
+    val visibleLimit: Int = 50,
+    val hasMoreAlquileres: Boolean = false,
 )

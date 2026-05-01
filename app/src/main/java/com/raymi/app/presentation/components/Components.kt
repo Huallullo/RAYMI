@@ -1,26 +1,52 @@
 package com.raymi.app.presentation.components
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.raymi.app.core.theme.CustomShapes
-import com.raymi.app.core.theme.RaymiColors
 
 // ========== LOADING INDICATOR ==========
 @Composable
@@ -236,6 +262,85 @@ fun StatCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+@Composable
+fun RaymiLoadMoreSection(
+    showing: Int,
+    total: Int,
+    itemLabelSingular: String,
+    itemLabelPlural: String,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
+    showCounter: Boolean = true,
+    icon: ImageVector? = null,
+    iconSize: Dp = 14.dp,
+    showRemainingCount: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    if (total <= 0) return
+    val counterLabel = if (total == 1) itemLabelSingular else itemLabelPlural
+    if (showCounter) {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            icon?.let {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AnimatedContent(
+                targetState = showing,
+                transitionSpec = {
+                    (fadeIn() + slideInVertically { it / 2 }) togetherWith
+                            (fadeOut() + slideOutVertically { -it / 2 })
+                },
+                label = "counter_showing_animation"
+            ) { animatedShowing ->
+                Text(
+                    text = "Mostrando $animatedShowing de $total $counterLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+
+    if (hasMore) {
+        val remaining = (total - showing).coerceAtLeast(0)
+        val buttonLabel = if (remaining == 1) itemLabelSingular else itemLabelPlural
+        val buttonText = if (showRemainingCount) {
+            "Cargar $remaining más $buttonLabel"
+        } else {
+            "Cargar más $buttonLabel"
+        }
+        AnimatedVisibility(
+            visible = hasMore,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Button(
+                onClick = onLoadMore,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                AnimatedContent(
+                    targetState = buttonText,
+                    transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    },
+                    label = "load_more_button_text_animation"
+                ) { animatedButtonText ->
+                    Text(animatedButtonText)
+                }
+            }
         }
     }
 }
