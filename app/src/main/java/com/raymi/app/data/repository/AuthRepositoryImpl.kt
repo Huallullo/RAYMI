@@ -18,7 +18,9 @@ import kotlin.coroutines.cancellation.CancellationException
 class AuthRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : AuthRepository {
-
+    companion object {
+        private const val ADMIN_EMAIL = "raymi@gmail.com"
+    }
     /**
      * Obtiene el usuario actual autenticado
      */
@@ -44,12 +46,26 @@ class AuthRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Email y contraseña son requeridos"))
                 return@flow
             }
+            if (!email.equals(ADMIN_EMAIL, ignoreCase = true)) {
+                emit(Resource.Error("Acceso denegado. Solo la cuenta admin autorizada puede ingresar."))
+                return@flow
+            }
 
             // Intentar iniciar sesión
             val result = dataSource.signIn(email, password)
             val user = result.user
 
             if (user != null) {
+                if (!user.email.equals(ADMIN_EMAIL, ignoreCase = true)) {
+                    dataSource.signOut()
+                    emit(Resource.Error("Acceso denegado. Solo la cuenta admin autorizada puede ingresar."))
+                    return@flow
+                }
+                if (!user.isEmailVerified) {
+                    dataSource.signOut()
+                    emit(Resource.Error("Debe verificar el correo admin antes de ingresar."))
+                    return@flow
+                }
                 emit(Resource.Success(user))
             } else {
                 emit(Resource.Error("Error al iniciar sesión"))
@@ -103,7 +119,10 @@ class AuthRepositoryImpl @Inject constructor(
                 emit(Resource.Error("La contraseña debe tener al menos 6 caracteres"))
                 return@flow
             }
-
+            if (!email.equals(ADMIN_EMAIL, ignoreCase = true)) {
+                emit(Resource.Error("Solo se permite registrar la cuenta admin autorizada."))
+                return@flow
+            }
             // Intentar registrar usuario
             val result = dataSource.signUp(email, password)
             val user = result.user
