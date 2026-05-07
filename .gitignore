@@ -12,3 +12,5 @@
 /captures
 .externalNativeBuild
 .cxx
+# Release signing secrets
+keystore.properties

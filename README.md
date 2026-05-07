@@ -91,8 +91,9 @@ org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0
   usando colecciones índice:
   - `clientes_dni_index`
   - `vestuarios_codigo_index`
-## 🚀 Instalación
+    ```
 
+## 🚀 Instalación
 1. **Clonar el repositorio**
 ```bash
 git clone https://github.com/tu-usuario/raymi.git
@@ -209,15 +210,19 @@ service cloud.firestore {
 # Instrumented tests (requiere emulador/dispositivo)
 ./gradlew connectedAndroidTest
 ```
+## ✅ Pre-lanzamiento
+
+Consulta el checklist de producción en `docs/PRODUCTION_CHECKLIST.md`.
+
+Plantilla de firma release: `keystore.properties.example` (copiar a `keystore.properties` local).
 
 ## 📝 Próximas Características
 
-- [ ] Reportes PDF
+- [x] Reportes PDF
 - [ ] Notificaciones push para alquileres vencidos
 - [ ] Subida de imágenes de vestuarios
 - [ ] Sistema de pagos
 - [ ] Modo offline completo
-- [ ] Exportación de datos a Excel
 
 ## 👥 Contribución
 
