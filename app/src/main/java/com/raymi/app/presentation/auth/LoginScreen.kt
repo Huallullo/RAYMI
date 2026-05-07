@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -28,6 +30,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,7 +71,7 @@ fun LoginScreen(
         }
     }
 
-    // Mostrar snackbar de error
+    // Mostrar snackbar de error o informacion
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
@@ -79,7 +82,15 @@ fun LoginScreen(
             viewModel.clearError()
         }
     }
-
+    LaunchedEffect(uiState.infoMessage) {
+        uiState.infoMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearInfoMessage()
+        }
+    }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
@@ -92,7 +103,8 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
+                    .padding(horizontal = 32.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -112,13 +124,42 @@ fun LoginScreen(
                 )
 
                 Text(
-                    text = "Sistema de Gestión de Alquiler",
+                    text = if (uiState.isRegisterMode) {
+                        "Crea tu negocio de alquiler"
+                    } else {
+                        "Sistema de Gestión de Alquiler"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
-
+                if (uiState.isRegisterMode) {
+                    OutlinedTextField(
+                        value = uiState.businessName,
+                        onValueChange = viewModel::onBusinessNameChange,
+                        label = { Text("Nombre del negocio") },
+                        isError = uiState.businessNameError != null,
+                        supportingText = {
+                            uiState.businessNameError?.let { error ->
+                                Text(
+                                    text = error,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isLoading
+                    )
+                }
                 // Campo de email
                 OutlinedTextField(
                     value = uiState.email,
@@ -193,7 +234,11 @@ fun LoginScreen(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             focusManager.clearFocus()
-                            viewModel.login()
+                            if (uiState.isRegisterMode) {
+                                viewModel.register()
+                            } else {
+                                viewModel.login()
+                            }
                         }
                     ),
                     singleLine = true,
@@ -203,11 +248,15 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón de inicio de sesión
+                // Botón principal de autentificacion
                 Button(
                     onClick = {
                         focusManager.clearFocus()
-                        viewModel.login()
+                        if (uiState.isRegisterMode) {
+                            viewModel.register()
+                        } else {
+                            viewModel.login()
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -222,17 +271,41 @@ fun LoginScreen(
                         )
                     } else {
                         Text(
-                            text = "Iniciar Sesión",
+                            text = if (uiState.isRegisterMode) "Crear cuenta" else "Iniciar Sesión",
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = viewModel::toggleAuthMode,
+                    enabled = !uiState.isLoading
+                ) {
+                    Text(
+                        text = if (uiState.isRegisterMode) {
+                            "Ya tengo cuenta"
+                        } else {
+                            "Crear cuenta para mi negocio"
+                        }
+                    )
+                }
 
+                if (!uiState.isRegisterMode) {
+                    TextButton(
+                        onClick = viewModel::resetPassword,
+                        enabled = !uiState.isLoading
+                    ) {
+                        Text("Olvidé mi contraseña")
+                    }
+                }
                 // Texto informativo
                 Text(
-                    text = "Para acceso de prueba, contacta al administrador",
+                    text = if (uiState.isRegisterMode) {
+                        "Cada cuenta crea un negocio aislado con su propio historial"
+                    } else {
+                        "Ingresa o crea una cuenta para administrar tu negocio"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

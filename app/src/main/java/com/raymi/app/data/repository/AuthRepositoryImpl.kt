@@ -51,6 +51,7 @@ class AuthRepositoryImpl @Inject constructor(
             val user = result.user
 
             if (user != null) {
+                dataSource.ensureBusinessProfileForUser(user)
                 emit(Resource.Success(user))
             } else {
                 emit(Resource.Error("Error al iniciar sesión"))
@@ -81,22 +82,24 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Registra un nuevo usuario
+     * Registra un nuevo usuario y crea su negocio SaaS Inicial
      * @param email Correo electrónico del usuario
      * @param password Contraseña del usuario
+     * * @param businessName Nombre del negocio que será dueño de su propia data
      * @return Flow con el resultado de la operación
      */
     override suspend fun register(
         email: String,
-        password: String
+        password: String,
+        businessName: String
     ): Flow<Resource<FirebaseUser>> = flow {
         try {
             // Emitir estado de carga
             emit(Resource.Loading())
-
             // Validar campos
-            if (email.isBlank() || password.isBlank()) {
-                emit(Resource.Error("Email y contraseña son requeridos"))
+            if (email.isBlank() || password.isBlank() || businessName.isBlank()) {
+                emit(Resource.Error("Email, contraseña y nombre del negocio son requeridos"))
+
                 return@flow
             }
 
@@ -109,6 +112,7 @@ class AuthRepositoryImpl @Inject constructor(
             val user = result.user
 
             if (user != null) {
+                dataSource.createBusinessProfileForUser(user, businessName)
                 emit(Resource.Success(user))
             } else {
                 emit(Resource.Error("Error al registrar usuario"))
@@ -131,7 +135,32 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Resource.Error(errorMessage))
         }
     }
+    override suspend fun resetPassword(email: String): Flow<Resource<Unit>> = flow {
+        try {
+            emit(Resource.Loading())
 
+            if (email.isBlank()) {
+                emit(Resource.Error("Ingresa tu email para recuperar la contraseña"))
+                return@flow
+            }
+
+            dataSource.sendPasswordResetEmail(email.trim())
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val errorMessage = when (e) {
+                is FirebaseAuthException -> when (e.errorCode) {
+                    "ERROR_INVALID_EMAIL" -> "Email inválido"
+                    "ERROR_USER_NOT_FOUND" -> "Usuario no encontrado"
+                    "ERROR_NETWORK_REQUEST_FAILED" -> "Error de conexión. Verifica tu internet"
+                    else -> "Error al enviar recuperación: ${e.localizedMessage}"
+                }
+                else -> "Error al enviar recuperación: ${e.localizedMessage}"
+            }
+            emit(Resource.Error(errorMessage))
+        }
+    }
     /**
      * Cierra la sesión actual
      * @return Flow con el resultado de la operación

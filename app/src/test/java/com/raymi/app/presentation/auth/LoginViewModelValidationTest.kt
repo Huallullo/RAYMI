@@ -31,9 +31,17 @@ class LoginViewModelValidationTest {
         Dispatchers.resetMain()
     }
 
+    private fun createViewModel(): LoginViewModel {
+        val repository = FakeAuthRepositoryNoOp()
+        return LoginViewModel(
+            loginUseCase = LoginUseCase(repository),
+            authRepository = repository
+        )
+    }
+
     @Test
     fun login_con_credenciales_correctas_esExitoso() {
-        val viewModel = LoginViewModel(LoginUseCase(FakeAuthRepositoryNoOp()))
+        val viewModel = createViewModel()
 
         viewModel.onEmailChange("admin@raymi.com")
         viewModel.onPasswordChange("admin123")
@@ -50,7 +58,7 @@ class LoginViewModelValidationTest {
 
     @Test
     fun login_con_credenciales_incorrectas_muestraError() {
-        val viewModel = LoginViewModel(LoginUseCase(FakeAuthRepositoryNoOp()))
+        val viewModel = createViewModel()
 
         viewModel.onEmailChange("admin@raymi.com")
         viewModel.onPasswordChange("claveIncorrecta")

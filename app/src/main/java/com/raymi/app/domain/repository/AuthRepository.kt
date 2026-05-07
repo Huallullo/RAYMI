@@ -22,7 +22,13 @@ interface AuthRepository {
     /**
      * Registra un nuevo usuario
      */
-    suspend fun register(email: String, password: String): Flow<Resource<FirebaseUser>>
+    suspend fun register(email: String, password: String, businessName: String): Flow<Resource<FirebaseUser>>
+
+    /**
+     * Envía un correo para restablecer la contraseña
+     */
+    suspend fun resetPassword(email: String): Flow<Resource<Unit>>
+
 
     /**
      * Cierra la sesión actual

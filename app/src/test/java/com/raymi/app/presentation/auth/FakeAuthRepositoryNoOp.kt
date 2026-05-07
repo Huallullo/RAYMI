@@ -20,8 +20,12 @@ class FakeAuthRepositoryNoOp : AuthRepository {
         }
     }
 
-    override suspend fun register(email: String, password: String): Flow<Resource<FirebaseUser>> = flow {
+    override suspend fun register(email: String, password: String, businessName: String): Flow<Resource<FirebaseUser>> = flow {
         emit(Resource.Error("No-op test repo"))
+    }
+
+    override suspend fun resetPassword(email: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Success(Unit))
     }
 
     override suspend fun logout(): Flow<Resource<Unit>> = flow {

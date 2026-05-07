@@ -1,10 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow all operations for development/testing
-    // WARNING: This is NOT secure for production!
-    match /{document=**} {
-      allow read, write: if true;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isBusinessMember(negocioId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
+    }
+
+    // Fase 1 SaaS: cada usuario puede leer/escribir su perfil de cuenta.
+    match /usuarios/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Fase 1 SaaS: el creador puede crear su negocio inicial.
+    match /negocios/{negocioId} {
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow read, update, delete: if isBusinessMember(negocioId);
+    }
+
+    // Fase 1 SaaS: el creador puede crear su membresía owner inicial.
+    match /negocios/{negocioId}/miembros/{uid} {
+      allow create: if isOwner(uid) && request.resource.data.rol == "owner";
+      allow read, update, delete: if isBusinessMember(negocioId);
+    }
+
+    // Fase 1 SaaS: el resto de subcolecciones nuevas queda aislado por membresía.
+    match /negocios/{negocioId}/{document=**} {
+      allow read, write: if isBusinessMember(negocioId);
+    }
+
+    // Compatibilidad temporal con las colecciones actuales mientras migramos
+    // clientes/vestuarios/alquileres a negocios/{negocioId}/...
+    match /clientes/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /vestuarios/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /alquileres/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /clientes_dni_index/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /vestuarios_codigo_index/{document=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }

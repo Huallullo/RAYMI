@@ -213,7 +213,7 @@ service cloud.firestore {
 ## ✅ Pre-lanzamiento
 
 Consulta el checklist de producción en `docs/PRODUCTION_CHECKLIST.md`.
-
+Plan de evolución SaaS escalable: `docs/SAAS_SCALING_PLAN.md`.
 Plantilla de firma release: `keystore.properties.example` (copiar a `keystore.properties` local).
 
 ## 📝 Próximas Características
