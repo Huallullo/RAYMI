@@ -391,7 +391,137 @@ class FirebaseDataSource @Inject constructor(
             )
         }
     }
+    // ========== FUNCIONES SaaS POR NEGOCIO ==========
 
+    suspend fun getCurrentBusinessId(): String {
+        val user = auth.currentUser
+            ?: throw IllegalStateException("Usuario no autenticado")
+        return ensureBusinessProfileForUser(user)
+    }
+
+    private suspend fun businessCollection(collection: String) =
+        firestore.collection(COLLECTION_NEGOCIOS)
+            .document(getCurrentBusinessId())
+            .collection(collection)
+
+    suspend fun getBusinessDocument(
+        collection: String,
+        documentId: String
+    ): Map<String, Any>? {
+        val snapshot = businessCollection(collection)
+            .document(documentId)
+            .get()
+            .await()
+        return if (snapshot.exists()) snapshot.data else null
+    }
+
+    suspend fun getAllBusinessDocumentsOrderedLimited(
+        collection: String,
+        orderByField: String,
+        descending: Boolean = true,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
+        val snapshot = businessCollection(collection)
+            .orderBy(orderByField, direction)
+            .limit(limit)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+    }
+
+    suspend fun queryBusinessDocuments(
+        collection: String,
+        field: String,
+        value: Any,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = businessCollection(collection)
+            .whereEqualTo(field, value)
+            .limit(limit)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+    }
+
+    suspend fun queryBusinessArrayContainsLimited(
+        collection: String,
+        field: String,
+        value: String,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = businessCollection(collection)
+            .whereArrayContains(field, value)
+            .limit(limit)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.data?.let { data -> doc.id to data }
+        }
+    }
+
+    fun observeBusinessCollectionOrderedLimited(
+        collection: String,
+        orderByField: String,
+        descending: Boolean = true,
+        limit: Long = 200
+    ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
+        val user = auth.currentUser
+        if (user == null) {
+            close(Exception("Usuario no autenticado"))
+            return@callbackFlow
+        }
+        val negocioId = try {
+            ensureBusinessProfileForUser(user)
+        } catch (e: Exception) {
+            close(e)
+            return@callbackFlow
+        }
+        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
+        val subscription = firestore.collection(COLLECTION_NEGOCIOS)
+            .document(negocioId)
+            .collection(collection)
+            .orderBy(orderByField, direction)
+            .limit(limit)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val documents = snapshot.documents.mapNotNull { doc ->
+                        doc.data?.let { data -> doc.id to data }
+                    }
+                    trySend(documents)
+                }
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    suspend fun updateBusinessDocument(
+        collection: String,
+        documentId: String,
+        data: Map<String, Any>
+    ) {
+        businessCollection(collection)
+            .document(documentId)
+            .update(data)
+            .await()
+    }
+
+    suspend fun deleteBusinessDocument(
+        collection: String,
+        documentId: String
+    ) {
+        businessCollection(collection)
+            .document(documentId)
+            .delete()
+            .await()
+    }
     private fun defaultBusinessName(email: String): String {
         val prefix = email.substringBefore('@').replace('.', ' ').replace('_', ' ').trim()
         return if (prefix.isBlank()) "Mi negocio" else "Negocio de $prefix"
@@ -541,5 +671,159 @@ class FirebaseDataSource @Inject constructor(
             doc.data?.let { data -> doc.id to data }
         }
     }
+    suspend fun addBusinessItemWithUniqueCodigo(
+        itemData: Map<String, Any>,
+        codigoRaw: String
+    ): String {
+        val negocioId = getCurrentBusinessId()
+        val codigo = codigoRaw.trim().uppercase()
 
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
+        val itemsRef = negocioRef.collection("items")          // ← usamos "items" en lugar de "vestuarios"
+        val codigoIndexRef = negocioRef.collection("items_codigo_index").document(codigo)
+
+        return firestore.runTransaction { transaction ->
+            val codigoIndexSnap = transaction.get(codigoIndexRef)
+
+            if (codigoIndexSnap.exists()) {
+                throw IllegalStateException("Ya existe un vestuario con este código")
+            }
+
+            val itemRef = itemsRef.document()
+            transaction.set(
+                itemRef,
+                itemData + mapOf(
+                    "negocioId" to negocioId,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
+
+            transaction.set(
+                codigoIndexRef,
+                mapOf(
+                    "itemId" to itemRef.id,
+                    "codigo" to codigo,
+                    "negocioId" to negocioId,
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+            )
+
+            itemRef.id
+        }.await()
+    }
+
+    // Consulta por código exacto (único)
+    suspend fun queryBusinessItemByCodigo(
+        codigo: String,
+        limit: Long = 5
+    ): List<Pair<String, Map<String, Any>>> {
+        return queryBusinessDocuments(
+            collection = "items",
+            field = "codigo",
+            value = codigo.trim().uppercase(),
+            limit = limit
+        )
+    }
+
+    // Observar items ordenados
+    fun observeBusinessItemsOrderedLimited(
+        orderByField: String = "createdAt",
+        descending: Boolean = true,
+        limit: Long = 500
+    ): Flow<List<Pair<String, Map<String, Any>>>> {
+        return observeBusinessCollectionOrderedLimited(
+            collection = "items",
+            orderByField = orderByField,
+            descending = descending,
+            limit = limit
+        )
+    }
+    // ========== FUNCIONES PARA ALQUILERES POR NEGOCIO ==========
+
+    suspend fun addBusinessAlquiler(
+        alquilerData: Map<String, Any>,
+        itemId: String
+    ): String {
+        val negocioId = getCurrentBusinessId()
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
+        val alquileresRef = negocioRef.collection("alquileres")
+        val itemsRef = negocioRef.collection("items")
+
+        return firestore.runTransaction { transaction ->
+            val itemRef = itemsRef.document(itemId)
+            val itemSnap = transaction.get(itemRef)
+
+            if (!itemSnap.exists()) {
+                throw IllegalStateException("Item no encontrado")
+            }
+            val estado = itemSnap.getString("estado")
+            if (estado != "DISPONIBLE") {
+                throw IllegalStateException("El vestuario no está disponible")
+            }
+
+            val alquilerRef = alquileresRef.document()
+            val dataCompleta = alquilerData + mapOf(
+                "negocioId" to negocioId,
+                "itemId" to itemId,
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            transaction.set(alquilerRef, dataCompleta)
+            transaction.update(itemRef, "estado", "ALQUILADO")
+
+            alquilerRef.id
+        }.await()
+    }
+
+    suspend fun registrarDevolucionBusiness(
+        alquilerId: String
+    ) {
+        val negocioId = getCurrentBusinessId()
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
+        val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
+
+        firestore.runTransaction { transaction ->
+            val alquilerSnap = transaction.get(alquilerRef)
+            if (!alquilerSnap.exists()) {
+                throw IllegalStateException("Alquiler no encontrado")
+            }
+            val itemId = alquilerSnap.getString("itemId")
+                ?: throw IllegalStateException("Item no encontrado en el alquiler")
+            val itemRef = negocioRef.collection("items").document(itemId)
+
+            transaction.update(
+                alquilerRef,
+                mapOf(
+                    "estado" to "DEVUELTO",
+                    "fechaDevolucion" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
+            transaction.update(itemRef, "estado", "DISPONIBLE")
+        }.await()
+    }
+
+    // Funciones genéricas para alquileres (ya las tienes para otras colecciones, pero con "alquileres")
+    suspend fun getBusinessAlquiler(id: String): Map<String, Any>? =
+        getBusinessDocument("alquileres", id)
+
+    suspend fun updateBusinessAlquiler(id: String, data: Map<String, Any>) =
+        updateBusinessDocument("alquileres", id, data)
+
+    suspend fun deleteBusinessAlquiler(id: String) =
+        deleteBusinessDocument("alquileres", id)
+
+    suspend fun queryBusinessAlquileres(
+        field: String,
+        value: Any,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> =
+        queryBusinessDocuments("alquileres", field, value, limit)
+
+    fun observeBusinessAlquileresOrderedLimited(
+        orderByField: String = "createdAt",
+        descending: Boolean = true,
+        limit: Long = 500
+    ): Flow<List<Pair<String, Map<String, Any>>>> =
+        observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit)
 }

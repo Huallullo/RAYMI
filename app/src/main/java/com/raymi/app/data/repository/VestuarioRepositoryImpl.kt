@@ -15,32 +15,25 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Implementación del repositorio de vestuarios
- * Maneja todas las operaciones CRUD de vestuarios con Firebase
+ * Implementación del repositorio de vestuarios (items) con rutas SaaS por negocio.
  */
 class VestuarioRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : VestuarioRepository {
 
-    /**
-     * Obtiene todos los vestuarios de Firebase
-     * @return Flow con la lista de vestuarios o error
-     */
     override suspend fun getVestuarios(): Flow<Resource<List<Vestuario>>> {
-        return dataSource.observeCollectionOrderedLimited(
-            collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
-            orderByField = "codigo",
-            descending = false,
+        return dataSource.observeBusinessItemsOrderedLimited(
+            orderByField = "createdAt",
+            descending = true,
             limit = 500
         )
             .map { documents ->
-                val vestuarios = documents
+                val items = documents
                     .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
-                Resource.Success(vestuarios) as Resource<List<Vestuario>>
+                Resource.Success(items) as Resource<List<Vestuario>>
             }
             .onStart { emit(Resource.Loading()) }
             .catch { e ->
-                // Manejar error de autenticación
                 if (e.message?.contains("Usuario no autenticado") == true) {
                     emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
                 } else {
@@ -49,49 +42,33 @@ class VestuarioRepositoryImpl @Inject constructor(
             }
     }
 
-    /**
-     * Obtiene un vestuario específico por su ID
-     * @param id ID del vestuario
-     * @return Flow con el vestuario o error
-     */
     override suspend fun getVestuarioById(id: String): Flow<Resource<Vestuario>> = flow {
         try {
             emit(Resource.Loading())
-
-            val data = dataSource.getDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                id
-            )
-
+            val data = dataSource.getBusinessDocument("items", id)
             if (data != null) {
                 val vestuario = VestuarioDto.fromMap(id, data).toDomain()
                 emit(Resource.Success(vestuario))
             } else {
                 emit(Resource.Error("Vestuario no encontrado"))
             }
-
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al obtener vestuario: ${e.message}"))
         }
     }
 
-    /**
-     * Obtiene vestuarios filtrados por estado
-     * @param estado Estado del vestuario
-     * @return Flow con la lista de vestuarios
-     */
     override suspend fun getVestuariosByEstado(
         estado: EstadoVestuario
     ): Flow<Resource<List<Vestuario>>> = flow {
         try {
             emit(Resource.Loading())
 
-            val documents = dataSource.queryDocumentsLimited(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                "estado",
-                estado.name,
+            val documents = dataSource.queryBusinessDocuments(
+                collection = "items",
+                field = "estado",
+                value = estado.name,
                 limit = 300
             )
 
@@ -103,104 +80,63 @@ class VestuarioRepositoryImpl @Inject constructor(
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al obtener vestuarios por estado: ${e.message}"))
         }
     }
 
-    /**
-     * Busca un vestuario por su código
-     * @param codigo Código del vestuario
-     * @return Flow con el vestuario encontrado o null
-     */
-    override suspend fun searchVestuarioByCodigo(
-        codigo: String
-    ): Flow<Resource<Vestuario?>> = flow {
+    override suspend fun searchVestuarioByCodigo(codigo: String): Flow<Resource<Vestuario?>> = flow {
         try {
             emit(Resource.Loading())
-
-            val documents = dataSource.queryDocumentsLimited(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                "codigo",
-                codigo,
-                limit = 5
-            )
-
-            if (documents.isNotEmpty()) {
-                val (id, data) = documents.first()
-                val vestuario = VestuarioDto.fromMap(id, data).toDomain()
-                emit(Resource.Success(vestuario))
-            } else {
-                emit(Resource.Success(null))
+            val documents = dataSource.queryBusinessItemByCodigo(codigo, limit = 5)
+            val vestuario = documents.firstOrNull()?.let { (id, data) ->
+                VestuarioDto.fromMap(id, data).toDomain()
             }
-
-        }catch (e: CancellationException) {
+            emit(Resource.Success(vestuario))
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            emit(Resource.Error("Error al buscar vestuario: ${e.message}"))
+            emit(Resource.Error("Error al buscar por código: ${e.message}"))
         }
     }
 
-    /**
-     * Agrega un nuevo vestuario a Firebase
-     * @param vestuario Vestuario a agregar
-     * @return Flow con el ID del vestuario creado o error
-     */
     override suspend fun addVestuario(vestuario: Vestuario): Flow<Resource<String>> = flow {
         try {
             emit(Resource.Loading())
-
             val dto = VestuarioDto.fromDomain(vestuario)
-            val documentId = dataSource.addVestuarioWithUniqueCodigo(
-                vestuarioData = dto.toMap(),
+            val documentId = dataSource.addBusinessItemWithUniqueCodigo(
+                itemData = dto.toMap(),
                 codigoRaw = vestuario.codigo
             )
-
             emit(Resource.Success(documentId))
-
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
-            emit(Resource.Error("Error al agregar vestuario: ${e.message}"))
+        } catch (e: Exception) {
+            val error = if (e.message?.contains("Ya existe un vestuario con este código") == true)
+                "Ya existe un vestuario con el código ${vestuario.codigo}"
+            else
+                "Error al agregar vestuario: ${e.message}"
+            emit(Resource.Error(error))
         }
     }
 
-    /**
-     * Actualiza un vestuario existente
-     * @param vestuario Vestuario con los datos actualizados
-     * @return Flow con el resultado de la operación
-     */
     override suspend fun updateVestuario(vestuario: Vestuario): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-
-            if (vestuario.id.isBlank()) {
-                emit(Resource.Error("ID de vestuario inválido"))
-                return@flow
-            }
-
             val dto = VestuarioDto.fromDomain(vestuario)
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                vestuario.id,
-                dto.toMap()
+            dataSource.updateBusinessDocument(
+                collection = "items",
+                documentId = vestuario.id,
+                data = dto.toMap()
             )
-
             emit(Resource.Success(Unit))
-
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar vestuario: ${e.message}"))
         }
     }
 
-    /**
-     * Actualiza solo el estado de un vestuario
-     * @param vestuarioId ID del vestuario
-     * @param estado Nuevo estado
-     * @return Flow con el resultado de la operación
-     */
     override suspend fun updateEstadoVestuario(
         vestuarioId: String,
         estado: EstadoVestuario
@@ -208,36 +144,31 @@ class VestuarioRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                vestuarioId,
-                mapOf("estado" to estado.name)
+            dataSource.updateBusinessDocument(
+                collection = "items",
+                documentId = vestuarioId,
+                data = mapOf("estado" to estado.name)
             )
 
             emit(Resource.Success(Unit))
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar estado: ${e.message}"))
         }
     }
 
-    /**
-     * Elimina un vestuario de Firebase
-     * @param vestuarioId ID del vestuario a eliminar
-     * @return Flow con el resultado de la operación
-     */
     override suspend fun deleteVestuario(vestuarioId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
 
-            // Verificar que no tenga alquileres activos
+            // Temporal: mientras no migramos alquileres, seguimos usando la colección global
             val alquileres = dataSource.queryDocumentsLimited(
                 FirebaseDataSource.COLLECTION_ALQUILERES,
                 "vestuarioId",
                 vestuarioId,
-                limit =300
+                limit = 300
             )
 
             val tieneAlquileresActivos = alquileres.any { (_, data) ->
@@ -249,46 +180,40 @@ class VestuarioRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            dataSource.deleteDocument(
-                FirebaseDataSource.COLLECTION_VESTUARIOS,
-                vestuarioId
+            dataSource.deleteBusinessDocument(
+                collection = "items",
+                documentId = vestuarioId
             )
 
             emit(Resource.Success(Unit))
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar vestuario: ${e.message}"))
         }
     }
 
-    /**
-     * Busca vestuarios por danza, departamento o descripción
-     * @param query Texto a buscar
-     * @return Flow con la lista de vestuarios que coinciden
-     */
     override suspend fun searchVestuarios(query: String): Flow<Resource<List<Vestuario>>> = flow {
         try {
             emit(Resource.Loading())
 
             val q = query.trim().lowercase()
             if (q.isBlank()) {
-                val documents = dataSource.getAllDocumentsOrderedLimited(
-                    collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
+                val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
+                    collection = "items",
                     orderByField = "codigo",
                     descending = false,
                     limit = 300
                 )
                 val vestuarios = documents
                     .map { (id, data) -> VestuarioDto.fromMap(id, data).toDomain() }
-
                 emit(Resource.Success(vestuarios))
                 return@flow
             }
 
-            val documents = dataSource.queryArrayContainsLimited(
-                collection = FirebaseDataSource.COLLECTION_VESTUARIOS,
+            val documents = dataSource.queryBusinessArrayContainsLimited(
+                collection = "items",
                 field = "searchTerms",
                 value = q,
                 limit = 200
@@ -302,7 +227,7 @@ class VestuarioRepositoryImpl @Inject constructor(
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             emit(Resource.Error("Error al buscar vestuarios: ${e.message}"))
         }
     }
