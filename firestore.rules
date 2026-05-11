@@ -5,57 +5,36 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
-    }
-
     function isBusinessMember(negocioId) {
       return isSignedIn()
         && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
     }
 
-    // Fase 1 SaaS: cada usuario puede leer/escribir su perfil de cuenta.
+    // Perfil de usuario
     match /usuarios/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
-    // Fase 1 SaaS: el creador puede crear su negocio inicial.
+    // Negocios y toda su data interna
     match /negocios/{negocioId} {
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow read, update, delete: if isBusinessMember(negocioId);
+      allow read, update: if isBusinessMember(negocioId);
+
+      match /{subcollection=**} {
+        allow read, write: if isBusinessMember(negocioId);
+      }
     }
 
-    // Fase 1 SaaS: el creador puede crear su membresía owner inicial.
-    match /negocios/{negocioId}/miembros/{uid} {
-      allow create: if isOwner(uid) && request.resource.data.rol == "owner";
-      allow read, update, delete: if isBusinessMember(negocioId);
-    }
+    // BLOQUEO TOTAL: colecciones raíz que ya no deben usarse
+    match /clientes/{document=**}   { allow read, write: if false; }
+    match /vestuarios/{document=**} { allow read, write: if false; }
+    match /alquileres/{document=**} { allow read, write: if false; }
+    match /clientes_dni_index/{document=**} { allow read, write: if false; }
+    match /vestuarios_codigo_index/{document=**} { allow read, write: if false; }
 
-    // Fase 1 SaaS: el resto de subcolecciones nuevas queda aislado por membresía.
-    match /negocios/{negocioId}/{document=**} {
-      allow read, write: if isBusinessMember(negocioId);
-    }
-
-    // Compatibilidad temporal con las colecciones actuales mientras migramos
-    // clientes/vestuarios/alquileres a negocios/{negocioId}/...
-    match /clientes/{document=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /vestuarios/{document=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /alquileres/{document=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /clientes_dni_index/{document=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /vestuarios_codigo_index/{document=**} {
-      allow read, write: if isSignedIn();
+    // Cualquier otra colección no autorizada también se deniega
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

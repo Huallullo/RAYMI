@@ -17,13 +17,9 @@ class ClienteRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : ClienteRepository {
 
-    /**
-     * Observa los clientes en tiempo real mediante Firestore snapshots.
-     * ✅ FIX: eliminado el doble-fetch innecesario (getAllDocuments dentro del map).
-     */
     override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
-        return dataSource.observeCollectionOrderedLimited(
-            collection = FirebaseDataSource.COLLECTION_CLIENTES,
+        return dataSource.observeBusinessCollectionOrderedLimited(
+            collection = "clientes",
             orderByField = "createdAt",
             descending = true,
             limit = 500
@@ -46,7 +42,7 @@ class ClienteRepositoryImpl @Inject constructor(
     override suspend fun getClienteById(id: String): Flow<Resource<Cliente>> = flow {
         try {
             emit(Resource.Loading())
-            val data = dataSource.getDocument(FirebaseDataSource.COLLECTION_CLIENTES, id)
+            val data = dataSource.getBusinessDocument("clientes", id)
             if (data != null) {
                 emit(Resource.Success(ClienteDto.fromMap(id, data).toDomain()))
             } else {
@@ -62,8 +58,11 @@ class ClienteRepositoryImpl @Inject constructor(
     override suspend fun searchClienteByDni(dni: String): Flow<Resource<Cliente?>> = flow {
         try {
             emit(Resource.Loading())
-            val documents = dataSource.queryDocuments(
-                FirebaseDataSource.COLLECTION_CLIENTES, "dni", dni
+            val documents = dataSource.queryBusinessDocuments(
+                collection = "clientes",
+                field = "dni",
+                value = dni,
+                limit = 20
             )
             if (documents.isNotEmpty()) {
                 val (id, data) = documents.first()
@@ -81,10 +80,10 @@ class ClienteRepositoryImpl @Inject constructor(
     override suspend fun addCliente(cliente: Cliente): Flow<Resource<String>> = flow {
         try {
             emit(Resource.Loading())
-            val dto        = ClienteDto.fromDomain(cliente)
-            val documentId = dataSource.addClienteWithUniqueDni(
+            val dto = ClienteDto.fromDomain(cliente)
+            val documentId = dataSource.addBusinessClienteWithUniqueDni(
                 clienteData = dto.toMap(),
-                dniRaw      = cliente.dni
+                dniRaw = cliente.dni
             )
             emit(Resource.Success(documentId))
         } catch (e: CancellationException) {
@@ -102,8 +101,10 @@ class ClienteRepositoryImpl @Inject constructor(
                 return@flow
             }
             val dto = ClienteDto.fromDomain(cliente)
-            dataSource.updateDocument(
-                FirebaseDataSource.COLLECTION_CLIENTES, cliente.id, dto.toMap()
+            dataSource.updateBusinessDocument(
+                collection = "clientes",
+                documentId = cliente.id,
+                data = dto.toMap()
             )
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
@@ -117,15 +118,22 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            val alquileres = dataSource.queryDocuments(
-                FirebaseDataSource.COLLECTION_ALQUILERES, "clienteId", clienteId
+            // Temporal: mientras alquileres no estén migrados, usamos la colección global
+            val alquileres = dataSource.queryDocumentsLimited(
+                FirebaseDataSource.COLLECTION_ALQUILERES,
+                "clienteId",
+                clienteId,
+                limit = 300
             )
             if (alquileres.any { (_, data) -> data["estado"] == "ACTIVO" }) {
                 emit(Resource.Error("No se puede eliminar. El cliente tiene alquileres activos"))
                 return@flow
             }
 
-            dataSource.deleteDocument(FirebaseDataSource.COLLECTION_CLIENTES, clienteId)
+            dataSource.deleteBusinessDocument(
+                collection = "clientes",
+                documentId = clienteId
+            )
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e
@@ -134,10 +142,6 @@ class ClienteRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Búsqueda local cuando la query es corta o contiene caracteres especiales,
-     * y búsqueda por searchTerms en Firestore para queries de 2+ caracteres.
-     */
     override suspend fun searchClientes(query: String): Flow<Resource<List<Cliente>>> = flow {
         try {
             emit(Resource.Loading())
@@ -145,8 +149,8 @@ class ClienteRepositoryImpl @Inject constructor(
             val q = query.trim().lowercase()
 
             if (q.isBlank()) {
-                val documents = dataSource.getAllDocumentsOrderedLimited(
-                    collection = FirebaseDataSource.COLLECTION_CLIENTES,
+                val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
+                    collection = "clientes",
                     orderByField = "createdAt",
                     descending = true,
                     limit = 300
@@ -157,22 +161,21 @@ class ClienteRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            // Usar searchTerms (índice de prefijos) para queries de 2+ chars
             if (q.length >= 2) {
-                val documents = dataSource.queryArrayContainsLimited(
-                    collection = FirebaseDataSource.COLLECTION_CLIENTES,
-                    field      = "searchTerms",
-                    value      = q,
-                    limit=200
+                val documents = dataSource.queryBusinessArrayContainsLimited(
+                    collection = "clientes",
+                    field = "searchTerms",
+                    value = q,
+                    limit = 200
                 )
                 val clientes = documents
                     .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
                     .sortedByDescending { it.createdAt }
                 emit(Resource.Success(clientes))
             } else {
-                // Para queries de 1 carácter, búsqueda local sobre todos los clientes
-                val documents = dataSource.getAllDocumentsOrderedLimited(
-                    collection = FirebaseDataSource.COLLECTION_CLIENTES,
+                // Búsqueda local para 1 carácter
+                val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
+                    collection = "clientes",
                     orderByField = "createdAt",
                     descending = true,
                     limit = 300
@@ -187,7 +190,6 @@ class ClienteRepositoryImpl @Inject constructor(
                     .sortedByDescending { it.createdAt }
                 emit(Resource.Success(clientes))
             }
-
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

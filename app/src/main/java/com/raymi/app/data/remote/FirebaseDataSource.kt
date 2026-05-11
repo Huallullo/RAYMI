@@ -13,17 +13,12 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Fuente de datos para Firebase
- * Maneja todas las operaciones directas con Firestore y Auth
- */
 @Singleton
 class FirebaseDataSource @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
 
-    // ========== COLECCIONES DE FIRESTORE ==========
     companion object {
         const val COLLECTION_CLIENTES = "clientes"
         const val COLLECTION_VESTUARIOS = "vestuarios"
@@ -32,84 +27,34 @@ class FirebaseDataSource @Inject constructor(
         const val COLLECTION_NEGOCIOS = "negocios"
         const val COLLECTION_CLIENTES_DNI_INDEX = "clientes_dni_index"
         const val COLLECTION_VESTUARIOS_CODIGO_INDEX = "vestuarios_codigo_index"
-
         const val DEFAULT_QUERY_LIMIT = 500L
     }
 
-    // ========== OPERACIONES GENÉRICAS ==========
-
-    /**
-     * Agrega un documento a una colección
-     * @param collection Nombre de la colección
-     * @param data Datos a agregar
-     * @return ID del documento creado
-     */
-    suspend fun addDocument(
-        collection: String,
-        data: Map<String, Any>
-    ): String {
+    // ========== OPERACIONES GENÉRICAS (colecciones raíz) ==========
+    suspend fun addDocument(collection: String, data: Map<String, Any>): String {
         val docRef = firestore.collection(collection).add(data).await()
         return docRef.id
     }
 
-    /**
-     * Obtiene un documento por ID
-     * @param collection Nombre de la colección
-     * @param documentId ID del documento
-     * @return Map con los datos del documento o null si no existe
-     */
-    suspend fun getDocument(
-        collection: String,
-        documentId: String
-    ): Map<String, Any>? {
-        val snapshot = firestore.collection(collection)
-            .document(documentId)
-            .get()
-            .await()
-
-        return if (snapshot.exists()) {
-            snapshot.data
-        } else {
-            null
-        }
+    suspend fun getDocument(collection: String, documentId: String): Map<String, Any>? {
+        val snapshot = firestore.collection(collection).document(documentId).get().await()
+        return if (snapshot.exists()) snapshot.data else null
     }
 
-    /**
-     * Obtiene todos los documentos de una colección
-     * @param collection Nombre de la colección
-     * @return Lista de Maps con los datos
-     */
-    suspend fun getAllDocuments(
-        collection: String
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection)
-            .get()
-            .await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data ->
-                doc.id to data
-            }
-        }
+    suspend fun getAllDocuments(collection: String): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collection(collection).get().await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
+
     suspend fun getAllDocumentsOrderedLimited(
         collection: String,
         orderByField: String,
         descending: Boolean = true,
         limit: Long = DEFAULT_QUERY_LIMIT
     ): List<Pair<String, Map<String, Any>>> {
-        return getDocumentsPageOrdered(
-            collection = collection,
-            orderByField = orderByField,
-            descending = descending,
-            pageSize = limit,
-            startAfter = null
-        ).first
+        return getDocumentsPageOrdered(collection, orderByField, descending, limit, null).first
     }
-    /**
-     * Obtiene una página ordenada de documentos con cursor para paginación incremental.
-     * Retorna: (items, lastSnapshot) para solicitar la siguiente página.
-     */
+
     suspend fun getDocumentsPageOrdered(
         collection: String,
         orderByField: String,
@@ -118,131 +63,55 @@ class FirebaseDataSource @Inject constructor(
         startAfter: DocumentSnapshot? = null
     ): Pair<List<Pair<String, Map<String, Any>>>, DocumentSnapshot?> {
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
-        var query: Query = firestore.collection(collection)
-            .orderBy(orderByField, direction)
-            .limit(pageSize)
-
-        if (startAfter != null) {
-            query = query.startAfter(startAfter)
-        }
-
+        var query: Query = firestore.collection(collection).orderBy(orderByField, direction).limit(pageSize)
+        if (startAfter != null) query = query.startAfter(startAfter)
         val snapshot = query.get().await()
-        val documents = snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
-        val lastSnapshot = snapshot.documents.lastOrNull()
-        return documents to lastSnapshot
-    }
-    /**
-     * Actualiza un documento
-     * @param collection Nombre de la colección
-     * @param documentId ID del documento
-     * @param data Datos a actualizar
-     */
-    suspend fun updateDocument(
-        collection: String,
-        documentId: String,
-        data: Map<String, Any>
-    ) {
-        firestore.collection(collection)
-            .document(documentId)
-            .update(data)
-            .await()
+        val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
+        return documents to snapshot.documents.lastOrNull()
     }
 
-    /**
-     * Elimina un documento
-     * @param collection Nombre de la colección
-     * @param documentId ID del documento
-     */
-    suspend fun deleteDocument(
-        collection: String,
-        documentId: String
-    ) {
-        firestore.collection(collection)
-            .document(documentId)
-            .delete()
-            .await()
+    suspend fun updateDocument(collection: String, documentId: String, data: Map<String, Any>) {
+        firestore.collection(collection).document(documentId).update(data).await()
     }
 
-    /**
-     * Busca documentos por un campo específico
-     * @param collection Nombre de la colección
-     * @param field Campo por el cual buscar
-     * @param value Valor a buscar
-     * @return Lista de documentos que coinciden
-     */
+    suspend fun deleteDocument(collection: String, documentId: String) {
+        firestore.collection(collection).document(documentId).delete().await()
+    }
+
     suspend fun queryDocuments(
         collection: String,
         field: String,
         value: Any
     ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection)
-            .whereEqualTo(field, value)
-            .get()
-            .await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data ->
-                doc.id to data
-            }
-        }
+        val snapshot = firestore.collection(collection).whereEqualTo(field, value).get().await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
-    /**
-    * Busca documentos por campo con límite para controlar costo/latencia.
-    */
+
     suspend fun queryDocumentsLimited(
         collection: String,
         field: String,
         value: Any,
         limit: Long = DEFAULT_QUERY_LIMIT
     ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection)
-            .whereEqualTo(field, value)
-            .limit(limit)
-            .get()
-            .await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
+        val snapshot = firestore.collection(collection).whereEqualTo(field, value).limit(limit).get().await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
-    /**
-     * Observa cambios en tiempo real de una colección
-     * @param collection Nombre de la colección
-     * @return Flow que emite la lista actualizada cuando hay cambios
-     */
-    fun observeCollection(
-        collection: String
-    ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
-        // Verificar autenticación antes de observar
+
+    fun observeCollection(collection: String): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
         if (auth.currentUser == null) {
             close(Exception("Usuario no autenticado"))
             return@callbackFlow
         }
-
-        val subscription = firestore.collection(collection)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null) {
-                    val documents = snapshot.documents.mapNotNull { doc ->
-                        doc.data?.let { data ->
-                            doc.id to data
-                        }
-                    }
-                    trySend(documents)
-                }
+        val subscription = firestore.collection(collection).addSnapshotListener { snapshot, error ->
+            if (error != null) { close(error); return@addSnapshotListener }
+            if (snapshot != null) {
+                val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
+                trySend(documents)
             }
-
+        }
         awaitClose { subscription.remove() }
     }
-    /**
-     * Observa cambios en tiempo real con orden y límite para reducir costo de lecturas.
-     */
+
     fun observeCollectionOrderedLimited(
         collection: String,
         orderByField: String,
@@ -253,79 +122,39 @@ class FirebaseDataSource @Inject constructor(
             close(Exception("Usuario no autenticado"))
             return@callbackFlow
         }
-
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
         val subscription = firestore.collection(collection)
             .orderBy(orderByField, direction)
             .limit(limit)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
+                if (error != null) { close(error); return@addSnapshotListener }
                 if (snapshot != null) {
-                    val documents = snapshot.documents.mapNotNull { doc ->
-                        doc.data?.let { data -> doc.id to data }
-                    }
+                    val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
                     trySend(documents)
                 }
             }
-
         awaitClose { subscription.remove() }
     }
-    /**
-     * Busca documentos con query personalizada
-     * @param collection Nombre de la colección
-     * @param queryBuilder Lambda para construir la query
-     * @return Lista de documentos que coinciden
-     */
+
     suspend fun customQuery(
         collection: String,
         queryBuilder: (Query) -> Query
     ): List<Pair<String, Map<String, Any>>> {
-        val baseQuery = firestore.collection(collection)
-        val query = queryBuilder(baseQuery)
+        val query = queryBuilder(firestore.collection(collection))
         val snapshot = query.get().await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data ->
-                doc.id to data
-            }
-        }
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
-    // ========== OPERACIONES DE AUTENTICACIÓN ==========
-
-    /**
-     * Obtiene el usuario actual de Firebase Auth
-     */
+    // ========== AUTENTICACIÓN ==========
     fun getCurrentUser() = auth.currentUser
-
-    /**
-     * Verifica si hay un usuario autenticado
-     */
     fun isUserAuthenticated() = auth.currentUser != null
+    suspend fun signIn(email: String, password: String) = auth.signInWithEmailAndPassword(email, password).await()
+    suspend fun signUp(email: String, password: String) = auth.createUserWithEmailAndPassword(email, password).await()
+    suspend fun sendPasswordResetEmail(email: String) = auth.sendPasswordResetEmail(email).await()
+    fun signOut() = auth.signOut()
 
-    /**
-     * Inicia sesión con email y contraseña
-     */
-    suspend fun signIn(email: String, password: String) =
-        auth.signInWithEmailAndPassword(email, password).await()
-
-    /**
-     * Registra un nuevo usuario
-     */
-    suspend fun signUp(email: String, password: String) =
-        auth.createUserWithEmailAndPassword(email, password).await()
-
-    suspend fun sendPasswordResetEmail(email: String) =
-        auth.sendPasswordResetEmail(email).await()
-
-    suspend fun createBusinessProfileForUser(
-        user: FirebaseUser,
-        businessName: String
-    ): String {
+    // ========== PERFILES Y NEGOCIOS (SaaS) ==========
+    suspend fun createBusinessProfileForUser(user: FirebaseUser, businessName: String): String {
         val uid = user.uid
         val email = user.email.orEmpty().trim()
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document()
@@ -335,45 +164,20 @@ class FirebaseDataSource @Inject constructor(
         val negocioNombre = businessName.trim().ifBlank { defaultBusinessName(email) }
 
         val batch = firestore.batch()
-        batch.set(
-            negocioRef,
-            mapOf(
-                "nombre" to negocioNombre,
-                "rubro" to "alquileres",
-                "pais" to "PE",
-                "moneda" to "PEN",
-                "plan" to "FREE",
-                "ownerUid" to uid,
-                "createdAt" to now,
-                "updatedAt" to now
-            )
-        )
-        batch.set(
-            usuarioRef,
-            mapOf(
-                "uid" to uid,
-                "email" to email,
-                "emailLowercase" to email.lowercase(),
-                "nombre" to (user.displayName ?: ""),
-                "negocioId" to negocioRef.id,
-                "rol" to "owner",
-                "idioma" to "es",
-                "createdAt" to now,
-                "updatedAt" to now
-            )
-        )
-        batch.set(
-            miembroRef,
-            mapOf(
-                "uid" to uid,
-                "email" to email,
-                "nombre" to (user.displayName ?: ""),
-                "rol" to "owner",
-                "estado" to "ACTIVO",
-                "createdAt" to now,
-                "updatedAt" to now
-            )
-        )
+        batch.set(negocioRef, mapOf(
+            "nombre" to negocioNombre, "rubro" to "alquileres", "pais" to "PE",
+            "moneda" to "PEN", "plan" to "FREE", "ownerUid" to uid,
+            "createdAt" to now, "updatedAt" to now
+        ))
+        batch.set(usuarioRef, mapOf(
+            "uid" to uid, "email" to email, "emailLowercase" to email.lowercase(),
+            "nombre" to (user.displayName ?: ""), "negocioId" to negocioRef.id,
+            "rol" to "owner", "idioma" to "es", "createdAt" to now, "updatedAt" to now
+        ))
+        batch.set(miembroRef, mapOf(
+            "uid" to uid, "email" to email, "nombre" to (user.displayName ?: ""),
+            "rol" to "owner", "estado" to "ACTIVO", "createdAt" to now, "updatedAt" to now
+        ))
         batch.commit().await()
         return negocioRef.id
     }
@@ -385,33 +189,25 @@ class FirebaseDataSource @Inject constructor(
         return if (snapshot.exists() && !negocioId.isNullOrBlank()) {
             negocioId
         } else {
-            createBusinessProfileForUser(
-                user = user,
-                businessName = defaultBusinessName(user.email.orEmpty())
-            )
+            createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
         }
     }
-    // ========== FUNCIONES SaaS POR NEGOCIO ==========
+
+    private fun defaultBusinessName(email: String): String {
+        val prefix = email.substringBefore('@').replace('.', ' ').replace('_', ' ').trim()
+        return if (prefix.isBlank()) "Mi negocio" else "Negocio de $prefix"
+    }
 
     suspend fun getCurrentBusinessId(): String {
-        val user = auth.currentUser
-            ?: throw IllegalStateException("Usuario no autenticado")
+        val user = auth.currentUser ?: throw IllegalStateException("Usuario no autenticado")
         return ensureBusinessProfileForUser(user)
     }
 
     private suspend fun businessCollection(collection: String) =
-        firestore.collection(COLLECTION_NEGOCIOS)
-            .document(getCurrentBusinessId())
-            .collection(collection)
+        firestore.collection(COLLECTION_NEGOCIOS).document(getCurrentBusinessId()).collection(collection)
 
-    suspend fun getBusinessDocument(
-        collection: String,
-        documentId: String
-    ): Map<String, Any>? {
-        val snapshot = businessCollection(collection)
-            .document(documentId)
-            .get()
-            .await()
+    suspend fun getBusinessDocument(collection: String, documentId: String): Map<String, Any>? {
+        val snapshot = businessCollection(collection).document(documentId).get().await()
         return if (snapshot.exists()) snapshot.data else null
     }
 
@@ -427,9 +223,7 @@ class FirebaseDataSource @Inject constructor(
             .limit(limit)
             .get()
             .await()
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
     suspend fun queryBusinessDocuments(
@@ -443,9 +237,7 @@ class FirebaseDataSource @Inject constructor(
             .limit(limit)
             .get()
             .await()
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
     suspend fun queryBusinessArrayContainsLimited(
@@ -459,9 +251,7 @@ class FirebaseDataSource @Inject constructor(
             .limit(limit)
             .get()
             .await()
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
     fun observeBusinessCollectionOrderedLimited(
@@ -470,17 +260,8 @@ class FirebaseDataSource @Inject constructor(
         descending: Boolean = true,
         limit: Long = 200
     ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
-        val user = auth.currentUser
-        if (user == null) {
-            close(Exception("Usuario no autenticado"))
-            return@callbackFlow
-        }
-        val negocioId = try {
-            ensureBusinessProfileForUser(user)
-        } catch (e: Exception) {
-            close(e)
-            return@callbackFlow
-        }
+        val user = auth.currentUser ?: run { close(Exception("Usuario no autenticado")); return@callbackFlow }
+        val negocioId = try { ensureBusinessProfileForUser(user) } catch (e: Exception) { close(e); return@callbackFlow }
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
         val subscription = firestore.collection(COLLECTION_NEGOCIOS)
             .document(negocioId)
@@ -488,189 +269,62 @@ class FirebaseDataSource @Inject constructor(
             .orderBy(orderByField, direction)
             .limit(limit)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
+                if (error != null) { close(error); return@addSnapshotListener }
                 if (snapshot != null) {
-                    val documents = snapshot.documents.mapNotNull { doc ->
-                        doc.data?.let { data -> doc.id to data }
-                    }
+                    val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
                     trySend(documents)
                 }
             }
         awaitClose { subscription.remove() }
     }
 
-    suspend fun updateBusinessDocument(
-        collection: String,
-        documentId: String,
-        data: Map<String, Any>
-    ) {
-        businessCollection(collection)
-            .document(documentId)
-            .update(data)
-            .await()
+    suspend fun updateBusinessDocument(collection: String, documentId: String, data: Map<String, Any>) {
+        businessCollection(collection).document(documentId).update(data).await()
     }
 
-    suspend fun deleteBusinessDocument(
-        collection: String,
-        documentId: String
-    ) {
-        businessCollection(collection)
-            .document(documentId)
-            .delete()
-            .await()
-    }
-    private fun defaultBusinessName(email: String): String {
-        val prefix = email.substringBefore('@').replace('.', ' ').replace('_', ' ').trim()
-        return if (prefix.isBlank()) "Mi negocio" else "Negocio de $prefix"
-    }
-    /**
-     * Cierra la sesión actual
-     */
-    fun signOut() = auth.signOut()
-
-    suspend fun createAlquilerAndMarkVestuarioAlquilado(
-        alquilerData: Map<String, Any>,
-        vestuarioId: String
-    ): String {
-        return firestore.runTransaction { transaction ->
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
-            val vestuarioSnap = transaction.get(vestuarioRef)
-
-            if (!vestuarioSnap.exists()) {
-                throw IllegalStateException("Vestuario no encontrado")
-            }
-
-            val estado = vestuarioSnap.getString("estado")
-            if (estado != "DISPONIBLE") {
-                throw IllegalStateException("El vestuario no está disponible")
-            }
-
-            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document()
-            transaction.set(alquilerRef, alquilerData)
-            transaction.update(vestuarioRef, "estado", "ALQUILADO")
-
-            alquilerRef.id
-        }.await()
+    suspend fun deleteBusinessDocument(collection: String, documentId: String) {
+        businessCollection(collection).document(documentId).delete().await()
     }
 
-    suspend fun registrarDevolucionAtomica(alquilerId: String) {
-        firestore.runTransaction { transaction ->
-            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document(alquilerId)
-            val alquilerSnap = transaction.get(alquilerRef)
-
-            if (!alquilerSnap.exists()) {
-                throw IllegalStateException("Alquiler no encontrado")
-            }
-
-            val vestuarioId = alquilerSnap.getString("vestuarioId")
-                ?: throw IllegalStateException("Vestuario no encontrado en el alquiler")
-
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
-
-            transaction.update(
-                alquilerRef,
-                mapOf(
-                    "estado" to "DEVUELTO",
-                    "fechaDevolucion" to FieldValue.serverTimestamp(),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            )
-
-            transaction.update(vestuarioRef, "estado", "DISPONIBLE")
-        }.await()
-    }
-    suspend fun addClienteWithUniqueDni(
+    // ========== FUNCIONES BUSINESS PARA CLIENTES (¡LA QUE FALTABA!) ==========
+    suspend fun addBusinessClienteWithUniqueDni(
         clienteData: Map<String, Any>,
         dniRaw: String
     ): String {
+        val negocioId = getCurrentBusinessId()
         val dni = dniRaw.trim().uppercase()
 
-        return firestore.runTransaction { transaction ->
-            val dniIndexRef = firestore.collection(COLLECTION_CLIENTES_DNI_INDEX).document(dni)
-            val dniIndexSnap = transaction.get(dniIndexRef)
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
+        val clientesRef = negocioRef.collection("clientes")
+        val dniIndexRef = negocioRef.collection("clientes_dni_index").document(dni)
 
+        return firestore.runTransaction { transaction ->
+            val dniIndexSnap = transaction.get(dniIndexRef)
             if (dniIndexSnap.exists()) {
                 throw IllegalStateException("Ya existe un cliente con este DNI")
             }
-
-            val clienteRef = firestore.collection(COLLECTION_CLIENTES).document()
-            transaction.set(clienteRef, clienteData)
-
+            val clienteRef = clientesRef.document()
+            transaction.set(
+                clienteRef,
+                clienteData + mapOf(
+                    "negocioId" to negocioId,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
             transaction.set(
                 dniIndexRef,
                 mapOf(
                     "clienteId" to clienteRef.id,
                     "dni" to dni,
+                    "negocioId" to negocioId,
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-
             clienteRef.id
         }.await()
     }
 
-    suspend fun addVestuarioWithUniqueCodigo(
-        vestuarioData: Map<String, Any>,
-        codigoRaw: String
-    ): String {
-        val codigo = codigoRaw.trim().uppercase()
-
-        return firestore.runTransaction { transaction ->
-            val codigoIndexRef = firestore.collection(COLLECTION_VESTUARIOS_CODIGO_INDEX).document(codigo)
-            val codigoIndexSnap = transaction.get(codigoIndexRef)
-
-            if (codigoIndexSnap.exists()) {
-                throw IllegalStateException("Ya existe un vestuario con este código")
-            }
-
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document()
-            transaction.set(vestuarioRef, vestuarioData)
-
-            transaction.set(
-                codigoIndexRef,
-                mapOf(
-                    "vestuarioId" to vestuarioRef.id,
-                    "codigo" to codigo,
-                    "createdAt" to FieldValue.serverTimestamp()
-                )
-            )
-
-            vestuarioRef.id
-        }.await()
-    }
-    suspend fun queryArrayContains(
-        collection: String,
-        field: String,
-        value: String
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection)
-            .whereArrayContains(field, value)
-            .get()
-            .await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
-    }
-    suspend fun queryArrayContainsLimited(
-        collection: String,
-        field: String,
-        value: String,
-        limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection)
-            .whereArrayContains(field, value)
-            .limit(limit)
-            .get()
-            .await()
-
-        return snapshot.documents.mapNotNull { doc ->
-            doc.data?.let { data -> doc.id to data }
-        }
-    }
+    // ========== FUNCIONES BUSINESS PARA ÍTEMS (VESTUARIOS) ==========
     suspend fun addBusinessItemWithUniqueCodigo(
         itemData: Map<String, Any>,
         codigoRaw: String
@@ -679,16 +333,14 @@ class FirebaseDataSource @Inject constructor(
         val codigo = codigoRaw.trim().uppercase()
 
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
-        val itemsRef = negocioRef.collection("items")          // ← usamos "items" en lugar de "vestuarios"
+        val itemsRef = negocioRef.collection("items")
         val codigoIndexRef = negocioRef.collection("items_codigo_index").document(codigo)
 
         return firestore.runTransaction { transaction ->
             val codigoIndexSnap = transaction.get(codigoIndexRef)
-
             if (codigoIndexSnap.exists()) {
                 throw IllegalStateException("Ya existe un vestuario con este código")
             }
-
             val itemRef = itemsRef.document()
             transaction.set(
                 itemRef,
@@ -697,7 +349,6 @@ class FirebaseDataSource @Inject constructor(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             )
-
             transaction.set(
                 codigoIndexRef,
                 mapOf(
@@ -707,12 +358,10 @@ class FirebaseDataSource @Inject constructor(
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-
             itemRef.id
         }.await()
     }
 
-    // Consulta por código exacto (único)
     suspend fun queryBusinessItemByCodigo(
         codigo: String,
         limit: Long = 5
@@ -725,21 +374,15 @@ class FirebaseDataSource @Inject constructor(
         )
     }
 
-    // Observar items ordenados
     fun observeBusinessItemsOrderedLimited(
         orderByField: String = "createdAt",
         descending: Boolean = true,
         limit: Long = 500
     ): Flow<List<Pair<String, Map<String, Any>>>> {
-        return observeBusinessCollectionOrderedLimited(
-            collection = "items",
-            orderByField = orderByField,
-            descending = descending,
-            limit = limit
-        )
+        return observeBusinessCollectionOrderedLimited("items", orderByField, descending, limit)
     }
-    // ========== FUNCIONES PARA ALQUILERES POR NEGOCIO ==========
 
+    // ========== FUNCIONES BUSINESS PARA ALQUILERES ==========
     suspend fun addBusinessAlquiler(
         alquilerData: Map<String, Any>,
         itemId: String
@@ -752,14 +395,9 @@ class FirebaseDataSource @Inject constructor(
         return firestore.runTransaction { transaction ->
             val itemRef = itemsRef.document(itemId)
             val itemSnap = transaction.get(itemRef)
-
-            if (!itemSnap.exists()) {
-                throw IllegalStateException("Item no encontrado")
-            }
+            if (!itemSnap.exists()) throw IllegalStateException("Item no encontrado")
             val estado = itemSnap.getString("estado")
-            if (estado != "DISPONIBLE") {
-                throw IllegalStateException("El vestuario no está disponible")
-            }
+            if (estado != "DISPONIBLE") throw IllegalStateException("El vestuario no está disponible")
 
             val alquilerRef = alquileresRef.document()
             val dataCompleta = alquilerData + mapOf(
@@ -770,23 +408,18 @@ class FirebaseDataSource @Inject constructor(
             )
             transaction.set(alquilerRef, dataCompleta)
             transaction.update(itemRef, "estado", "ALQUILADO")
-
             alquilerRef.id
         }.await()
     }
 
-    suspend fun registrarDevolucionBusiness(
-        alquilerId: String
-    ) {
+    suspend fun registrarDevolucionBusiness(alquilerId: String) {
         val negocioId = getCurrentBusinessId()
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(negocioId)
         val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
 
         firestore.runTransaction { transaction ->
             val alquilerSnap = transaction.get(alquilerRef)
-            if (!alquilerSnap.exists()) {
-                throw IllegalStateException("Alquiler no encontrado")
-            }
+            if (!alquilerSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
             val itemId = alquilerSnap.getString("itemId")
                 ?: throw IllegalStateException("Item no encontrado en el alquiler")
             val itemRef = negocioRef.collection("items").document(itemId)
@@ -803,22 +436,14 @@ class FirebaseDataSource @Inject constructor(
         }.await()
     }
 
-    // Funciones genéricas para alquileres (ya las tienes para otras colecciones, pero con "alquileres")
-    suspend fun getBusinessAlquiler(id: String): Map<String, Any>? =
-        getBusinessDocument("alquileres", id)
-
-    suspend fun updateBusinessAlquiler(id: String, data: Map<String, Any>) =
-        updateBusinessDocument("alquileres", id, data)
-
-    suspend fun deleteBusinessAlquiler(id: String) =
-        deleteBusinessDocument("alquileres", id)
-
+    suspend fun getBusinessAlquiler(id: String): Map<String, Any>? = getBusinessDocument("alquileres", id)
+    suspend fun updateBusinessAlquiler(id: String, data: Map<String, Any>) = updateBusinessDocument("alquileres", id, data)
+    suspend fun deleteBusinessAlquiler(id: String) = deleteBusinessDocument("alquileres", id)
     suspend fun queryBusinessAlquileres(
         field: String,
         value: Any,
         limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> =
-        queryBusinessDocuments("alquileres", field, value, limit)
+    ): List<Pair<String, Map<String, Any>>> = queryBusinessDocuments("alquileres", field, value, limit)
 
     fun observeBusinessAlquileresOrderedLimited(
         orderByField: String = "createdAt",
@@ -826,4 +451,82 @@ class FirebaseDataSource @Inject constructor(
         limit: Long = 500
     ): Flow<List<Pair<String, Map<String, Any>>>> =
         observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit)
+
+    // ========== FUNCIONES ANTIGUAS (se mantienen por compatibilidad temporal) ==========
+    suspend fun createAlquilerAndMarkVestuarioAlquilado(
+        alquilerData: Map<String, Any>,
+        vestuarioId: String
+    ): String {
+        return firestore.runTransaction { transaction ->
+            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
+            val vestuarioSnap = transaction.get(vestuarioRef)
+            if (!vestuarioSnap.exists()) throw IllegalStateException("Vestuario no encontrado")
+            if (vestuarioSnap.getString("estado") != "DISPONIBLE") throw IllegalStateException("El vestuario no está disponible")
+            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document()
+            transaction.set(alquilerRef, alquilerData)
+            transaction.update(vestuarioRef, "estado", "ALQUILADO")
+            alquilerRef.id
+        }.await()
+    }
+
+    suspend fun registrarDevolucionAtomica(alquilerId: String) {
+        firestore.runTransaction { transaction ->
+            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document(alquilerId)
+            val alquilerSnap = transaction.get(alquilerRef)
+            if (!alquilerSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
+            val vestuarioId = alquilerSnap.getString("vestuarioId") ?: throw IllegalStateException("Vestuario no encontrado en el alquiler")
+            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
+            transaction.update(alquilerRef, mapOf("estado" to "DEVUELTO", "fechaDevolucion" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
+            transaction.update(vestuarioRef, "estado", "DISPONIBLE")
+        }.await()
+    }
+
+    suspend fun addClienteWithUniqueDni(
+        clienteData: Map<String, Any>,
+        dniRaw: String
+    ): String {
+        val dni = dniRaw.trim().uppercase()
+        return firestore.runTransaction { transaction ->
+            val dniIndexRef = firestore.collection(COLLECTION_CLIENTES_DNI_INDEX).document(dni)
+            if (transaction.get(dniIndexRef).exists()) throw IllegalStateException("Ya existe un cliente con este DNI")
+            val clienteRef = firestore.collection(COLLECTION_CLIENTES).document()
+            transaction.set(clienteRef, clienteData)
+            transaction.set(dniIndexRef, mapOf("clienteId" to clienteRef.id, "dni" to dni, "createdAt" to FieldValue.serverTimestamp()))
+            clienteRef.id
+        }.await()
+    }
+
+    suspend fun addVestuarioWithUniqueCodigo(
+        vestuarioData: Map<String, Any>,
+        codigoRaw: String
+    ): String {
+        val codigo = codigoRaw.trim().uppercase()
+        return firestore.runTransaction { transaction ->
+            val codigoIndexRef = firestore.collection(COLLECTION_VESTUARIOS_CODIGO_INDEX).document(codigo)
+            if (transaction.get(codigoIndexRef).exists()) throw IllegalStateException("Ya existe un vestuario con este código")
+            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document()
+            transaction.set(vestuarioRef, vestuarioData)
+            transaction.set(codigoIndexRef, mapOf("vestuarioId" to vestuarioRef.id, "codigo" to codigo, "createdAt" to FieldValue.serverTimestamp()))
+            vestuarioRef.id
+        }.await()
+    }
+
+    suspend fun queryArrayContains(
+        collection: String,
+        field: String,
+        value: String
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collection(collection).whereArrayContains(field, value).get().await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
+    }
+
+    suspend fun queryArrayContainsLimited(
+        collection: String,
+        field: String,
+        value: String,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collection(collection).whereArrayContains(field, value).limit(limit).get().await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
+    }
 }
