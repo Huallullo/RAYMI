@@ -14,3 +14,15 @@
 .cxx
 # Release signing secrets
 keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+.env
+.env.*
+
+# Local IDE assistant/cache files
+.idea/firebender/
+
+# Kotlin compiler local error reports
+.kotlin/errors/
