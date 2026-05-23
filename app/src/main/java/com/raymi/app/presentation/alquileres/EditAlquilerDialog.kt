@@ -113,7 +113,7 @@ fun EditAlquilerDialog(
                     enabled = !isLoading
                 )
 
-                // Fecha de devolución prevista
+                // Fecha de devolución prevista (con calendario en español)
                 OutlinedTextField(
                     value = fechaFin.formatTo("dd/MM/yyyy"),
                     onValueChange = {},
@@ -123,7 +123,8 @@ fun EditAlquilerDialog(
                     },
                     trailingIcon = {
                         IconButton(onClick = {
-                            val calendar = Calendar.getInstance()
+                            // Forzar locale español
+                            val calendar = Calendar.getInstance(Locale("es", "PE"))
                             calendar.time = fechaFin
                             DatePickerDialog(
                                 context,
@@ -134,7 +135,11 @@ fun EditAlquilerDialog(
                                 calendar.get(Calendar.YEAR),
                                 calendar.get(Calendar.MONTH),
                                 calendar.get(Calendar.DAY_OF_MONTH)
-                            ).show()
+                            ).apply {
+                                // Opcional: forzar textos de botones
+                                setButton(DatePickerDialog.BUTTON_POSITIVE, "Aceptar", this)
+                                setButton(DatePickerDialog.BUTTON_NEGATIVE, "Cancelar", this)
+                            }.show()
                         }) {
                             Icon(Icons.Filled.EditCalendar, contentDescription = null)
                         }

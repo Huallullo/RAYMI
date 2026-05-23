@@ -4,15 +4,18 @@ import com.google.firebase.auth.FirebaseUser
 import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Interfaz del repositorio de autenticación
- */
 interface AuthRepository {
 
     /**
-     * Obtiene el usuario actual
+     * Obtiene el usuario actual autenticado (suspending, puede ser null)
      */
-    val currentUser: FirebaseUser?
+    suspend fun getCurrentUser(): FirebaseUser?
+
+    /**
+     * Obtiene el ID del negocio al que pertenece el usuario actual.
+     * Lanza excepción si no hay usuario autenticado o no tiene negocio asignado.
+     */
+    suspend fun getCurrentBusinessId(): String
 
     /**
      * Inicia sesión con email y contraseña
@@ -20,15 +23,21 @@ interface AuthRepository {
     suspend fun login(email: String, password: String): Flow<Resource<FirebaseUser>>
 
     /**
-     * Registra un nuevo usuario
+     * Registra un nuevo usuario y crea su negocio SaaS inicial
+     * @param email Correo electrónico
+     * @param password Contraseña
+     * @param businessName Nombre del negocio
      */
-    suspend fun register(email: String, password: String, businessName: String): Flow<Resource<FirebaseUser>>
+    suspend fun register(
+        email: String,
+        password: String,
+        businessName: String
+    ): Flow<Resource<FirebaseUser>>
 
     /**
-     * Envía un correo para restablecer la contraseña
+     * Envía un correo de restablecimiento de contraseña
      */
     suspend fun resetPassword(email: String): Flow<Resource<Unit>>
-
 
     /**
      * Cierra la sesión actual
@@ -36,7 +45,7 @@ interface AuthRepository {
     suspend fun logout(): Flow<Resource<Unit>>
 
     /**
-     * Verifica si hay un usuario autenticado
+     * Verifica si hay un usuario autenticado (síncrono, no suspendido)
      */
     fun isUserAuthenticated(): Boolean
 }

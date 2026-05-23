@@ -6,7 +6,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
-import com.raymi.app.domain.usecase.auth.LoginUseCase
+import com.raymi.app.domain.usecase.business.CheckBusinessConfigUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,26 +14,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel para la pantalla de inicio de sesión
- * Maneja la lógica de autenticación del usuario
- */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val loginUseCase: LoginUseCase,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val checkBusinessConfigUseCase: CheckBusinessConfigUseCase
 ) : ViewModel() {
-
-    // ========== ESTADOS UI ==========
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    // ========== ACCIONES ==========
+    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
+    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
 
-    /**
-     * Actualiza el email
-     */
+    // Acciones de UI
     fun onEmailChange(email: String) {
         _uiState.value = _uiState.value.copy(
             email = email,
@@ -41,15 +34,13 @@ class LoginViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Actualiza la contraseña
-     */
     fun onPasswordChange(password: String) {
         _uiState.value = _uiState.value.copy(
             password = password,
             passwordError = null
         )
     }
+
     fun onBusinessNameChange(businessName: String) {
         _uiState.value = _uiState.value.copy(
             businessName = businessName,
@@ -67,26 +58,18 @@ class LoginViewModel @Inject constructor(
             businessNameError = null
         )
     }
-    /**
-     * Alterna la visibilidad de la contraseña
-     */
+
     fun togglePasswordVisibility() {
         _uiState.value = _uiState.value.copy(
             isPasswordVisible = !_uiState.value.isPasswordVisible
         )
     }
 
-    /**
-     * Intenta iniciar sesión
-     */
     fun login() {
-        // Validar campos
-        if (!validateFields()) {
-            return
-        }
+        if (!validateLoginFields()) return
 
         viewModelScope.launch {
-            loginUseCase(
+            authRepository.login(
                 email = _uiState.value.email.trim(),
                 password = _uiState.value.password
             ).collect { result ->
@@ -96,9 +79,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun register() {
-        if (!validateRegisterFields()) {
-            return
-        }
+        if (!validateRegisterFields()) return
 
         viewModelScope.launch {
             authRepository.register(
@@ -118,9 +99,7 @@ class LoginViewModel @Inject constructor(
             emailError = if (emailValidation.isValid) null else emailValidation.errorMessage
         )
 
-        if (!emailValidation.isValid) {
-            return
-        }
+        if (!emailValidation.isValid) return
 
         viewModelScope.launch {
             authRepository.resetPassword(emailTrim).collect { result ->
@@ -132,7 +111,6 @@ class LoginViewModel @Inject constructor(
                             infoMessage = null
                         )
                     }
-
                     is Resource.Success -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -140,7 +118,6 @@ class LoginViewModel @Inject constructor(
                             error = null
                         )
                     }
-
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -151,6 +128,7 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
     private fun handleAuthResult(result: Resource<FirebaseUser>) {
         when (result) {
             is Resource.Loading -> {
@@ -160,15 +138,14 @@ class LoginViewModel @Inject constructor(
                     infoMessage = null
                 )
             }
-
             is Resource.Success -> {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    isLoginSuccessful = true,
-                    error = null
+                    isLoginSuccessful = true
                 )
+                // Verificar si el negocio ya está configurado
+                verificarYNavigar()
             }
-
             is Resource.Error -> {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -177,20 +154,30 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
-    /**
-     * Mantiene compatibilidad con builds/cachés que todavía llaman a validateFields().
-     */
-    private fun validateFields(): Boolean = validateLoginFields()
 
-    /**
-     * Valida los campos del formulario
-     */
+    private fun verificarYNavigar() {
+        viewModelScope.launch {
+            val currentUser = authRepository.getCurrentUser() ?: return@launch
+            val negocioId = authRepository.getCurrentBusinessId() // suponemos que existe esta función
+            val isConfigured = checkBusinessConfigUseCase(negocioId)
+            _navigationEvent.value = if (isConfigured) {
+                NavigationEvent.GoToDashboard
+            } else {
+                NavigationEvent.GoToOnboarding
+            }
+        }
+    }
+
     private fun validateLoginFields(): Boolean {
         val emailTrim = _uiState.value.email.trim()
         val passwordTrim = _uiState.value.password
 
         val emailValidation = Validators.validateEmail(emailTrim, isRequired = true)
-        val passwordValidation = Validators.validatePassword(passwordTrim)
+        val passwordValidation = Validators.validateMinLength(
+            value = passwordTrim,
+            minLength = 6,
+            fieldName = "Contraseña"
+        )
 
         _uiState.value = _uiState.value.copy(
             emailError = if (emailValidation.isValid) null else emailValidation.errorMessage,
@@ -199,6 +186,7 @@ class LoginViewModel @Inject constructor(
 
         return emailValidation.isValid && passwordValidation.isValid
     }
+
     private fun validateRegisterFields(): Boolean {
         val isLoginValid = validateLoginFields()
         val businessNameValidation = Validators.validateMinLength(
@@ -214,20 +202,19 @@ class LoginViewModel @Inject constructor(
         return isLoginValid && businessNameValidation.isValid
     }
 
-    /**
-     * Limpia el error general
-     */
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
+
     fun clearInfoMessage() {
         _uiState.value = _uiState.value.copy(infoMessage = null)
     }
+
+    fun clearNavigationEvent() {
+        _navigationEvent.value = null
+    }
 }
 
-/**
- * Estado UI para la pantalla de login
- */
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
@@ -242,3 +229,8 @@ data class LoginUiState(
     val infoMessage: String? = null,
     val isLoginSuccessful: Boolean = false
 )
+
+sealed class NavigationEvent {
+    object GoToDashboard : NavigationEvent()
+    object GoToOnboarding : NavigationEvent()
+}

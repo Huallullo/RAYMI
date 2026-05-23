@@ -3,41 +3,63 @@ package com.raymi.app.domain.model
 import com.google.firebase.Timestamp
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 data class Alquiler(
     val id: String = "",
+    val workspaceId: String = "",              // A qué workspace pertenece (SaaS)
     val clienteId: String = "",
     val clienteNombre: String = "",
+    val clienteDni: String = "",               // Para boleta PERÚ
+    val clienteEmail: String = "",             // Para boleta PERÚ
     val vestuarioId: String = "",
     val vestuarioNombre: String = "",
     val vestuarioCodigo: String = "",
-    val cantidad: Int = 1,  // ✅ NUEVO CAMPO
+    val cantidad: Int = 1,
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
-    val precioUnitario: Double = 0.0,  // ✅ NUEVO - Precio por unidad
+    val precioUnitario: Double = 0.0,
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
     val estado: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
+    val boletaId: String? = null,              // Link a boleta electrónica PERÚ
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
     val diasAlquilados: Int
         get() {
             val fin = fechaDevolucion ?: Timestamp.now()
-            val diff = fin.seconds - fechaInicio.seconds
-            return (diff / 86400).toInt() + 1
+            val diffMillis = fin.toDate().time - fechaInicio.toDate().time
+            return (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
         }
 
     val diasRestantes: Int
         get() {
             if (estado != EstadoAlquiler.ACTIVO) return 0
-            val diff = fechaFinPrevista.seconds - Timestamp.now().seconds
-            return (diff / 86400).toInt()
+            // Normalizar fechas a medianoche (zona horaria local)
+            val hoy = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+
+            val fin = Calendar.getInstance().apply {
+                time = fechaFinPrevista.toDate()
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+
+            val diffMillis = fin.time - hoy.time
+            return TimeUnit.MILLISECONDS.toDays(diffMillis).toInt()
         }
 
     val estaVencido: Boolean
@@ -52,7 +74,7 @@ data class Alquiler(
     val precioFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioTotal)
 
-    val precioUnitarioFormateado: String  // ✅ NUEVO
+    val precioUnitarioFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioUnitario)
 
     val adelantoFormateado: String

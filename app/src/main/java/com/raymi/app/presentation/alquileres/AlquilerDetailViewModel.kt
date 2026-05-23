@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raymi.app.domain.model.Alquiler
+import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.alquiler.GetAlquilerByIdUseCase
 import com.raymi.app.domain.usecase.alquiler.RegistrarDevolucionUseCase
@@ -91,29 +92,28 @@ class AlquilerDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val alquilerActual = _uiState.value.alquiler ?: return@launch
 
-            // Calcular nuevo adelanto y saldo
             val nuevoAdelanto = alquilerActual.adelanto + montoPago
             val nuevoSaldo = alquilerActual.precioTotal - nuevoAdelanto
 
-            // Actualizar alquiler
+            // Determinar nuevo estado: si saldo es 0 o negativo, CANCELADO; sino, el mismo
+            val nuevoEstado = if (nuevoSaldo <= 0.0) EstadoAlquiler.CANCELADO else alquilerActual.estado
+
             val alquilerActualizado = alquilerActual.copy(
                 adelanto = nuevoAdelanto,
                 saldo = nuevoSaldo,
+                estado = nuevoEstado,
                 updatedAt = com.google.firebase.Timestamp.now()
             )
 
             updateAlquilerUseCase(alquilerActualizado).collect { result ->
                 when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isProcessing = true)
-                    }
+                    is Resource.Loading -> _uiState.value = _uiState.value.copy(isProcessing = true)
                     is Resource.Success -> {
                         val mensaje = if (nuevoSaldo <= 0) {
-                            "Pago registrado. ¡Deuda saldada! Ahora puedes devolver el vestuario."
+                            "¡Alquiler cancelado! Deuda saldada. Puedes proceder a la devolución."
                         } else {
                             "Pago registrado. Saldo restante: S/. ${String.format(java.util.Locale.getDefault(), "%.2f", nuevoSaldo)}"
                         }
-
                         _uiState.value = _uiState.value.copy(
                             isProcessing = false,
                             successMessage = mensaje

@@ -323,6 +323,22 @@ fun AlquilerDetailScreen(
                                                 RaymiColors.Success
                                             }
                                         )
+                                        // Hora de creación
+                                        val horaCreacion = alquiler.createdAt?.let { timestamp ->
+                                            val formatter = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+                                            formatter.timeZone = java.util.TimeZone.getDefault()
+                                            formatter.format(timestamp.toDate())
+                                        } ?: ""
+
+                                        if (horaCreacion.isNotBlank()) {
+                                            HorizontalDivider()
+                                            InfoRow(
+                                                icon = Icons.Filled.Info,
+                                                label = "Creado",
+                                                value = "${alquiler.fechaInicioFormatted} $horaCreacion",
+                                                valueColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -453,13 +469,13 @@ fun AlquilerDetailScreen(
                         }
 
                         // Acciones
-                        if (alquiler.estado == EstadoAlquiler.ACTIVO) {
+                        if (alquiler.estado == EstadoAlquiler.ACTIVO || alquiler.estado == EstadoAlquiler.CANCELADO) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // ✅ Si hay deuda, mostrar botón de pagar
-                                if (alquiler.saldo > 0) {
+                                // Si hay deuda (solo si está ACTIVO, porque CANCELADO ya no tiene deuda)
+                                if (alquiler.saldo > 0 && alquiler.estado == EstadoAlquiler.ACTIVO) {
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
@@ -495,7 +511,6 @@ fun AlquilerDetailScreen(
                                         }
                                     }
 
-                                    // Botón para registrar pago
                                     Button(
                                         onClick = { showPagoDialog = true },
                                         modifier = Modifier
@@ -510,8 +525,8 @@ fun AlquilerDetailScreen(
                                         Spacer(Modifier.width(8.dp))
                                         Text("Registrar Pago")
                                     }
-                                } else {
-                                    // Sin deuda - Permitir devolución
+                                } else if (alquiler.estado == EstadoAlquiler.CANCELADO) {
+                                    // Mensaje informativo de que está pagado y pendiente de devolución
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
@@ -539,30 +554,72 @@ fun AlquilerDetailScreen(
                                                     color = RaymiColors.Success
                                                 )
                                                 Text(
-                                                    text = "El cliente ha pagado el total del alquiler",
+                                                    text = "El cliente ha pagado la totalidad. Esperando devolución del vestuario.",
                                                     style = MaterialTheme.typography.bodyMedium
                                                 )
                                             }
                                         }
                                     }
-
-                                    Button(
-                                        onClick = { showDevolucionDialog = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        enabled = !uiState.isProcessing
+                                } else if (alquiler.saldo == 0.0 && alquiler.estado == EstadoAlquiler.ACTIVO) {
+                                    // Caso raro: saldo cero pero aún ACTIVO (por si no se actualizó automáticamente)
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = RaymiColors.Success.copy(alpha = 0.1f)
+                                        )
                                     ) {
-                                        if (uiState.isProcessing) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = RaymiColors.Success,
+                                                modifier = Modifier.size(32.dp)
                                             )
-                                        } else {
-                                            Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                            Spacer(Modifier.width(8.dp))
-                                            Text("Registrar Devolución")
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Saldo Cero",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = RaymiColors.Success
+                                                )
+                                                Text(
+                                                    text = "El cliente ya pagó todo. Puedes registrar la devolución.",
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
                                         }
+                                    }
+                                }
+
+                                // Botón de devolución: visible si está ACTIVO o CANCELADO (y si no está procesando)
+                                Button(
+                                    onClick = { showDevolucionDialog = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp),
+                                    enabled = !uiState.isProcessing,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (alquiler.estado == EstadoAlquiler.CANCELADO) RaymiColors.Success else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    if (uiState.isProcessing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            if (alquiler.estado == EstadoAlquiler.CANCELADO) "Registrar Devolución (Pago completo)"
+                                            else "Registrar Devolución"
+                                        )
                                     }
                                 }
                             }

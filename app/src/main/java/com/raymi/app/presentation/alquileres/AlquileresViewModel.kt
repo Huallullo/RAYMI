@@ -118,6 +118,10 @@ class AlquileresViewModel @Inject constructor(
 
     /**
      * Aplica los filtros actuales
+     * 
+     * NOTA: El estado VENCIDO no se guarda en la BD, se calcula por fecha.
+     * Un alquiler está VENCIDO si:
+     * - Estado = ACTIVO Y diasRestantes < 0
      */
     private fun filterAlquileres(alquileres: List<Alquiler>): List<Alquiler> {
         var filtered = alquileres
@@ -136,15 +140,23 @@ class AlquileresViewModel @Inject constructor(
         _uiState.value.selectedEstado?.let { estado ->
             filtered = filtered.filter { alquiler ->
                 when (estado) {
+                    // ⚠️ VENCIDO: Busca alquileres ACTIVOS que están vencidos por fecha
+                    // El estado VENCIDO NO se guarda en BD, solo se calcula
                     EstadoAlquiler.VENCIDO -> {
-                        alquiler.estado == EstadoAlquiler.VENCIDO ||
-                                (alquiler.estado == EstadoAlquiler.ACTIVO && alquiler.estaVencido)
+                        alquiler.estado == EstadoAlquiler.ACTIVO && alquiler.estaVencido
                     }
+                    // ACTIVO: Alquileres sin devolver, vencidos o no
                     EstadoAlquiler.ACTIVO -> {
                         alquiler.estado == EstadoAlquiler.ACTIVO
                     }
-                    EstadoAlquiler.DEVUELTO -> alquiler.estado == EstadoAlquiler.DEVUELTO
-                    EstadoAlquiler.CANCELADO -> alquiler.estado == EstadoAlquiler.CANCELADO
+                    // DEVUELTO: Alquileres completados (devolución registrada)
+                    EstadoAlquiler.DEVUELTO -> {
+                        alquiler.estado == EstadoAlquiler.DEVUELTO
+                    }
+                    // CANCELADO: Alquileres sin deuda (adelanto >= precioTotal)
+                    EstadoAlquiler.CANCELADO -> {
+                        alquiler.estado == EstadoAlquiler.CANCELADO
+                    }
                 }
             }
         }

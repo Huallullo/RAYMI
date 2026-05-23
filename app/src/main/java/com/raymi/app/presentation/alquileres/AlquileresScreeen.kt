@@ -247,6 +247,15 @@ fun AlquilerItem(
     alquiler: Alquiler,
     onClick: () -> Unit
 ) {
+    // Formatear hora de creación con 12h + AM/PM y zona horaria local explícita
+    val horaCreacion = alquiler.createdAt?.let { timestamp ->
+        val date = timestamp.toDate()
+        // Usar SimpleDateFormat con 12h y AM/PM
+        val formatter = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+        formatter.timeZone = java.util.TimeZone.getDefault()
+        formatter.format(date)
+    } ?: ""
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -278,6 +287,14 @@ fun AlquilerItem(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    // Hora de creación con formato am/pm
+                    if (horaCreacion.isNotBlank()) {
+                        Text(
+                            text = "Creado: $horaCreacion",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 }
 
                 EstadoBadge(
@@ -307,22 +324,27 @@ fun AlquilerItem(
                         text = "Fin: ${alquiler.fechaFinFormatted}"
                     )
 
-                    if (alquiler.estado == EstadoAlquiler.ACTIVO) {
-                        if (alquiler.estaVencido) {
+                    when {
+                        alquiler.estado != EstadoAlquiler.ACTIVO -> { /* no mostrar días */ }
+                        alquiler.estaVencido -> {
                             InfoRowCompact(
                                 icon = Icons.Filled.Warning,
-                                text = "Vencido hace ${-alquiler.diasRestantes} día(s)",
+                                text = "Vencido (por fecha)",
                                 color = RaymiColors.Error
                             )
-                        } else {
+                        }
+                        alquiler.diasRestantes == 0 -> {
+                            InfoRowCompact(
+                                icon = Icons.Filled.Warning,
+                                text = "Vence hoy",
+                                color = RaymiColors.Warning
+                            )
+                        }
+                        alquiler.diasRestantes > 0 -> {
                             InfoRowCompact(
                                 icon = Icons.Filled.Info,
                                 text = "${alquiler.diasRestantes} día(s) restantes",
-                                color = if (alquiler.diasRestantes <= 2) {
-                                    RaymiColors.Warning
-                                } else {
-                                    RaymiColors.Success
-                                }
+                                color = if (alquiler.diasRestantes <= 2) RaymiColors.Warning else RaymiColors.Success
                             )
                         }
                     }
@@ -347,6 +369,8 @@ fun AlquilerItem(
         }
     }
 }
+
+// Extensiones visuales (deben estar en el mismo archivo o en uno aparte)
 private val Alquiler.estadoVisual: EstadoAlquiler
     get() = if (estado == EstadoAlquiler.ACTIVO && estaVencido) {
         EstadoAlquiler.VENCIDO

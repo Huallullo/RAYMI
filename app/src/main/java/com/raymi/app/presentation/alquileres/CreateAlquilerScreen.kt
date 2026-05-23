@@ -171,7 +171,6 @@ fun CreateAlquilerScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (uiState.selectedCliente != null) {
-                        // Cliente seleccionado
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -194,7 +193,6 @@ fun CreateAlquilerScreen(
                             }
                         }
                     } else {
-                        // Botón para seleccionar
                         Button(
                             onClick = { viewModel.showClienteDialog() },
                             modifier = Modifier.fillMaxWidth()
@@ -225,7 +223,6 @@ fun CreateAlquilerScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (uiState.selectedVestuario != null) {
-                        // Vestuario seleccionado
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -254,7 +251,6 @@ fun CreateAlquilerScreen(
                             }
                         }
                     } else {
-                        // Botón para seleccionar
                         Button(
                             onClick = { viewModel.showVestuarioDialog() },
                             modifier = Modifier.fillMaxWidth()
@@ -266,7 +262,8 @@ fun CreateAlquilerScreen(
                     }
                 }
             }
-// Sección: Cantidad (AGREGAR DESPUÉS DEL VESTUARIO)
+
+            // Sección: Cantidad
             Text(
                 text = "3. Cantidad de Vestuarios",
                 style = MaterialTheme.typography.titleMedium,
@@ -298,7 +295,6 @@ fun CreateAlquilerScreen(
                     if (uiState.selectedVestuario != null && uiState.cantidad.isNotBlank()) {
                         HorizontalDivider()
 
-                        // Mostrar cálculo
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -331,6 +327,7 @@ fun CreateAlquilerScreen(
                     }
                 }
             }
+
             // Sección: Fechas
             Text(
                 text = "4. Configurar Fechas",
@@ -348,7 +345,7 @@ fun CreateAlquilerScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Fecha de inicio
+                    // Fecha de inicio (con calendario en español)
                     OutlinedTextField(
                         value = uiState.fechaInicio?.formatTo("dd/MM/yyyy") ?: "",
                         onValueChange = {},
@@ -358,7 +355,7 @@ fun CreateAlquilerScreen(
                         },
                         trailingIcon = {
                             IconButton(onClick = {
-                                val calendar = Calendar.getInstance()
+                                val calendar = Calendar.getInstance(Locale("es", "PE"))
                                 DatePickerDialog(
                                     context,
                                     { _, year, month, day ->
@@ -377,7 +374,7 @@ fun CreateAlquilerScreen(
                         readOnly = true
                     )
 
-                    // Fecha de fin
+                    // Fecha de fin (con calendario en español)
                     OutlinedTextField(
                         value = uiState.fechaFin?.formatTo("dd/MM/yyyy") ?: "",
                         onValueChange = {},
@@ -387,7 +384,7 @@ fun CreateAlquilerScreen(
                         },
                         trailingIcon = {
                             IconButton(onClick = {
-                                val calendar = Calendar.getInstance()
+                                val calendar = Calendar.getInstance(Locale("es", "PE"))
                                 if (uiState.fechaInicio != null) {
                                     calendar.time = uiState.fechaInicio!!
                                 }
@@ -409,7 +406,6 @@ fun CreateAlquilerScreen(
                         readOnly = true
                     )
 
-                    // Mostrar días
                     if (uiState.diasAlquiler > 0) {
                         Text(
                             text = "Duración: ${uiState.diasAlquiler} día(s)",
@@ -475,11 +471,7 @@ fun CreateAlquilerScreen(
                             text = "S/. ${String.format(Locale.getDefault(), "%.2f", uiState.saldo)}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (uiState.saldo > 0) {
-                                RaymiColors.Warning
-                            } else {
-                                RaymiColors.Success
-                            }
+                            color = if (uiState.saldo > 0) RaymiColors.Warning else RaymiColors.Success
                         )
                     }
                 }
@@ -553,13 +545,10 @@ fun SelectClienteDialog(
     onDismiss: () -> Unit
 ) {
     val filteredClientes = remember(clientes, searchQuery) {
-        if (searchQuery.isBlank()) {
-            clientes
-        } else {
-            clientes.filter {
-                it.nombreCompleto.contains(searchQuery, ignoreCase = true) ||
-                        it.dni.contains(searchQuery, ignoreCase = true)
-            }
+        if (searchQuery.isBlank()) clientes
+        else clientes.filter {
+            it.nombreCompleto.contains(searchQuery, ignoreCase = true) ||
+                    it.dni.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -578,13 +567,9 @@ fun SelectClienteDialog(
                     placeholder = "Buscar cliente...",
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-
                 LazyColumn {
                     items(filteredClientes) { cliente ->
-                        ClienteItem(
-                            cliente = cliente,
-                            onClick = { onClienteSelect(cliente) }
-                        )
+                        ClienteItem(cliente = cliente, onClick = { onClienteSelect(cliente) })
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -608,13 +593,10 @@ fun SelectVestuarioDialog(
     onDismiss: () -> Unit
 ) {
     val filteredVestuarios = remember(vestuarios, searchQuery) {
-        if (searchQuery.isBlank()) {
-            vestuarios
-        } else {
-            vestuarios.filter {
-                it.codigo.contains(searchQuery, ignoreCase = true) ||
-                        it.danza.contains(searchQuery, ignoreCase = true)
-            }
+        if (searchQuery.isBlank()) vestuarios
+        else vestuarios.filter {
+            it.codigo.contains(searchQuery, ignoreCase = true) ||
+                    it.danza.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -633,10 +615,7 @@ fun SelectVestuarioDialog(
                     placeholder = "Buscar vestuario...",
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(filteredVestuarios) { vestuario ->
                         Card(
                             modifier = Modifier

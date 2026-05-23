@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 
 data class Cliente(
     val id: String = "",
+    val workspaceId: String = "",              // A qué workspace pertenece (SaaS)
     val dni: String = "",
     val nombre: String = "",
     val apellidos: String = "",

@@ -11,46 +11,47 @@ import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * Implementación del repositorio de autenticación
- * Maneja todas las operaciones relacionadas con Firebase Auth
- */
 class AuthRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : AuthRepository {
 
     /**
-     * Obtiene el usuario actual autenticado
+     * Propiedad no suspendida que devuelve el usuario actual (puede ser null)
      */
     override val currentUser: FirebaseUser?
         get() = dataSource.getCurrentUser()
 
     /**
+     * Versión suspendida de obtener el usuario actual
+     */
+    override suspend fun getCurrentUser(): FirebaseUser? = currentUser
+
+    /**
+     * Obtiene el ID del negocio actual (obliga a crear/obtener el negocio)
+     */
+    override suspend fun getCurrentBusinessId(): String =
+        dataSource.getCurrentBusinessId()
+
+    /**
      * Inicia sesión con email y contraseña
-     * @param email Correo electrónico del usuario
-     * @param password Contraseña del usuario
-     * @return Flow con el resultado de la operación
      */
     override suspend fun login(
         email: String,
         password: String
     ): Flow<Resource<FirebaseUser>> = flow {
         try {
-            // Emitir estado de carga
             emit(Resource.Loading())
 
-            // Validar campos
             if (email.isBlank() || password.isBlank()) {
                 emit(Resource.Error("Email y contraseña son requeridos"))
                 return@flow
             }
 
-
-            // Intentar iniciar sesión
             val result = dataSource.signIn(email, password)
             val user = result.user
 
             if (user != null) {
+                // Asegura que existe un perfil de negocio (crea si no existe)
                 dataSource.ensureBusinessProfileForUser(user)
                 emit(Resource.Success(user))
             } else {
@@ -59,7 +60,7 @@ class AuthRepositoryImpl @Inject constructor(
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             val errorMessage = when (e) {
                 is FirebaseAuthException -> when (e.errorCode) {
                     "ERROR_INVALID_EMAIL" -> "Email inválido"
@@ -70,23 +71,17 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 else -> "Error al iniciar sesión: ${e.localizedMessage}"
             }
-
             AppLogger.e(
                 tag = "AuthRepository",
                 message = "Fallo en login para email=$email",
                 throwable = e
             )
-
             emit(Resource.Error(errorMessage))
         }
     }
 
     /**
      * Registra un nuevo usuario y crea su negocio SaaS Inicial
-     * @param email Correo electrónico del usuario
-     * @param password Contraseña del usuario
-     * * @param businessName Nombre del negocio que será dueño de su propia data
-     * @return Flow con el resultado de la operación
      */
     override suspend fun register(
         email: String,
@@ -94,12 +89,10 @@ class AuthRepositoryImpl @Inject constructor(
         businessName: String
     ): Flow<Resource<FirebaseUser>> = flow {
         try {
-            // Emitir estado de carga
             emit(Resource.Loading())
-            // Validar campos
+
             if (email.isBlank() || password.isBlank() || businessName.isBlank()) {
                 emit(Resource.Error("Email, contraseña y nombre del negocio son requeridos"))
-
                 return@flow
             }
 
@@ -107,7 +100,7 @@ class AuthRepositoryImpl @Inject constructor(
                 emit(Resource.Error("La contraseña debe tener al menos 6 caracteres"))
                 return@flow
             }
-            // Intentar registrar usuario
+
             val result = dataSource.signUp(email, password)
             val user = result.user
 
@@ -120,8 +113,7 @@ class AuthRepositoryImpl @Inject constructor(
 
         } catch (e: CancellationException) {
             throw e
-        }catch (e: Exception) {
-            // Manejar errores específicos
+        } catch (e: Exception) {
             val errorMessage = when {
                 e.message?.contains("already in use") == true ->
                     "Este email ya está registrado"
@@ -135,6 +127,10 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Resource.Error(errorMessage))
         }
     }
+
+    /**
+     * Envía correo de recuperación de contraseña
+     */
     override suspend fun resetPassword(email: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
@@ -146,6 +142,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             dataSource.sendPasswordResetEmail(email.trim())
             emit(Resource.Success(Unit))
+
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -161,16 +158,16 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Resource.Error(errorMessage))
         }
     }
+
     /**
      * Cierra la sesión actual
-     * @return Flow con el resultado de la operación
      */
     override suspend fun logout(): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
             dataSource.signOut()
             emit(Resource.Success(Unit))
-        }catch (e: CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al cerrar sesión: ${e.message}"))
@@ -178,10 +175,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Verifica si hay un usuario autenticado
-     * @return true si hay un usuario autenticado, false en caso contrario
+     * Verifica si hay un usuario autenticado (no suspendida)
      */
-    override fun isUserAuthenticated(): Boolean {
-        return dataSource.isUserAuthenticated()
-    }
+    override fun isUserAuthenticated(): Boolean = dataSource.isUserAuthenticated()
 }
