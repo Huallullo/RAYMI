@@ -89,7 +89,7 @@ fun EditAlquilerDialog(
                 )
 
                 Text(
-                    text = "Vestuario: ${alquiler.vestuarioNombre}",
+                    text = "Ítem: ${alquiler.itemNombre}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

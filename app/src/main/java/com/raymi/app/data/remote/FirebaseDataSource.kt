@@ -25,6 +25,7 @@ class FirebaseDataSource @Inject constructor(
         const val COLLECTION_ALQUILERES = "alquileres"
         const val COLLECTION_USUARIOS = "usuarios"
         const val COLLECTION_NEGOCIOS = "negocios"
+        const val COLLECTION_WORKSPACES = "negocios"
         const val COLLECTION_CLIENTES_DNI_INDEX = "clientes_dni_index"
         const val COLLECTION_VESTUARIOS_CODIGO_INDEX = "vestuarios_codigo_index"
         const val DEFAULT_QUERY_LIMIT = 500L
@@ -72,6 +73,10 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun updateDocument(collection: String, documentId: String, data: Map<String, Any>) {
         firestore.collection(collection).document(documentId).update(data).await()
+    }
+
+    suspend fun setDocument(collection: String, documentId: String, data: Map<String, Any>) {
+        firestore.collection(collection).document(documentId).set(data).await()
     }
 
     suspend fun deleteDocument(collection: String, documentId: String) {
@@ -154,42 +159,103 @@ class FirebaseDataSource @Inject constructor(
     fun signOut() = auth.signOut()
 
     // ========== PERFILES Y NEGOCIOS (SaaS) ==========
+    
+    suspend fun createWorkspaceAtomic(
+        workspaceData: Map<String, Any>,
+        statsData: Map<String, Any>
+    ): String {
+        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Usuario no autenticado")
+        val email = auth.currentUser?.email ?: ""
+        
+        val workspaceRef = firestore.collection(COLLECTION_WORKSPACES).document()
+        val statsRef = workspaceRef.collection("metadata").document("stats")
+        val miembroRef = workspaceRef.collection("miembros").document(uid)
+        
+        val now = FieldValue.serverTimestamp()
+
+        firestore.runBatch { batch ->
+            batch.set(workspaceRef, workspaceData + mapOf("createdAt" to now, "updatedAt" to now))
+            batch.set(statsRef, statsData)
+            // IMPORTANTE: Según tus reglas de seguridad, DEBE existir un miembro para poder leer el negocio
+            batch.set(miembroRef, mapOf(
+                "uid" to uid,
+                "email" to email,
+                "rol" to "owner",
+                "estado" to "ACTIVO",
+                "createdAt" to now
+            ))
+        }.await()
+        
+        return workspaceRef.id
+    }
+
     suspend fun createBusinessProfileForUser(user: FirebaseUser, businessName: String): String {
         val uid = user.uid
         val email = user.email.orEmpty().trim()
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document()
         val usuarioRef = firestore.collection(COLLECTION_USUARIOS).document(uid)
         val miembroRef = negocioRef.collection("miembros").document(uid)
+        val statsRef = negocioRef.collection("metadata").document("stats")
         val now = FieldValue.serverTimestamp()
         val negocioNombre = businessName.trim().ifBlank { defaultBusinessName(email) }
 
-        val batch = firestore.batch()
-        batch.set(negocioRef, mapOf(
-            "nombre" to negocioNombre, "rubro" to "alquileres", "pais" to "PE",
-            "moneda" to "PEN", "plan" to "FREE", "ownerUid" to uid,
-            "createdAt" to now, "updatedAt" to now
-        ))
-        batch.set(usuarioRef, mapOf(
-            "uid" to uid, "email" to email, "emailLowercase" to email.lowercase(),
-            "nombre" to (user.displayName ?: ""), "negocioId" to negocioRef.id,
-            "rol" to "owner", "idioma" to "es", "createdAt" to now, "updatedAt" to now
-        ))
-        batch.set(miembroRef, mapOf(
-            "uid" to uid, "email" to email, "nombre" to (user.displayName ?: ""),
-            "rol" to "owner", "estado" to "ACTIVO", "createdAt" to now, "updatedAt" to now
-        ))
-        batch.commit().await()
-        return negocioRef.id
+        try {
+            firestore.runBatch { batch ->
+                // 1. Crear el negocio
+                batch.set(negocioRef, mapOf(
+                    "nombre" to negocioNombre, "rubro" to "alquileres", "pais" to "PE",
+                    "moneda" to "PEN", "plan" to "FREE", "ownerUid" to uid,
+                    "createdAt" to now, "updatedAt" to now, "ultimoAcceso" to now
+                ))
+
+                // 2. Crear las estadísticas iniciales
+                batch.set(statsRef, mapOf(
+                    "totalItems" to 0L,
+                    "alquileresActivos" to 0L,
+                    "totalIngresos" to 0.0,
+                    "totalClientes" to 0L
+                ))
+
+                // 3. Crear el perfil de usuario
+                batch.set(usuarioRef, mapOf(
+                    "uid" to uid, "email" to email, "emailLowercase" to email.lowercase(),
+                    "nombre" to (user.displayName ?: ""), "negocioId" to negocioRef.id,
+                    "rol" to "owner", "idioma" to "es", "createdAt" to now, "updatedAt" to now
+                ))
+
+                // 3. Agregar al usuario como miembro
+                batch.set(miembroRef, mapOf(
+                    "uid" to uid, "email" to email, "nombre" to (user.displayName ?: ""),
+                    "rol" to "owner", "estado" to "ACTIVO", "createdAt" to now, "updatedAt" to now
+                ))
+            }.await()
+            
+            return negocioRef.id
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseDataSource", "Error creando perfil en batch: ${e.message}")
+            throw e
+        }
     }
 
     suspend fun ensureBusinessProfileForUser(user: FirebaseUser): String {
-        val usuarioRef = firestore.collection(COLLECTION_USUARIOS).document(user.uid)
-        val snapshot = usuarioRef.get().await()
-        val negocioId = snapshot.getString("negocioId")
-        return if (snapshot.exists() && !negocioId.isNullOrBlank()) {
-            negocioId
-        } else {
-            createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+        val uid = user.uid
+        val usuarioRef = firestore.collection(COLLECTION_USUARIOS).document(uid)
+        
+        return try {
+            val snapshot = usuarioRef.get().await()
+            val negocioId = snapshot.getString("negocioId")
+            
+            if (snapshot.exists() && !negocioId.isNullOrBlank()) {
+                negocioId
+            } else {
+                // Si no existe el perfil, intentamos crearlo
+                createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseDataSource", "Error en ensureBusinessProfileForUser: ${e.message}")
+            // Si falla por permisos pero el usuario está autenticado, devolvemos un ID temporal 
+            // o lanzamos una excepción controlada que el repositorio manejará.
+            throw e
         }
     }
 
@@ -258,13 +324,15 @@ class FirebaseDataSource @Inject constructor(
         collection: String,
         orderByField: String,
         descending: Boolean = true,
-        limit: Long = 200
+        limit: Long = 200,
+        negocioId: String? = null // QA Fix: Permitir pasar el ID directamente
     ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
         val user = auth.currentUser ?: run { close(Exception("Usuario no autenticado")); return@callbackFlow }
-        val negocioId = try { ensureBusinessProfileForUser(user) } catch (e: Exception) { close(e); return@callbackFlow }
+        val finalNegocioId = negocioId ?: try { ensureBusinessProfileForUser(user) } catch (e: Exception) { close(e); return@callbackFlow }
+        
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
         val subscription = firestore.collection(COLLECTION_NEGOCIOS)
-            .document(negocioId)
+            .document(finalNegocioId)
             .collection(collection)
             .orderBy(orderByField, direction)
             .limit(limit)
@@ -382,7 +450,29 @@ class FirebaseDataSource @Inject constructor(
         return observeBusinessCollectionOrderedLimited("items", orderByField, descending, limit)
     }
 
-    // ========== FUNCIONES BUSINESS PARA ALQUILERES ==========
+    // ========== ESTADÍSTICAS ATÓMICAS (AHORRO DE DINERO) ==========
+
+    /**
+     * Incrementa o decrementa contadores de forma atómica en el documento de metadatos.
+     * Esto evita leer toda la colección para obtener totales en el Dashboard.
+     */
+    suspend fun updateStats(workspaceId: String, field: String, increment: Long) {
+        val statsRef = firestore.collection(COLLECTION_WORKSPACES).document(workspaceId)
+            .collection("metadata").document("stats")
+        
+        // Usar set con merge para asegurar que el documento exista sin fallar
+        statsRef.set(mapOf(field to FieldValue.increment(increment)), com.google.firebase.firestore.SetOptions.merge()).await()
+    }
+
+    /**
+     * Obtiene el documento único de estadísticas para el Dashboard.
+     * Costo: 1 lectura de Firestore.
+     */
+    suspend fun getStats(workspaceId: String): Map<String, Any>? {
+        val snapshot = firestore.collection(COLLECTION_WORKSPACES).document(workspaceId)
+            .collection("metadata").document("stats").get().await()
+        return if (snapshot.exists()) snapshot.data else null
+    }
     suspend fun addBusinessAlquiler(
         alquilerData: Map<String, Any>,
         itemId: String
@@ -448,9 +538,10 @@ class FirebaseDataSource @Inject constructor(
     fun observeBusinessAlquileresOrderedLimited(
         orderByField: String = "createdAt",
         descending: Boolean = true,
-        limit: Long = 500
+        limit: Long = 500,
+        negocioId: String? = null
     ): Flow<List<Pair<String, Map<String, Any>>>> =
-        observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit)
+        observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit, negocioId)
 
     // ========== FUNCIONES ANTIGUAS (se mantienen por compatibilidad temporal) ==========
     suspend fun createAlquilerAndMarkVestuarioAlquilado(

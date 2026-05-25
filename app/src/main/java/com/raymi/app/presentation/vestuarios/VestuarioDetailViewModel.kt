@@ -67,7 +67,7 @@ class VestuarioDetailViewModel @Inject constructor(
                 when (result) {
                     is Resource.Success -> {
                         val alquileres = result.data?.filter {
-                            it.vestuarioId == vestuarioId
+                            it.itemId == vestuarioId
                         } ?: emptyList()
 
                         val totalAlquileres = alquileres.size

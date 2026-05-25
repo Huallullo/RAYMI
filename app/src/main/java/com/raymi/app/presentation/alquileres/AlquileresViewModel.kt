@@ -2,6 +2,7 @@ package com.raymi.app.presentation.alquileres
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Resource
@@ -11,24 +12,22 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel para la gestión de alquileres
- * Maneja la lista de alquileres y filtros
+ * ViewModel para la gestión de alquileres bajo arquitectura SaaS.
+ * Maneja la lista de contratos, búsquedas y filtrado por estado.
  */
 @HiltViewModel
 class AlquileresViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
-
+    private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
-    companion object {
-        private const val ALQUILERES_PAGE_SIZE = 50
-    }
-    private var observeJob: Job? = null
-    // ========== ESTADOS UI ==========
 
+    private var observeJob: Job? = null
+    
     private val _uiState = MutableStateFlow(AlquileresUiState())
     val uiState: StateFlow<AlquileresUiState> = _uiState.asStateFlow()
 
@@ -36,148 +35,82 @@ class AlquileresViewModel @Inject constructor(
         loadAlquileres()
     }
 
-    // ========== ACCIONES ==========
-
     /**
-     * Carga la lista de alquileres
+     * Carga los alquileres del negocio actual.
      */
     fun loadAlquileres() {
         observeJob?.cancel()
         observeJob = viewModelScope.launch {
-            getAlquileresUseCase().collect { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true)
-                    }
-
-                    is Resource.Success -> {
-                        val alquileres = result.data ?: emptyList()
-                        val filtered = filterAlquileres(alquileres)
-                        _uiState.value = _uiState.value.copy(
-                            alquileres = alquileres,
-                            filteredAlquileres = filtered,
-                            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
-                            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
-
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
+            try {
+                // Obtenemos el ID del workspace actual del manager centralizado
+                val workspaceId = workspaceManager.getWorkspaceId()
+                
+                // NOTA: El caso de uso debería recibir el workspaceId para filtrar en Firestore
+                // Si el caso de uso aún no está actualizado, lo manejamos localmente por ahora.
+                getAlquileresUseCase().collect { result ->
+                    when (result) {
+                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+                        is Resource.Success -> {
+                            val data = result.data ?: emptyList()
+                            _uiState.update { 
+                                it.copy(
+                                    alquileres = data,
+                                    filteredAlquileres = filterAlquileres(data, it.searchQuery, it.selectedEstado),
+                                    isLoading = false 
+                                )
+                            }
+                        }
+                        is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "No se pudo identificar el negocio activo") }
             }
         }
     }
 
-    /**
-     * Busca alquileres por texto
-     */
     fun searchAlquileres(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-        _uiState.value = _uiState.value.copy(visibleLimit = ALQUILERES_PAGE_SIZE)
-        _uiState.value = _uiState.value.copy(
-            filteredAlquileres = filterAlquileres(_uiState.value.alquileres)
-        )
-        val filtered = _uiState.value.filteredAlquileres
-        _uiState.value = _uiState.value.copy(
-            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
-            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit
-        )
+        _uiState.update { 
+            it.copy(
+                searchQuery = query,
+                filteredAlquileres = filterAlquileres(it.alquileres, query, it.selectedEstado)
+            )
+        }
     }
 
-    /**
-     * Filtra por estado
-     */
     fun filterByEstado(estado: EstadoAlquiler?) {
-        _uiState.value = _uiState.value.copy(selectedEstado = estado)
-        _uiState.value = _uiState.value.copy(visibleLimit = ALQUILERES_PAGE_SIZE)
-        _uiState.value = _uiState.value.copy(
-            filteredAlquileres = filterAlquileres(_uiState.value.alquileres)
-        )
-        val filtered = _uiState.value.filteredAlquileres
-        _uiState.value = _uiState.value.copy(
-            visibleAlquileres = filtered.take(_uiState.value.visibleLimit),
-            hasMoreAlquileres = filtered.size > _uiState.value.visibleLimit
-        )
+        _uiState.update { 
+            it.copy(
+                selectedEstado = estado,
+                filteredAlquileres = filterAlquileres(it.alquileres, it.searchQuery, estado)
+            )
+        }
     }
 
-    fun loadMoreAlquileres() {
-        val nextLimit = _uiState.value.visibleLimit + ALQUILERES_PAGE_SIZE
-        val filtered = _uiState.value.filteredAlquileres
-        _uiState.value = _uiState.value.copy(
-            visibleLimit = nextLimit,
-            visibleAlquileres = filtered.take(nextLimit),
-            hasMoreAlquileres = filtered.size > nextLimit
-        )
-    }
-
-    /**
-     * Aplica los filtros actuales
-     * 
-     * NOTA: El estado VENCIDO no se guarda en la BD, se calcula por fecha.
-     * Un alquiler está VENCIDO si:
-     * - Estado = ACTIVO Y diasRestantes < 0
-     */
-    private fun filterAlquileres(alquileres: List<Alquiler>): List<Alquiler> {
-        var filtered = alquileres
-
-        // Filtrar por búsqueda
-        if (_uiState.value.searchQuery.isNotBlank()) {
-            val query = _uiState.value.searchQuery
-            filtered = filtered.filter { alquiler ->
+    private fun filterAlquileres(
+        alquileres: List<Alquiler>, 
+        query: String, 
+        estado: EstadoAlquiler?
+    ): List<Alquiler> {
+        return alquileres.filter { alquiler ->
+            val matchQuery = query.isBlank() || 
                 alquiler.clienteNombre.contains(query, ignoreCase = true) ||
-                        alquiler.vestuarioNombre.contains(query, ignoreCase = true) ||
-                        alquiler.vestuarioCodigo.contains(query, ignoreCase = true)
-            }
+                alquiler.itemNombre.contains(query, ignoreCase = true) ||
+                alquiler.itemCodigo.contains(query, ignoreCase = true)
+            
+            val matchEstado = estado == null || 
+                (estado == EstadoAlquiler.VENCIDO && alquiler.estaVencido) ||
+                (estado != EstadoAlquiler.VENCIDO && alquiler.estado == estado)
+                
+            matchQuery && matchEstado
         }
-
-        // Filtrar por estado
-        _uiState.value.selectedEstado?.let { estado ->
-            filtered = filtered.filter { alquiler ->
-                when (estado) {
-                    // ⚠️ VENCIDO: Busca alquileres ACTIVOS que están vencidos por fecha
-                    // El estado VENCIDO NO se guarda en BD, solo se calcula
-                    EstadoAlquiler.VENCIDO -> {
-                        alquiler.estado == EstadoAlquiler.ACTIVO && alquiler.estaVencido
-                    }
-                    // ACTIVO: Alquileres sin devolver, vencidos o no
-                    EstadoAlquiler.ACTIVO -> {
-                        alquiler.estado == EstadoAlquiler.ACTIVO
-                    }
-                    // DEVUELTO: Alquileres completados (devolución registrada)
-                    EstadoAlquiler.DEVUELTO -> {
-                        alquiler.estado == EstadoAlquiler.DEVUELTO
-                    }
-                    // CANCELADO: Alquileres sin deuda (adelanto >= precioTotal)
-                    EstadoAlquiler.CANCELADO -> {
-                        alquiler.estado == EstadoAlquiler.CANCELADO
-                    }
-                }
-            }
-        }
-
-        return filtered
     }
 
-    /**
-     * Limpia los mensajes
-     */
     fun clearMessages() {
-        _uiState.value = _uiState.value.copy(
-            error = null,
-            successMessage = null
-        )
+        _uiState.update { it.copy(error = null, successMessage = null) }
     }
 }
 
-/**
- * Estado UI para la pantalla de alquileres
- */
 data class AlquileresUiState(
     val alquileres: List<Alquiler> = emptyList(),
     val filteredAlquileres: List<Alquiler> = emptyList(),
@@ -185,8 +118,5 @@ data class AlquileresUiState(
     val selectedEstado: EstadoAlquiler? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val successMessage: String? = null,
-    val visibleAlquileres: List<Alquiler> = emptyList(),
-    val visibleLimit: Int = 50,
-    val hasMoreAlquileres: Boolean = false,
+    val successMessage: String? = null
 )

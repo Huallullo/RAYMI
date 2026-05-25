@@ -1,38 +1,31 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="120dp"
-    android:height="120dp"
-    android:viewportWidth="120"
-    android:viewportHeight="120">
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
 
-    <!-- Círculo de fondo -->
+    <!-- Fondo Sólido Indigo (Círculo para mayor limpieza) -->
     <path
-        android:fillColor="#8B1E3F"
-        android:pathData="M60,6A54,54 0,1 1,59.99 6z" />
+        android:pathData="M256,256m-256,0a256,256 0,1 1,512 0a256,256 0,1 1,-512 0"
+        android:fillColor="#4F46E5" />
 
-    <!-- Sol andino -->
-    <path
-        android:fillColor="#FFD700"
-        android:pathData="M60,26A12,12 0,1 1,59.99 26z" />
+    <!-- Una "R" geométrica y gruesa en Blanco (Legibilidad 100%) -->
 
-    <!-- Rayos -->
-    <path android:fillColor="#FFD700" android:pathData="M60,10 l2,8 h-4 z"/>
-    <path android:fillColor="#FFD700" android:pathData="M60,42 l2,8 h-4 z"/>
-    <path android:fillColor="#FFD700" android:pathData="M44,26 l8,2 v-4 z"/>
-    <path android:fillColor="#FFD700" android:pathData="M76,26 l8,2 v-4 z"/>
+    <!-- Cuerpo principal (Rectángulo redondeado) -->
+    <path
+        android:pathData="M160,120h100c60,0 100,40 100,90s-40,90 -100,90h-100z"
+        android:fillColor="#FFFFFF" />
 
-    <!-- Montañas -->
+    <!-- Pierna de la R (Simple y sólida) -->
     <path
-        android:fillColor="#2A9D8F"
-        android:pathData="M18,88 L44,56 L70,88 Z" />
-    <path
-        android:fillColor="#1F7A6A"
-        android:pathData="M48,88 L74,50 L102,88 Z" />
+        android:pathData="M240,300 L340,420"
+        android:strokeWidth="60"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"/>
 
-    <!-- Camino/greca andina -->
+    <!-- Pilar de la R (Para cerrar la forma) -->
     <path
-        android:fillColor="#F4A261"
-        android:pathData="M20,96 h80 v10 h-80 z" />
-    <path
-        android:fillColor="#8B1E3F"
-        android:pathData="M26,98 h8 v6 h-8 z M40,98 h8 v6 h-8 z M54,98 h8 v6 h-8 z M68,98 h8 v6 h-8 z M82,98 h8 v6 h-8 z" />
+        android:pathData="M160,120h60v300h-60z"
+        android:fillColor="#FFFFFF" />
+
 </vector>

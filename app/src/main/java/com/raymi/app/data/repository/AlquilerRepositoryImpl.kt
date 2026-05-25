@@ -129,18 +129,21 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             val dto = AlquilerDto.fromDomain(alquiler)
-            // Nota: ahora el itemId debe ser el ID del documento en "items"
             val documentId = dataSource.addBusinessAlquiler(
-                alquilerData = dto.toMap(),
-                itemId = alquiler.vestuarioId  // el campo vestuarioId en el modelo Alquiler es el ID del item
+                alquilerData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
+                itemId = alquiler.itemId
             )
+            
+            // Actualización de estadísticas atómicas
+            dataSource.updateStats(alquiler.workspaceId, "alquileresActivos", 1L)
+
             emit(Resource.Success(documentId))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             AppLogger.e(
                 tag = "AlquilerRepository",
-                message = "Error al crear alquiler. itemId=${alquiler.vestuarioId}, clienteId=${alquiler.clienteId}",
+                message = "Error al crear alquiler. itemId=${alquiler.itemId}, clienteId=${alquiler.clienteId}",
                 throwable = e
             )
             emit(Resource.Error("Error al crear alquiler: ${e.message}"))
@@ -156,7 +159,8 @@ class AlquilerRepositoryImpl @Inject constructor(
             }
             val alquilerActualizado = alquiler.copy(updatedAt = Timestamp.now())
             val dto = AlquilerDto.fromDomain(alquilerActualizado)
-            dataSource.updateBusinessAlquiler(alquiler.id, dto.toMap())
+            val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            dataSource.updateBusinessAlquiler(alquiler.id, dataMap)
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e
@@ -168,7 +172,18 @@ class AlquilerRepositoryImpl @Inject constructor(
     override suspend fun registrarDevolucion(alquilerId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
+            
+            // Necesitamos el workspaceId para actualizar stats
+            val alquilerSnapshot = dataSource.getBusinessAlquiler(alquilerId)
+            val workspaceId = alquilerSnapshot?.get("workspaceId") as? String
+            
             dataSource.registrarDevolucionBusiness(alquilerId)
+            
+            // Actualización de estadísticas atómicas
+            if (workspaceId != null) {
+                dataSource.updateStats(workspaceId, "alquileresActivos", -1L)
+            }
+
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e

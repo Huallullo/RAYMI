@@ -143,6 +143,12 @@ dependencies {
     // Splash Screen
     implementation(libs.androidx.core.splashscreen)
 
+    // Google Ads (AdMob)
+    implementation(libs.google.ads)
+
+    // Material Components (Needed for XML themes)
+    implementation(libs.material)
+
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 

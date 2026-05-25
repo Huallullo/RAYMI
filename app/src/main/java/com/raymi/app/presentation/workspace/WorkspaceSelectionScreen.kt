@@ -1,0 +1,226 @@
+package com.raymi.app.presentation.workspace
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.raymi.app.domain.model.Workspace
+import androidx.compose.ui.res.painterResource
+import com.raymi.app.R
+
+/**
+ * Hub de Negocios (SaaS Selection).
+ * Diseño ultra-moderno: Tarjetas con gradientes, bienvenida personalizada y minimalismo.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkspaceSelectionScreen(
+    viewModel: WorkspaceSelectionViewModel = hiltViewModel(),
+    onWorkspaceSelected: () -> Unit,
+    onCreateWorkspace: () -> Unit,
+    onLogout: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Recargar al entrar o volver a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.loadWorkspaces()
+    }
+
+    LaunchedEffect(uiState.workspaceSelected) {
+        if (uiState.workspaceSelected) {
+            onWorkspaceSelected()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                actions = {
+                    TextButton(onClick = {
+                        viewModel.logout { onLogout() }
+                    }) {
+                        Text("Cerrar Sesión")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+        },
+        bottomBar = {
+            Button(
+                onClick = onCreateWorkspace,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .height(56.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Registrar Nuevo Negocio", fontWeight = FontWeight.Bold)
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            Icon(
+                painter = painterResource(id = R.drawable.ic_raymi_logo),
+                contentDescription = "Logo RAYMI",
+                modifier = Modifier.size(70.dp),
+                tint = Color.Unspecified
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "RAYMI",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Text(
+                text = "Bienvenido de nuevo",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-1).sp
+                )
+            )
+            
+            Text(
+                text = "Selecciona el centro de operaciones",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(strokeWidth = 3.dp)
+                }
+            } else if (uiState.workspaces.isEmpty()) {
+                EmptyWorkspacesView(onCreateWorkspace)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(uiState.workspaces) { workspace ->
+                        PremiumWorkspaceCard(
+                            workspace = workspace,
+                            onClick = { viewModel.selectWorkspace(workspace) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PremiumWorkspaceCard(
+    workspace: Workspace,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icono con Background Circular Dinámico
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BusinessCenter,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = workspace.nombre,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = workspace.tipoNegocio,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyWorkspacesView(onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.Storefront,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("No tienes negocios aún", fontWeight = FontWeight.Bold)
+        Text(
+            "Empieza a gestionar tus alquileres hoy mismo.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

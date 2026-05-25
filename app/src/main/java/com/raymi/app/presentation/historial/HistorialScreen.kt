@@ -1,185 +1,183 @@
 package com.raymi.app.presentation.historial
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.raymi.app.core.theme.RaymiColors
-import com.raymi.app.core.utils.formatTo
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.presentation.components.EstadoBadge
-import com.raymi.app.presentation.components.RaymiEmptyState
-import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.presentation.components.*
+import java.util.Locale
 
+/**
+ * Historial de Movimientos Premium.
+ * Diseño Senior: Resumen de ingresos acumulados y lista de auditoría limpia.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistorialScreen(
     viewModel: HistorialViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Historial de Alquileres") },
+            LargeTopAppBar(
+                title = { Text("Historial Contable", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.cargarHistorial() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                    }
+                }
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    RaymiLoadingIndicator(message = "Cargando historial...")
-                }
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            
+            // 1. Panel de Resumen Histórico (Diseño Senior)
+            SummaryHeader(recaudado = uiState.totalRecaudado, totalTransacciones = uiState.allAlquileres.size)
 
-                uiState.alquileres.isEmpty() -> {
-                    RaymiEmptyState(
-                        icon = Icons.Filled.History,
-                        title = "Sin historial",
-                        description = "El historial de alquileres aparecerá aquí"
-                    )
-                }
+            // 2. Buscador en tiempo real
+            RaymiSearchBar(
+                query = uiState.query,
+                onQueryChange = { viewModel.filtrar(it) },
+                placeholder = "Buscar en el historial...",
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.alquileres) { alquiler ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = when (alquiler.estado) {
-                                        EstadoAlquiler.DEVUELTO -> RaymiColors.Success.copy(alpha = 0.1f)
-                                        EstadoAlquiler.CANCELADO -> MaterialTheme.colorScheme.errorContainer
-                                        else -> MaterialTheme.colorScheme.surfaceVariant
-                                    }
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = alquiler.clienteNombre,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = "${alquiler.cantidad}x ${alquiler.vestuarioNombre}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        EstadoBadge(
-                                            texto = alquiler.estado.name,
-                                            color = when (alquiler.estado) {
-                                                EstadoAlquiler.DEVUELTO -> RaymiColors.Success
-                                                EstadoAlquiler.CANCELADO -> RaymiColors.Error
-                                                EstadoAlquiler.ACTIVO -> RaymiColors.Warning
-                                                EstadoAlquiler.VENCIDO -> RaymiColors.Error
-                                            }
-                                        )
-                                    }
-
-                                    HorizontalDivider()
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = "Inicio: ${alquiler.fechaInicioFormatted}",
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                            if (alquiler.fechaDevolucion != null) {
-                                                Text(
-                                                    text = "Devuelto: ${alquiler.fechaDevolucion!!.toDate().formatTo("dd/MM/yyyy")}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = RaymiColors.Success
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = "Previsto: ${alquiler.fechaFinFormatted}",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                            }
-                                        }
-
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = alquiler.precioFormateado,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                            if (alquiler.saldo > 0) {
-                                                Text(
-                                                    text = "Deuda: ${alquiler.saldoFormateado}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = RaymiColors.Error
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = "✓ Pagado",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = RaymiColors.Success
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    uiState.isLoading -> RaymiLoadingIndicator(message = "Compilando registros...")
+                    uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.cargarHistorial() })
+                    uiState.filteredAlquileres.isEmpty() -> {
+                        RaymiEmptyState(
+                            icon = Icons.Default.HistoryEdu,
+                            title = "Sin Registros",
+                            description = "No se encontraron movimientos cerrados."
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 24.dp, start = 24.dp, end = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.filteredAlquileres, key = { it.id }) { movimiento ->
+                                TransactionItem(movimiento)
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SummaryHeader(recaudado: Double, totalTransacciones: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("RECAUDACIÓN TOTAL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "S/. ${String.format(Locale.getDefault(), "%,.2f", recaudado)}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("MOVIMIENTOS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("$totalTransacciones oper.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun TransactionItem(alquiler: Alquiler) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Icono de transacción terminada
+            Surface(
+                shape = CircleShape,
+                color = if (alquiler.estado == EstadoAlquiler.DEVUELTO) Color(0xFF4CAF50).copy(alpha = 0.1f) else Color.Red.copy(alpha = 0.1f),
+                modifier = Modifier.size(44.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        if (alquiler.estado == EstadoAlquiler.DEVUELTO) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (alquiler.estado == EstadoAlquiler.DEVUELTO) Color(0xFF4CAF50) else Color.Red
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = alquiler.clienteNombre,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = alquiler.itemNombre,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "S/. ${alquiler.precioTotal - alquiler.saldo}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = alquiler.fechaFinFormatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
             }
         }
     }

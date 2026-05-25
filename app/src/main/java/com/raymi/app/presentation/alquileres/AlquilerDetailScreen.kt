@@ -1,70 +1,31 @@
 package com.raymi.app.presentation.alquileres
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.presentation.components.EstadoBadge
-import com.raymi.app.presentation.components.InfoRow
-import com.raymi.app.presentation.components.RaymiErrorState
-import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.presentation.components.*
 
+/**
+ * Detalle de Alquiler Premium.
+ * Diseño Senior: Separación clara de responsabilidades, estados financieros y gestión de producto.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlquilerDetailScreen(
@@ -72,670 +33,219 @@ fun AlquilerDetailScreen(
     viewModel: AlquilerDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDevolucionDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
-    var showPagoDialog by remember { mutableStateOf(false) }
 
-
-    // Mostrar mensajes
-    LaunchedEffect(uiState.error, uiState.successMessage) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
+    // Observar mensajes
+    LaunchedEffect(uiState.successMessage, uiState.error) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
-        uiState.successMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
-            // Solo navegar atrás si no es mensaje de PDF generado
-            if (!message.contains("PDF generado correctamente")) {
-                onNavigateBack()
-            }
         }
     }
 
+    LaunchedEffect(alquilerId) {
+        viewModel.loadAlquiler()
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Detalle del Alquiler") },
+            CenterAlignedTopAppBar(
+                title = { Text("Contrato de Alquiler", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
-                    if (uiState.alquiler?.estado == EstadoAlquiler.ACTIVO) {
-                        IconButton(onClick = { showEditDialog = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar")
-                        }
+                    IconButton(onClick = { showEditDialog = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                    }
+                    IconButton(onClick = { viewModel.generarPdf() }) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar")
                     }
                 }
-
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    RaymiLoadingIndicator(message = "Cargando alquiler...")
-                }
-
-                uiState.alquiler == null -> {
-                    RaymiErrorState(
-                        message = "No se pudo cargar el alquiler",
-                        onRetry = { /* Recargar */ }
-                    )
-                }
-
-                else -> {
-                    val alquiler = uiState.alquiler!!
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+        bottomBar = {
+            if (uiState.alquiler != null && uiState.alquiler?.estado == EstadoAlquiler.ACTIVO) {
+                Surface(tonalElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { showDevolucionDialog = true },
+                        modifier = Modifier.padding(24.dp).fillMaxWidth().height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        // Cabecera con estado
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape,
-                            colors = CardDefaults.cardColors(
-                                containerColor = when (alquiler.estado) {
-                                    EstadoAlquiler.ACTIVO -> MaterialTheme.colorScheme.primaryContainer
-                                    EstadoAlquiler.DEVUELTO -> RaymiColors.Success.copy(alpha = 0.1f)
-                                    EstadoAlquiler.VENCIDO -> RaymiColors.Error.copy(alpha = 0.1f)
-                                    EstadoAlquiler.CANCELADO -> MaterialTheme.colorScheme.surfaceVariant
-                                }
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Receipt,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-
-                                EstadoBadge(
-                                    texto = alquiler.estado.name,
-                                    color = when (alquiler.estado) {
-                                        EstadoAlquiler.ACTIVO -> RaymiColors.Success
-                                        EstadoAlquiler.DEVUELTO -> RaymiColors.Info
-                                        EstadoAlquiler.VENCIDO -> RaymiColors.Error
-                                        EstadoAlquiler.CANCELADO -> RaymiColors.TextTertiary
-                                    }
-                                )
-                            }
-                        }
-
-                        // Cliente
-                        Text(
-                            text = "Cliente",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(40.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-
-                                Text(
-                                    text = alquiler.clienteNombre,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        // Vestuario
-                        Text(
-                            text = "Vestuario",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Checkroom,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-
-                                    Column {
-                                        Text(
-                                            text = alquiler.vestuarioNombre,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "${alquiler.cantidad}x ${alquiler.vestuarioNombre}",  // ✅
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "Código: ${alquiler.vestuarioCodigo}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "Cantidad: ${alquiler.cantidad} unidad(es)",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Fechas
-                        Text(
-                            text = "Fechas",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                InfoRow(
-                                    icon = Icons.Default.CalendarToday,
-                                    label = "Fecha de Inicio",
-                                    value = alquiler.fechaInicioFormatted
-                                )
-
-                                HorizontalDivider()
-
-                                InfoRow(
-                                    icon = Icons.Default.Event,
-                                    label = "Fecha de Devolución Prevista",
-                                    value = alquiler.fechaFinFormatted
-                                )
-
-                                if (alquiler.estado == EstadoAlquiler.ACTIVO) {
-                                    HorizontalDivider()
-
-                                    if (alquiler.estaVencido) {
-                                        InfoRow(
-                                            icon = Icons.Default.Warning,
-                                            label = "Estado",
-                                            value = "Vencido hace ${-alquiler.diasRestantes} día(s)",
-                                            valueColor = RaymiColors.Error
-                                        )
-                                    } else {
-                                        InfoRow(
-                                            icon = Icons.Default.Info,
-                                            label = "Días Restantes",
-                                            value = "${alquiler.diasRestantes} día(s)",
-                                            valueColor = if (alquiler.diasRestantes <= 2) {
-                                                RaymiColors.Warning
-                                            } else {
-                                                RaymiColors.Success
-                                            }
-                                        )
-                                        // Hora de creación
-                                        val horaCreacion = alquiler.createdAt?.let { timestamp ->
-                                            val formatter = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
-                                            formatter.timeZone = java.util.TimeZone.getDefault()
-                                            formatter.format(timestamp.toDate())
-                                        } ?: ""
-
-                                        if (horaCreacion.isNotBlank()) {
-                                            HorizontalDivider()
-                                            InfoRow(
-                                                icon = Icons.Filled.Info,
-                                                label = "Creado",
-                                                value = "${alquiler.fechaInicioFormatted} $horaCreacion",
-                                                valueColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Información de pago
-                        Text(
-                            text = "Información de Pago",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Precio Unitario:",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = alquiler.precioUnitarioFormateado,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Cantidad:",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = "${alquiler.cantidad} unidad(es)",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-
-                                HorizontalDivider()
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Precio Total:",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = alquiler.precioFormateado,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Adelanto:",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = alquiler.adelantoFormateado,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = RaymiColors.Success
-                                    )
-                                }
-
-                                HorizontalDivider()
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Saldo:",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = alquiler.saldoFormateado,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (alquiler.saldo > 0) {
-                                            RaymiColors.Warning
-                                        } else {
-                                            RaymiColors.Success
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Observaciones
-                        if (alquiler.observaciones.isNotBlank()) {
-                            Text(
-                                text = "Observaciones",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = CustomShapes.CardShape
-                            ) {
-                                Text(
-                                    text = alquiler.observaciones,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
-                        }
-
-                        // Acciones
-                        if (alquiler.estado == EstadoAlquiler.ACTIVO || alquiler.estado == EstadoAlquiler.CANCELADO) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // Si hay deuda (solo si está ACTIVO, porque CANCELADO ya no tiene deuda)
-                                if (alquiler.saldo > 0 && alquiler.estado == EstadoAlquiler.ACTIVO) {
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = RaymiColors.Warning.copy(alpha = 0.1f)
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Warning,
-                                                contentDescription = null,
-                                                tint = RaymiColors.Warning,
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Deuda Pendiente",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = RaymiColors.Warning
-                                                )
-                                                Text(
-                                                    text = "Saldo: ${alquiler.saldoFormateado}",
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { showPagoDialog = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        enabled = !uiState.isProcessing,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = RaymiColors.Warning
-                                        )
-                                    ) {
-                                        Icon(Icons.Default.Payments, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("Registrar Pago")
-                                    }
-                                } else if (alquiler.estado == EstadoAlquiler.CANCELADO) {
-                                    // Mensaje informativo de que está pagado y pendiente de devolución
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = RaymiColors.Success.copy(alpha = 0.1f)
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = null,
-                                                tint = RaymiColors.Success,
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Pago Completo",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = RaymiColors.Success
-                                                )
-                                                Text(
-                                                    text = "El cliente ha pagado la totalidad. Esperando devolución del vestuario.",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else if (alquiler.saldo == 0.0 && alquiler.estado == EstadoAlquiler.ACTIVO) {
-                                    // Caso raro: saldo cero pero aún ACTIVO (por si no se actualizó automáticamente)
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = RaymiColors.Success.copy(alpha = 0.1f)
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = null,
-                                                tint = RaymiColors.Success,
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Saldo Cero",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = RaymiColors.Success
-                                                )
-                                                Text(
-                                                    text = "El cliente ya pagó todo. Puedes registrar la devolución.",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Botón de devolución: visible si está ACTIVO o CANCELADO (y si no está procesando)
-                                Button(
-                                    onClick = { showDevolucionDialog = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    enabled = !uiState.isProcessing,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (alquiler.estado == EstadoAlquiler.CANCELADO) RaymiColors.Success else MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    if (uiState.isProcessing) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    } else {
-                                        Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            if (alquiler.estado == EstadoAlquiler.CANCELADO) "Registrar Devolución (Pago completo)"
-                                            else "Registrar Devolución"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Botones para PDF y WhatsApp
-                        Text(
-                            text = "Exportar y Compartir",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.generarPdf() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !uiState.isProcessing
-                            ) {
-                                Icon(Icons.Default.Description, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Generar PDF")
-                            }
-
-                            Button(
-                                onClick = { viewModel.compartirPdfPorWhatsApp() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !uiState.isProcessing && uiState.pdfUri != null,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RaymiColors.Info
-                                )
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Enviar por WhatsApp")
-                            }
-                        }
-
-                        if (showEditDialog && uiState.alquiler != null) {
-                            EditAlquilerDialog(
-                                alquiler = uiState.alquiler!!,
-                                onDismiss = { showEditDialog = false },
-                                onConfirm = { alquilerActualizado ->
-                                    viewModel.updateAlquiler(alquilerActualizado)
-                                    showEditDialog = false
-                                },
-                                isLoading = uiState.isProcessing
-                            )
-                        }
-                        if (showPagoDialog && uiState.alquiler != null) {
-                            RegistrarPagoDialog(
-                                alquiler = uiState.alquiler!!,
-                                onDismiss = { showPagoDialog = false },
-                                onConfirm = { montoPago ->
-                                    viewModel.registrarPago(montoPago)
-                                    showPagoDialog = false
-                                },
-                                isLoading = uiState.isProcessing
-                            )
-                        }
-                        if (showDevolucionDialog && uiState.alquiler != null) {
-                            val alquiler = uiState.alquiler!!
-
-                            AlertDialog(
-                                onDismissRequest = { showDevolucionDialog = false },
-                                icon = {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                },
-                                title = {
-                                    Text("Registrar Devolución")
-                                },
-                                text = {
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        if (alquiler.saldo > 0) {
-                                            // Si hay deuda, mostrar advertencia
-                                            Text(
-                                                "⚠️ El cliente aún tiene un saldo pendiente de ${alquiler.saldoFormateado}.",
-                                                color = RaymiColors.Warning
-                                            )
-                                            Text(
-                                                "¿Deseas registrar la devolución de todas formas? Se marcará el alquiler como devuelto pero la deuda quedará registrada."
-                                            )
-                                        } else {
-                                            Text(
-                                                "¿Confirmas que el vestuario ha sido devuelto? Esta acción marcará el alquiler como completado."
-                                            )
-                                        }
-                                    }
-                                },
-                                confirmButton = {
-                                    Button(
-                                        onClick = {
-                                            showDevolucionDialog = false
-                                            viewModel.registrarDevolucion()
-                                        }
-                                    ) {
-                                        Text("Confirmar Devolución")
-                                    }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showDevolucionDialog = false }) {
-                                        Text("Cancelar")
-                                    }
-                                }
-                            )
-                        }
+                        Icon(Icons.Default.AssignmentReturn, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Registrar Devolución", fontWeight = FontWeight.Bold)
                     }
                 }
             }
-
         }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when {
+                uiState.isLoading -> RaymiLoadingIndicator(message = "Consultando contrato...")
+                uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadAlquiler() })
+                uiState.alquiler != null -> {
+                    val alquiler = uiState.alquiler!!
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        // 1. Estado y Finanzas
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column {
+                                Text("MONTO TOTAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Text(alquiler.precioFormateado, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+                            }
+                            EstadoBadge(
+                                texto = if (alquiler.estaVencido) "VENCIDO" else alquiler.estado.name,
+                                color = if (alquiler.estaVencido) Color(0xFFF44336) else Color(0xFF4CAF50)
+                            )
+                        }
 
+                        // QA Fix: Resumen de Saldo y Pago
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f) else Color(0xFFE8F5E9)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        if (alquiler.saldo > 0) "SALDO PENDIENTE" else "PAGO COMPLETADO",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+                                    )
+                                    Text(
+                                        if (alquiler.saldo > 0) "S/. ${alquiler.saldo}" else "Todo pagado",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Black,
+                                        color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+                                    )
+                                }
+                                
+                                if (alquiler.saldo > 0) {
+                                    Button(
+                                        onClick = { viewModel.liquidarDeuda() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                        shape = MaterialTheme.shapes.medium
+                                    ) {
+                                        Text("Liquidar", fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(32.dp))
+                                }
+                            }
+                        }
+
+                        // 2. Información del Cliente
+                        Text("Cliente Subscrito", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(48.dp)) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                Spacer(Modifier.width(16.dp))
+                                Column {
+                                    Text(alquiler.clienteNombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text("DNI: ${alquiler.clienteDni}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        // 3. Producto en Alquiler
+                        Text("Ítem en Alquiler", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(alquiler.itemNombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("SKU: ${alquiler.itemCodigo}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Text("Cantidad: ${alquiler.cantidad}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Unitario: ${alquiler.precioUnitario}", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+
+                        // 4. Fechas Críticas
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = if (alquiler.estaVencido) 0.2f else 0.05f)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Text("Entrega: ${alquiler.fechaInicioFormatted}")
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.NotificationImportant, 
+                                        contentDescription = null, 
+                                        modifier = Modifier.size(20.dp),
+                                        tint = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text("Devolución: ${alquiler.fechaFinFormatted}", color = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
+            }
+        }
     }
 
+    if (showDevolucionDialog) {
+        AlertDialog(
+            onDismissRequest = { showDevolucionDialog = false },
+            title = { Text("¿Registrar Devolución?") },
+            text = { Text("El ítem volverá a estar disponible en tu inventario y el contrato se marcará como DEVUELTO.") },
+            confirmButton = {
+                Button(onClick = { 
+                    viewModel.registrarDevolucion() 
+                    showDevolucionDialog = false
+                }) { Text("Confirmar") }
+            },
+            dismissButton = { TextButton(onClick = { showDevolucionDialog = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showEditDialog && uiState.alquiler != null) {
+        EditAlquilerDialog(
+            alquiler = uiState.alquiler!!,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { alquilerActualizado ->
+                viewModel.updateAlquiler(alquilerActualizado)
+                showEditDialog = false
+            },
+            isLoading = uiState.isProcessing
+        )
+    }
 }

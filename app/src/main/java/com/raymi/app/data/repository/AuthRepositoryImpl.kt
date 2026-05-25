@@ -16,15 +16,9 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     /**
-     * Propiedad no suspendida que devuelve el usuario actual (puede ser null)
-     */
-    override val currentUser: FirebaseUser?
-        get() = dataSource.getCurrentUser()
-
-    /**
      * Versión suspendida de obtener el usuario actual
      */
-    override suspend fun getCurrentUser(): FirebaseUser? = currentUser
+    override suspend fun getCurrentUser(): FirebaseUser? = dataSource.getCurrentUser()
 
     /**
      * Obtiene el ID del negocio actual (obliga a crear/obtener el negocio)
@@ -51,9 +45,19 @@ class AuthRepositoryImpl @Inject constructor(
             val user = result.user
 
             if (user != null) {
-                // Asegura que existe un perfil de negocio (crea si no existe)
-                dataSource.ensureBusinessProfileForUser(user)
-                emit(Resource.Success(user))
+                try {
+                    // Asegura que existe un perfil de negocio (crea si no existe)
+                    dataSource.ensureBusinessProfileForUser(user)
+                    emit(Resource.Success(user))
+                } catch (e: Exception) {
+                    AppLogger.e("AuthRepository", "Error al asegurar perfil de negocio: ${e.message}")
+                    // Si el error es de permisos, avisamos al usuario pero permitimos el login si es posible
+                    if (e.message?.contains("PERMISSION_DENIED") == true) {
+                        emit(Resource.Error("Error de base de datos: Verifica los permisos de tu cuenta o contacta a soporte."))
+                    } else {
+                        emit(Resource.Error("Error al configurar tu perfil: ${e.localizedMessage}"))
+                    }
+                }
             } else {
                 emit(Resource.Error("Error al iniciar sesión"))
             }
@@ -63,13 +67,25 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             val errorMessage = when (e) {
                 is FirebaseAuthException -> when (e.errorCode) {
-                    "ERROR_INVALID_EMAIL" -> "Email inválido"
-                    "ERROR_USER_NOT_FOUND" -> "Usuario no encontrado"
-                    "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
-                    "ERROR_NETWORK_REQUEST_FAILED" -> "Error de conexión. Verifica tu internet"
-                    else -> "Error de autenticación: ${e.localizedMessage}"
+                    "ERROR_INVALID_EMAIL" -> "El correo electrónico no tiene un formato válido."
+                    "ERROR_USER_NOT_FOUND" -> "No existe ninguna cuenta con este correo."
+                    "ERROR_WRONG_PASSWORD" -> "La contraseña es incorrecta."
+                    "ERROR_USER_DISABLED" -> "Esta cuenta ha sido deshabilitada."
+                    "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos. Intenta más tarde."
+                    "ERROR_NETWORK_REQUEST_FAILED" -> "Error de red. Verifica tu conexión a internet."
+                    "ERROR_EMAIL_ALREADY_IN_USE" -> "Este correo ya está registrado en otra cuenta."
+                    "ERROR_WEAK_PASSWORD" -> "La contraseña es muy débil (mínimo 6 caracteres)."
+                    else -> "Error de autenticación: ${e.localizedMessage ?: "desconocido"}"
                 }
-                else -> "Error al iniciar sesión: ${e.localizedMessage}"
+                else -> {
+                    val msg = e.localizedMessage ?: ""
+                    when {
+                        msg.contains("already in use") -> "Este correo ya está en uso por otro negocio."
+                        msg.contains("network") -> "Error de conexión. Revisa tu internet."
+                        msg.contains("PERMISSION_DENIED") -> "Error de acceso: No tienes permisos para esta carpeta. Revisa tus reglas de Firebase."
+                        else -> "Error al entrar al sistema: ${e.localizedMessage}"
+                    }
+                }
             }
             AppLogger.e(
                 tag = "AuthRepository",
@@ -105,8 +121,13 @@ class AuthRepositoryImpl @Inject constructor(
             val user = result.user
 
             if (user != null) {
-                dataSource.createBusinessProfileForUser(user, businessName)
-                emit(Resource.Success(user))
+                try {
+                    dataSource.createBusinessProfileForUser(user, businessName)
+                    emit(Resource.Success(user))
+                } catch (e: Exception) {
+                    AppLogger.e("AuthRepository", "Error al crear perfil en registro: ${e.message}")
+                    emit(Resource.Error("Registro exitoso, pero hubo un error al crear tu negocio: ${e.localizedMessage}"))
+                }
             } else {
                 emit(Resource.Error("Error al registrar usuario"))
             }

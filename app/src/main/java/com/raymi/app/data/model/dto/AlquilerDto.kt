@@ -4,18 +4,25 @@ import com.google.firebase.Timestamp
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 
+/**
+ * DTO para Alquileres.
+ * Mapea los datos de Firestore a la lógica de negocio genérica.
+ */
 data class AlquilerDto(
     val id: String = "",
+    val workspaceId: String = "",
     val clienteId: String = "",
     val clienteNombre: String = "",
-    val vestuarioId: String = "",
-    val vestuarioNombre: String = "",
-    val vestuarioCodigo: String = "",
-    val cantidad: Int = 1,  // ✅ NUEVO
+    val clienteDni: String = "",
+    val clienteTelefono: String = "",
+    val itemId: String = "",
+    val itemNombre: String = "",
+    val itemCodigo: String = "",
+    val cantidad: Int = 1,
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
-    val precioUnitario: Double = 0.0,  // ✅ NUEVO
+    val precioUnitario: Double = 0.0,
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
@@ -24,101 +31,101 @@ data class AlquilerDto(
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
-    fun toDomain(): Alquiler {
-        return Alquiler(
-            id = id,
-            clienteId = clienteId,
-            clienteNombre = clienteNombre,
-            vestuarioId = vestuarioId,
-            vestuarioNombre = vestuarioNombre,
-            vestuarioCodigo = vestuarioCodigo,
-            cantidad = cantidad,  // ✅
-            fechaInicio = fechaInicio,
-            fechaFinPrevista = fechaFinPrevista,
-            fechaDevolucion = fechaDevolucion,
-            precioUnitario = precioUnitario,  // ✅
-            precioTotal = precioTotal,
-            adelanto = adelanto,
-            saldo = saldo,
-            estado = EstadoAlquiler.valueOf(estado),
-            observaciones = observaciones,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
-    }
+    fun toDomain(): Alquiler = Alquiler(
+        id = id,
+        workspaceId = workspaceId,
+        clienteId = clienteId,
+        clienteNombre = clienteNombre,
+        clienteDni = clienteDni,
+        clienteTelefono = clienteTelefono,
+        itemId = itemId,
+        itemNombre = itemNombre,
+        itemCodigo = itemCodigo,
+        cantidad = cantidad,
+        fechaInicio = fechaInicio,
+        fechaFinPrevista = fechaFinPrevista,
+        fechaDevolucion = fechaDevolucion,
+        precioUnitario = precioUnitario,
+        precioTotal = precioTotal,
+        adelanto = adelanto,
+        saldo = saldo,
+        estado = try { EstadoAlquiler.valueOf(estado) } catch (e: Exception) { EstadoAlquiler.ACTIVO },
+        observaciones = observaciones,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
 
     companion object {
-        fun fromDomain(alquiler: Alquiler): AlquilerDto {
-            return AlquilerDto(
-                id = alquiler.id,
-                clienteId = alquiler.clienteId,
-                clienteNombre = alquiler.clienteNombre,
-                vestuarioId = alquiler.vestuarioId,
-                vestuarioNombre = alquiler.vestuarioNombre,
-                vestuarioCodigo = alquiler.vestuarioCodigo,
-                cantidad = alquiler.cantidad,  // ✅
-                fechaInicio = alquiler.fechaInicio,
-                fechaFinPrevista = alquiler.fechaFinPrevista,
-                fechaDevolucion = alquiler.fechaDevolucion,
-                precioUnitario = alquiler.precioUnitario,  // ✅
-                precioTotal = alquiler.precioTotal,
-                adelanto = alquiler.adelanto,
-                saldo = alquiler.saldo,
-                estado = alquiler.estado.name,
-                observaciones = alquiler.observaciones,
-                createdAt = alquiler.createdAt,
-                updatedAt = alquiler.updatedAt
-            )
-        }
-
-        fun fromMap(id: String, map: Map<String, Any>): AlquilerDto {
-            return AlquilerDto(
-                id = id,
-                clienteId = map["clienteId"] as? String ?: "",
-                clienteNombre = map["clienteNombre"] as? String ?: "",
-                vestuarioId = map["vestuarioId"] as? String ?: "",
-                vestuarioNombre = map["vestuarioNombre"] as? String ?: "",
-                vestuarioCodigo = map["vestuarioCodigo"] as? String ?: "",
-                cantidad = (map["cantidad"] as? Number)?.toInt() ?: 1,  // ✅
-                fechaInicio = map["fechaInicio"] as? Timestamp ?: Timestamp.now(),
-                fechaFinPrevista = map["fechaFinPrevista"] as? Timestamp ?: Timestamp.now(),
-                fechaDevolucion = map["fechaDevolucion"] as? Timestamp,
-                precioUnitario = (map["precioUnitario"] as? Number)?.toDouble() ?: 0.0,  // ✅
-                precioTotal = (map["precioTotal"] as? Number)?.toDouble() ?: 0.0,
-                adelanto = (map["adelanto"] as? Number)?.toDouble() ?: 0.0,
-                saldo = (map["saldo"] as? Number)?.toDouble() ?: 0.0,
-                estado = map["estado"] as? String ?: "ACTIVO",
-                observaciones = map["observaciones"] as? String ?: "",
-                createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now(),
-                updatedAt = map["updatedAt"] as? Timestamp ?: Timestamp.now()
-            )
-        }
-    }
-
-    fun toMap(): Map<String, Any> {
-        val map = hashMapOf(
-            "clienteId" to clienteId,
-            "clienteNombre" to clienteNombre,
-            "vestuarioId" to vestuarioId,
-            "vestuarioNombre" to vestuarioNombre,
-            "vestuarioCodigo" to vestuarioCodigo,
-            "cantidad" to cantidad,  // ✅
-            "fechaInicio" to fechaInicio,
-            "fechaFinPrevista" to fechaFinPrevista,
-            "precioUnitario" to precioUnitario,  // ✅
-            "precioTotal" to precioTotal,
-            "adelanto" to adelanto,
-            "saldo" to saldo,
-            "estado" to estado,
-            "observaciones" to observaciones,
-            "createdAt" to createdAt,
-            "updatedAt" to updatedAt
+        fun fromDomain(domain: Alquiler): AlquilerDto = AlquilerDto(
+            id = domain.id,
+            workspaceId = domain.workspaceId,
+            clienteId = domain.clienteId,
+            clienteNombre = domain.clienteNombre,
+            clienteDni = domain.clienteDni,
+            clienteTelefono = domain.clienteTelefono,
+            itemId = domain.itemId,
+            itemNombre = domain.itemNombre,
+            itemCodigo = domain.itemCodigo,
+            cantidad = domain.cantidad,
+            fechaInicio = domain.fechaInicio,
+            fechaFinPrevista = domain.fechaFinPrevista,
+            fechaDevolucion = domain.fechaDevolucion,
+            precioUnitario = domain.precioUnitario,
+            precioTotal = domain.precioTotal,
+            adelanto = domain.adelanto,
+            saldo = domain.saldo,
+            estado = domain.estado.name,
+            observaciones = domain.observaciones,
+            createdAt = domain.createdAt,
+            updatedAt = domain.updatedAt
         )
 
-        fechaDevolucion?.let {
-            map["fechaDevolucion"] = it
-        }
-
-        return map
+        fun fromMap(id: String, map: Map<String, Any>): AlquilerDto = AlquilerDto(
+            id = id,
+            workspaceId = (map["workspaceId"] as? String) ?: (map["negocioId"] as? String) ?: "",
+            clienteId = map["clienteId"] as? String ?: "",
+            clienteNombre = map["clienteNombre"] as? String ?: "",
+            clienteDni = map["clienteDni"] as? String ?: "",
+            clienteTelefono = map["clienteTelefono"] as? String ?: "",
+            itemId = map["itemId"] as? String ?: "",
+            itemNombre = map["itemNombre"] as? String ?: "",
+            itemCodigo = map["itemCodigo"] as? String ?: "",
+            cantidad = (map["cantidad"] as? Number)?.toInt() ?: 1,
+            fechaInicio = map["fechaInicio"] as? Timestamp ?: Timestamp.now(),
+            fechaFinPrevista = map["fechaFinPrevista"] as? Timestamp ?: Timestamp.now(),
+            fechaDevolucion = map["fechaDevolucion"] as? Timestamp,
+            precioUnitario = (map["precioUnitario"] as? Number)?.toDouble() ?: 0.0,
+            precioTotal = (map["precioTotal"] as? Number)?.toDouble() ?: 0.0,
+            adelanto = (map["adelanto"] as? Number)?.toDouble() ?: 0.0,
+            saldo = (map["saldo"] as? Number)?.toDouble() ?: 0.0,
+            estado = map["estado"] as? String ?: "ACTIVO",
+            observaciones = map["observaciones"] as? String ?: "",
+            createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now(),
+            updatedAt = map["updatedAt"] as? Timestamp ?: Timestamp.now()
+        )
     }
+
+    fun toMap(): Map<String, Any?> = mapOf(
+        "workspaceId" to workspaceId,
+        "negocioId" to workspaceId,
+        "clienteId" to clienteId,
+        "clienteNombre" to clienteNombre,
+        "clienteDni" to clienteDni,
+        "clienteTelefono" to clienteTelefono,
+        "itemId" to itemId,
+        "itemNombre" to itemNombre,
+        "itemCodigo" to itemCodigo,
+        "cantidad" to cantidad,
+        "fechaInicio" to fechaInicio,
+        "fechaFinPrevista" to fechaFinPrevista,
+        "fechaDevolucion" to fechaDevolucion,
+        "precioUnitario" to precioUnitario,
+        "precioTotal" to precioTotal,
+        "adelanto" to adelanto,
+        "saldo" to saldo,
+        "estado" to estado,
+        "observaciones" to observaciones,
+        "createdAt" to createdAt,
+        "updatedAt" to updatedAt
+    )
 }

@@ -7,17 +7,19 @@ import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
 import com.raymi.app.domain.usecase.business.CheckBusinessConfigUseCase
+import com.raymi.app.core.workspace.WorkspaceManager
+import com.raymi.app.domain.usecase.workspace.GetCurrentWorkspaceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val checkBusinessConfigUseCase: CheckBusinessConfigUseCase
+    private val checkBusinessConfigUseCase: CheckBusinessConfigUseCase,
+    private val getCurrentWorkspaceUseCase: GetCurrentWorkspaceUseCase,
+    private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -51,6 +53,9 @@ class LoginViewModel @Inject constructor(
     fun toggleAuthMode() {
         _uiState.value = _uiState.value.copy(
             isRegisterMode = !_uiState.value.isRegisterMode,
+            email = "", // Limpiar campos al cambiar de modo
+            password = "",
+            businessName = "",
             error = null,
             infoMessage = null,
             emailError = null,
@@ -82,10 +87,13 @@ class LoginViewModel @Inject constructor(
         if (!validateRegisterFields()) return
 
         viewModelScope.launch {
+            val email = _uiState.value.email.trim()
+            val defaultBusinessName = email.substringBefore("@").replaceFirstChar { it.uppercase() } + " Business"
+            
             authRepository.register(
-                email = _uiState.value.email.trim(),
+                email = email,
                 password = _uiState.value.password,
-                businessName = _uiState.value.businessName.trim()
+                businessName = _uiState.value.businessName.trim().ifBlank { defaultBusinessName }
             ).collect { result ->
                 handleAuthResult(result)
             }
@@ -139,12 +147,17 @@ class LoginViewModel @Inject constructor(
                 )
             }
             is Resource.Success -> {
+                // Limpiar campos al tener éxito
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isLoginSuccessful = true
+                    email = "",
+                    password = "",
+                    businessName = "",
+                    emailError = null,
+                    passwordError = null,
+                    businessNameError = null
                 )
-                // Verificar si el negocio ya está configurado
-                verificarYNavigar()
+                // El login/registro fue exitoso en Auth y Firestore inicial
+                verificarConfiguracionYNavigar()
             }
             is Resource.Error -> {
                 _uiState.value = _uiState.value.copy(
@@ -155,15 +168,33 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    private fun verificarYNavigar() {
+    private fun verificarConfiguracionYNavigar() {
         viewModelScope.launch {
-            val currentUser = authRepository.getCurrentUser() ?: return@launch
-            val negocioId = authRepository.getCurrentBusinessId() // suponemos que existe esta función
-            val isConfigured = checkBusinessConfigUseCase(negocioId)
-            _navigationEvent.value = if (isConfigured) {
-                NavigationEvent.GoToDashboard
-            } else {
-                NavigationEvent.GoToOnboarding
+            try {
+                val user = authRepository.getCurrentUser()
+                if (user != null) {
+                    getCurrentWorkspaceUseCase(user.uid).collect { result ->
+                        if (result is Resource.Success) {
+                            val workspace = result.data
+                            if (workspace != null) {
+                                workspaceManager.setWorkspace(workspace)
+                                _uiState.value = _uiState.value.copy(isLoading = false)
+                                _navigationEvent.value = NavigationEvent.GoToDashboard
+                            } else {
+                                // No tiene negocio aún
+                                _uiState.value = _uiState.value.copy(isLoading = false)
+                                _navigationEvent.value = NavigationEvent.GoToWorkspaceSelection
+                            }
+                        } else if (result is Resource.Error) {
+                            _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
+                        }
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = "Usuario no autenticado") }
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                _navigationEvent.value = NavigationEvent.GoToWorkspaceSelection
             }
         }
     }
@@ -188,18 +219,7 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun validateRegisterFields(): Boolean {
-        val isLoginValid = validateLoginFields()
-        val businessNameValidation = Validators.validateMinLength(
-            value = _uiState.value.businessName.trim(),
-            minLength = 2,
-            fieldName = "Nombre del negocio"
-        )
-
-        _uiState.value = _uiState.value.copy(
-            businessNameError = if (businessNameValidation.isValid) null else businessNameValidation.errorMessage
-        )
-
-        return isLoginValid && businessNameValidation.isValid
+        return validateLoginFields()
     }
 
     fun clearError() {
@@ -233,4 +253,5 @@ data class LoginUiState(
 sealed class NavigationEvent {
     object GoToDashboard : NavigationEvent()
     object GoToOnboarding : NavigationEvent()
+    object GoToWorkspaceSelection : NavigationEvent()
 }

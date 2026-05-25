@@ -6,16 +6,27 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.raymi.app.presentation.splash.SplashScreen
 import com.raymi.app.presentation.alquileres.AlquilerDetailScreen
 import com.raymi.app.presentation.alquileres.AlquileresScreen
 import com.raymi.app.presentation.alquileres.CreateAlquilerScreen
 import com.raymi.app.presentation.auth.LoginScreen
+import com.raymi.app.presentation.categorias.CategoriasScreen
 import com.raymi.app.presentation.clientes.ClienteDetailScreen
 import com.raymi.app.presentation.clientes.ClientesScreen
 import com.raymi.app.presentation.dashboard.DashboardScreen
 import com.raymi.app.presentation.historial.HistorialScreen
+import com.raymi.app.presentation.items.AddItemScreen
+import com.raymi.app.presentation.items.EditItemScreen
+import com.raymi.app.presentation.items.ItemDetailScreen
+import com.raymi.app.presentation.items.ItemsScreen
+import com.raymi.app.presentation.plans.PlansScreen
+import com.raymi.app.presentation.profile.ProfileScreen
+import com.raymi.app.presentation.settings.BusinessSettingsScreen
 import com.raymi.app.presentation.vestuarios.VestuarioDetailScreen
 import com.raymi.app.presentation.vestuarios.VestuariosScreen
+import com.raymi.app.presentation.workspace.CreateWorkspaceScreen
+import com.raymi.app.presentation.workspace.WorkspaceSelectionScreen
 
 /**
  * Grafo de navegación principal de la aplicación
@@ -37,11 +48,56 @@ fun RaymiNavGraph(
          */
         composable(route = Screen.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    // Navegar al dashboard y limpiar el back stack
+                onNavigateToDashboard = {
                     navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
+                },
+                onNavigateToOnboarding = {
+                    // Navegar a onboarding si es necesario
+                },
+                onNavigateToWorkspaceSelection = {
+                    navController.navigate(Screen.WorkspaceSelection.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        /**
+         * Selección de Workspace
+         */
+        composable(route = Screen.WorkspaceSelection.route) {
+            WorkspaceSelectionScreen(
+                onWorkspaceSelected = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.WorkspaceSelection.route) { inclusive = true }
+                    }
+                },
+                onCreateWorkspace = {
+                    navController.navigate(Screen.WorkspaceCreate.route)
+                },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        /**
+         * Pantalla para crear un nuevo negocio
+         */
+        composable(route = Screen.WorkspaceCreate.route) {
+            CreateWorkspaceScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onSuccess = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -54,13 +110,13 @@ fun RaymiNavGraph(
         composable(route = Screen.Dashboard.route) {
             DashboardScreen(
                 onNavigateToClientes = {
-                    navController.navigate(Screen.Clientes.route)
+                    navController.navigate(BottomNavItem.Clientes.route)
                 },
-                onNavigateToVestuarios = {
-                    navController.navigate(Screen.Vestuarios.route)
+                onNavigateToItems = {
+                    navController.navigate(BottomNavItem.Items.route)
                 },
                 onNavigateToAlquileres = {
-                    navController.navigate(Screen.Alquileres.route)
+                    navController.navigate(BottomNavItem.Alquileres.route)
                 }
             )
         }
@@ -110,7 +166,7 @@ fun RaymiNavGraph(
         }
 
         /**
-         * Vestuarios - Lista de vestuarios
+         * Vestuarios - Lista de vestuarios (LEGACY)
          */
         composable(route = Screen.Vestuarios.route) {
             val navigatedFromResult = navController.currentBackStackEntry
@@ -124,6 +180,80 @@ fun RaymiNavGraph(
                     navController.popBackStack()
                 },
                 navigatedFromResult = navigatedFromResult
+            )
+        }
+
+        /**
+         * Inventario Genérico (SaaS)
+         */
+        composable(route = Screen.Items.route) {
+            ItemsScreen(
+                onItemClick = { itemId ->
+                    navController.navigate(Screen.ItemDetalle.createRoute(itemId))
+                },
+                onAddItem = {
+                    navController.navigate(Screen.ItemCreate.route)
+                },
+                onNavigateToCategorias = {
+                    navController.navigate(Screen.Categorias.route)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        /**
+         * Detalle de Ítem
+         */
+        composable(
+            route = Screen.ItemDetalle.route,
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+            ItemDetailScreen(
+                itemId = itemId,
+                onNavigateBack = { navController.popBackStack() },
+                onEditItem = { id ->
+                    navController.navigate(Screen.ItemEdit.createRoute(id))
+                },
+                onRentItem = { /* Navegar a crear alquiler con este item */ }
+            )
+        }
+
+        /**
+         * Edición de Ítem
+         */
+        composable(
+            route = Screen.ItemEdit.route,
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+            EditItemScreen(
+                itemId = itemId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        /**
+         * Registro de Nuevo Ítem
+         */
+        composable(route = Screen.ItemCreate.route) {
+            AddItemScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        /**
+         * Gestión de Categorías
+         */
+        composable(route = Screen.Categorias.route) {
+            CategoriasScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -154,9 +284,6 @@ fun RaymiNavGraph(
          * Alquileres - Lista de alquileres
          */
         composable(route = Screen.Alquileres.route) {
-            val navigatedFromResult = navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.get<Boolean>("refresh") ?: false
             AlquileresScreen(
                 onAlquilerClick = { alquilerId ->
                     navController.navigate(Screen.AlquilerDetalle.createRoute(alquilerId))
@@ -166,8 +293,7 @@ fun RaymiNavGraph(
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                },
-                navigatedFromResult = navigatedFromResult
+                }
             )
         }
 
@@ -177,12 +303,6 @@ fun RaymiNavGraph(
         composable(route = "create_alquiler") {
             CreateAlquilerScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onAlquilerCreated = { alquilerId ->
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("refresh", true)
                     navController.popBackStack()
                 }
             )
@@ -219,6 +339,41 @@ fun RaymiNavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        /**
+         * Ajustes del Negocio (Personalización SaaS)
+         */
+        composable(route = Screen.BusinessSettings.route) {
+            BusinessSettingsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        /**
+         * Perfil de Usuario
+         */
+        composable(route = Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateToPlans = { navController.navigate(Screen.Plans.route) },
+                onNavigateToSettings = { navController.navigate(Screen.BusinessSettings.route) },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        /**
+         * Pantalla de Planes
+         */
+        composable(route = Screen.Plans.route) {
+            PlansScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

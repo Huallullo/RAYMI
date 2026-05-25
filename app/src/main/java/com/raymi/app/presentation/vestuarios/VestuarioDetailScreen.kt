@@ -16,9 +16,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoVestuario
-import com.raymi.app.presentation.alquileres.AlquilerItem
-
-
 import com.raymi.app.presentation.components.*
 import java.util.Locale
 

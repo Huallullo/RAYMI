@@ -1,75 +1,65 @@
 package com.raymi.app.core.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * Paleta de Colores DARK: Estilo sofisticado y premium.
+ */
 private val DarkColorScheme = darkColorScheme(
-    primary = RaymiColors.ElectricBlue,
-    onPrimary = RaymiColors.TextPrimary,
-    primaryContainer = RaymiColors.ElectricBlueGlow,
-    onPrimaryContainer = RaymiColors.TextPrimary,
+    primary = RaymiColors.IndigoLight,
+    onPrimary = Color.White,
+    primaryContainer = RaymiColors.IndigoDark,
+    onPrimaryContainer = Color.White,
 
-    secondary = RaymiColors.MagentaFuture,
-    onSecondary = RaymiColors.TextPrimary,
-    secondaryContainer = RaymiColors.MagentaGlow,
-    onSecondaryContainer = RaymiColors.TextPrimary,
+    secondary = RaymiColors.EmeraldAccent,
+    onSecondary = Color.Black,
+    
+    background = RaymiColors.Slate900,
+    onBackground = Color.White,
+    
+    surface = RaymiColors.Slate900,
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF1E293B), // Slate 800 aprox
+    onSurfaceVariant = RaymiColors.Slate500,
 
-    tertiary = RaymiColors.EmeraldMatrix,
-    onTertiary = RaymiColors.TextPrimary,
-
-    background = RaymiColors.DarkCyber,
-    onBackground = RaymiColors.TextCyber,
-
-    surface = RaymiColors.DarkSurface,
-    onSurface = RaymiColors.TextCyber,
-    surfaceVariant = RaymiColors.DarkCard,
-    onSurfaceVariant = RaymiColors.TextSecondary,
-
-    error = RaymiColors.ErrorNeon,
-    onError = RaymiColors.TextPrimary,
-
-    outline = RaymiColors.TextTertiary,
-    outlineVariant = RaymiColors.TextTertiary.copy(alpha = 0.3f)
+    outline = RaymiColors.Slate700
 )
 
+/**
+ * Paleta de Colores LIGHT: Limpieza total, enfoque en contenido (Estilo SaaS Premium).
+ */
 private val LightColorScheme = lightColorScheme(
-    primary = RaymiColors.CyanHolo,
-    onPrimary = RaymiColors.TextPrimaryLight,
-    primaryContainer = RaymiColors.CyanQuantum,
-    onPrimaryContainer = RaymiColors.TextPrimaryLight,
+    primary = RaymiColors.IndigoPrimary,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFEEF2FF), // Indigo 50
+    onPrimaryContainer = RaymiColors.IndigoPrimary,
 
-    secondary = RaymiColors.GoldCyber,
-    onSecondary = RaymiColors.TextPrimaryLight,
-    secondaryContainer = RaymiColors.GoldQuantum,
-    onSecondaryContainer = RaymiColors.TextPrimaryLight,
+    secondary = RaymiColors.EmeraldAccent,
+    onSecondary = Color.White,
+    
+    background = RaymiColors.Slate50,
+    onBackground = RaymiColors.Slate900,
+    
+    surface = Color.White,
+    onSurface = RaymiColors.Slate900,
+    surfaceVariant = Color(0xFFF1F5F9), // Slate 100
+    onSurfaceVariant = RaymiColors.Slate700,
 
-    tertiary = RaymiColors.PurpleElectric,
-    onTertiary = RaymiColors.TextPrimaryLight,
-
-    background = RaymiColors.LightCyber,
-    onBackground = RaymiColors.TextCyberLight,
-
-    surface = RaymiColors.LightSurface,
-    onSurface = RaymiColors.TextCyberLight,
-    surfaceVariant = RaymiColors.LightCard,
-    onSurfaceVariant = RaymiColors.TextSecondaryLight,
-
-    error = RaymiColors.ErrorNeon,
-    onError = RaymiColors.TextPrimaryLight,
-
-    outline = RaymiColors.TextSecondaryLight,
-    outlineVariant = RaymiColors.TextSecondaryLight.copy(alpha = 0.3f)
+    outline = Color(0xFFE2E8F0) // Slate 200
 )
 
 @Composable
 fun RaymiTheme(
-    darkTheme: Boolean = false, // Cambiado para forzar tema claro
+    darkTheme: Boolean = false, // QA Fix: Forzamos tema claro por preferencia del usuario
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

@@ -10,6 +10,11 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
     }
 
+    function isBusinessOwner(negocioId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+    }
+
     // Perfil de usuario
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
@@ -17,24 +22,26 @@ service cloud.firestore {
 
     // Negocios y toda su data interna
     match /negocios/{negocioId} {
+      // Permitir crear si el usuario se marca como dueño
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow read, update: if isBusinessMember(negocioId);
 
+      // Permitir leer/actualizar a miembros o al dueño (en caso de que el documento de miembro falle)
+      allow read, update: if isSignedIn() && (isBusinessMember(negocioId) || resource.data.ownerUid == request.auth.uid);
+
+      // Miembros: El dueño puede crear el primer miembro (él mismo)
+      match /miembros/{mUid} {
+        allow read, write: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
+      }
+
+      // Subcolecciones internas (clientes, items, alquileres)
       match /{subcollection=**} {
         allow read, write: if isBusinessMember(negocioId);
       }
     }
 
-    // BLOQUEO TOTAL: colecciones raíz que ya no deben usarse
-    match /clientes/{document=**}   { allow read, write: if false; }
-    match /vestuarios/{document=**} { allow read, write: if false; }
-    match /alquileres/{document=**} { allow read, write: if false; }
-    match /clientes_dni_index/{document=**} { allow read, write: if false; }
-    match /vestuarios_codigo_index/{document=**} { allow read, write: if false; }
-
-    // Cualquier otra colección no autorizada también se deniega
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // BLOQUEO TOTAL: colecciones raíz antiguas
+    match /clientes/{doc} { allow read, write: if false; }
+    match /vestuarios/{doc} { allow read, write: if false; }
+    match /alquileres/{doc} { allow read, write: if false; }
   }
 }

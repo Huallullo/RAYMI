@@ -1,124 +1,130 @@
 package com.raymi.app.presentation
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
 import com.raymi.app.core.navigation.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 
 /**
- * Pantalla principal que contiene el Scaffold con Bottom Navigation
- * Maneja la navegación entre las pantallas principales de la app
+ * Pantalla contenedora principal (Scaffold Maestro).
+ * Actúa como el orquestador de la navegación y la barra inferior.
+ * Diseño Senior: Barra de navegación scrollable para legibilidad premium.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    isUserAuthenticated: Boolean,
-    auth: FirebaseAuth
+    workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 ) {
     val navController = rememberNavController()
 
-    // Determinar la ruta inicial según el estado de autenticación
-    val startDestination = if (isUserAuthenticated) {
-        Screen.Dashboard.route
-    } else {
-        Screen.Login.route
-    }
-
-    // Estado actual de navegación
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Determinar si mostrar bottom navigation
+    // Mostrar barra inferior solo en las pantallas principales
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
     Scaffold(
-        topBar = {
-            if (showBottomBar) {
-                TopAppBar(
-                    title = { Text("RAYMI") },
-                    actions = {
-                        IconButton(onClick = {
-                            auth.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = true
-                                }
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Cerrar sesión"
-                            )
-                        }
-                    }
-                )
-            }
-        },
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 8.dp
                 ) {
-                    bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.route == item.route
-                        } == true
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .horizontalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp, horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        bottomNavItems.forEach { item ->
+                            val selected = currentDestination?.hierarchy?.any {
+                                it.route == item.route
+                            } == true
 
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    imageVector = if (selected) item.selectedIcon else item.icon,
-                                    contentDescription = item.title
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    // Pop hasta el inicio del grafo para evitar stack grande
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                            NavigationItemCustom(
+                                item = item,
+                                selected = selected,
+                                onClick = {
+                                    if (!selected) {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                    // Evitar múltiples copias de la misma pantalla
-                                    launchSingleTop = true
-                                    // Restaurar estado al volver
-                                    restoreState = true
                                 }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        )
+                        }
                     }
                 }
             }
         }
     ) { paddingValues ->
-        // Grafo de navegación principal
+        // Contenedor del Grafo de Navegación
         Box(modifier = Modifier.padding(paddingValues)) {
             RaymiNavGraph(
                 navController = navController,
-                startDestination = startDestination
+                startDestination = Screen.Login.route
             )
         }
+    }
+}
+
+@Composable
+fun NavigationItemCustom(
+    item: BottomNavItem,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconSize = 24.dp
+
+    Column(
+        modifier = Modifier
+            .width(85.dp) // Ancho fijo para garantizar scroll y lectura
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp, 32.dp)
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (selected) item.selectedIcon else item.icon,
+                contentDescription = item.title,
+                modifier = Modifier.size(iconSize),
+                tint = contentColor
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium
+            ),
+            color = contentColor
+        )
     }
 }

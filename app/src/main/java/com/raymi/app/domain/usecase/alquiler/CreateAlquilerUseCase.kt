@@ -26,8 +26,8 @@ class CreateAlquilerUseCase @Inject constructor(
             return@flow
         }
 
-        if (alquiler.vestuarioId.isBlank()) {
-            emit(Resource.Error("Debe seleccionar un vestuario"))
+        if (alquiler.itemId.isBlank()) {
+            emit(Resource.Error("Debe seleccionar un producto"))
             return@flow
         }
 

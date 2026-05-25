@@ -8,6 +8,7 @@ import com.raymi.app.domain.model.Cliente
  */
 data class ClienteDto(
     val id: String = "",
+    val workspaceId: String = "",
     val dni: String = "",
     val nombre: String = "",
     val apellidos: String = "",
@@ -22,6 +23,7 @@ data class ClienteDto(
     fun toDomain(): Cliente {
         return Cliente(
             id = id,
+            workspaceId = workspaceId,
             dni = dni,
             nombre = nombre,
             apellidos = apellidos,
@@ -39,6 +41,7 @@ data class ClienteDto(
         fun fromDomain(cliente: Cliente): ClienteDto {
             return ClienteDto(
                 id = cliente.id,
+                workspaceId = cliente.workspaceId,
                 dni = cliente.dni,
                 nombre = cliente.nombre,
                 apellidos = cliente.apellidos,
@@ -55,6 +58,7 @@ data class ClienteDto(
         fun fromMap(id: String, map: Map<String, Any>): ClienteDto {
             return ClienteDto(
                 id = id,
+                workspaceId = (map["workspaceId"] as? String) ?: (map["negocioId"] as? String) ?: "",
                 dni = map["dni"] as? String ?: "",
                 nombre = map["nombre"] as? String ?: "",
                 apellidos = map["apellidos"] as? String ?: "",
@@ -89,6 +93,8 @@ data class ClienteDto(
      */
     fun toMap(): Map<String, Any> {
         return hashMapOf(
+            "workspaceId" to workspaceId,
+            "negocioId" to workspaceId,
             "dni" to dni,
             "nombre" to nombre,
             "apellidos" to apellidos,

@@ -3,293 +3,263 @@ package com.raymi.app.presentation.alquileres
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
-import com.raymi.app.domain.model.Alquiler
-import com.raymi.app.domain.model.Cliente
-import com.raymi.app.domain.model.EstadoAlquiler
-import com.raymi.app.domain.model.Resource
-import com.raymi.app.domain.model.Vestuario
+import com.raymi.app.core.workspace.WorkspaceManager
+import com.raymi.app.domain.model.*
 import com.raymi.app.domain.usecase.alquiler.CreateAlquilerUseCase
 import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
-import com.raymi.app.domain.usecase.vestuario.GetVestuariosUseCase
+import com.raymi.app.domain.usecase.item.GetItemsUseCase
+import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
+/**
+ * ViewModel para la creación de alquileres (Wizard de Contratación).
+ * Diseño Senior: Cálculos automáticos, validaciones en tiempo real y soporte multi-negocio.
+ */
 @HiltViewModel
 class CreateAlquilerViewModel @Inject constructor(
     private val getClientesUseCase: GetClientesUseCase,
-    private val getVestuariosUseCase: GetVestuariosUseCase,
-    private val createAlquilerUseCase: CreateAlquilerUseCase
+    private val getItemsUseCase: GetItemsUseCase,
+    private val getCategoriasUseCase: com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase,
+    private val createAlquilerUseCase: CreateAlquilerUseCase,
+    private val enviarMensajeUseCase: EnviarMensajeUseCase,
+    private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateAlquilerUiState())
     val uiState: StateFlow<CreateAlquilerUiState> = _uiState.asStateFlow()
 
     init {
-        loadClientes()
-        loadVestuariosDisponibles()
+        cargarDatosIniciales()
     }
 
-    private fun loadClientes() {
+    private fun cargarDatosIniciales() {
         viewModelScope.launch {
-            getClientesUseCase().collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            clientes = result.data ?: emptyList()
-                        )
+            workspaceManager.currentWorkspace.collectLatest { workspace ->
+                if (workspace != null) {
+                    val workspaceId = workspace.id
+                    
+                    // QA Fix Senior: Lanzar corrutinas separadas para cada flujo
+                    // porque .collect en Firestore nunca termina (es un stream).
+                    
+                    // 1. Cargar Categorías
+                    launch {
+                        getCategoriasUseCase(workspaceId).collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                            }
+                        }
                     }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(error = result.message)
+
+                    // 2. Cargar Clientes
+                    launch {
+                        getClientesUseCase().collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(clientes = result.data ?: emptyList()) }
+                            }
+                        }
                     }
-                    is Resource.Loading -> {}
+
+                    // 3. Cargar Ítems disponibles
+                    launch {
+                        getItemsUseCase(workspaceId).collect { result ->
+                            if (result is Resource.Success) {
+                                val data = result.data ?: emptyList()
+                                _uiState.update { state ->
+                                    state.copy(
+                                        itemsTotales = data,
+                                        itemsDisponibles = aplicarFiltroCategoria(data, state.categoriaFiltro)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    private fun loadVestuariosDisponibles() {
-        viewModelScope.launch {
-            getVestuariosUseCase().collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        val disponibles = result.data?.filter {
-                            it.estado.name == "DISPONIBLE"
-                        } ?: emptyList()
-                        _uiState.value = _uiState.value.copy(
-                            vestuariosDisponibles = disponibles
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(error = result.message)
-                    }
-                    is Resource.Loading -> {}
-                }
-            }
+    fun filtrarPorCategoria(categoria: Categoria?) {
+        _uiState.update { state ->
+            state.copy(
+                categoriaFiltro = categoria,
+                itemsDisponibles = aplicarFiltroCategoria(state.itemsTotales, categoria)
+            )
         }
     }
 
-    fun selectCliente(cliente: Cliente) {
-        _uiState.value = _uiState.value.copy(
-            selectedCliente = cliente,
-            showClienteDialog = false
-        )
+    private fun aplicarFiltroCategoria(items: List<Item>, categoria: Categoria?): List<Item> {
+        val base = items.filter { it.estado == "DISPONIBLE" }
+        return if (categoria == null) base 
+        else base.filter { it.categoriaId == categoria.id }
     }
 
-    fun selectVestuario(vestuario: Vestuario) {
-        _uiState.value = _uiState.value.copy(
-            selectedVestuario = vestuario,
-            showVestuarioDialog = false,
-            precioUnitario = vestuario.precio.toString()
-        )
-        calcularPrecioTotal()
+    fun seleccionarCliente(cliente: Cliente) {
+        _uiState.update { it.copy(selectedCliente = cliente, showClienteDialog = false) }
     }
 
-    // ========== CANTIDAD ==========
+    fun seleccionarItem(item: Item) {
+        _uiState.update { 
+            it.copy(
+                selectedItem = item, 
+                showItemDialog = false,
+                precioUnitario = item.precio.toString()
+            ) 
+        }
+        recalcularFinanzas()
+    }
 
     fun onCantidadChange(cantidad: String) {
-        // Solo permitir números positivos
-        val cantidadInt = cantidad.toIntOrNull()
-        if (cantidadInt != null && cantidadInt > 0) {
-            _uiState.value = _uiState.value.copy(cantidad = cantidad)
-            calcularPrecioTotal()
-        } else if (cantidad.isEmpty()) {
-            _uiState.value = _uiState.value.copy(cantidad = "")
+        _uiState.update { it.copy(cantidad = cantidad) }
+        recalcularFinanzas()
+    }
+
+    fun onAdelantoChange(monto: String) {
+        _uiState.update { it.copy(adelanto = monto) }
+        recalcularFinanzas()
+    }
+
+    private fun recalcularFinanzas() {
+        _uiState.update { state ->
+            val pUnit = state.precioUnitario.toDoubleOrNull() ?: 0.0
+            val cant = state.cantidad.toIntOrNull() ?: 1
+            val total = pUnit * cant
+            val pagado = state.adelanto.toDoubleOrNull() ?: 0.0
+            state.copy(
+                precioTotal = total,
+                saldo = (total - pagado).coerceAtLeast(0.0)
+            )
         }
     }
 
-    // ========== CÁLCULOS ==========
-
-    private fun calcularPrecioTotal() {
-        val precioUnit = _uiState.value.precioUnitario.toDoubleOrNull() ?: 0.0
-        val cantidad = _uiState.value.cantidad.toIntOrNull() ?: 1
-        val total = precioUnit * cantidad
-
-        _uiState.value = _uiState.value.copy(
-            precioTotal = String.format(Locale.getDefault(), "%.2f", total)
-        )
-        calcularSaldo()
+    fun setFechaInicio(date: Date) {
+        _uiState.update { it.copy(fechaInicio = date) }
+        validarDuracion()
     }
 
-    fun showClienteDialog() {
-        _uiState.value = _uiState.value.copy(showClienteDialog = true)
+    fun setFechaFin(date: Date) {
+        _uiState.update { it.copy(fechaFin = date) }
+        validarDuracion()
     }
 
-    fun hideClienteDialog() {
-        _uiState.value = _uiState.value.copy(showClienteDialog = false)
-    }
-
-    fun showVestuarioDialog() {
-        _uiState.value = _uiState.value.copy(showVestuarioDialog = true)
-    }
-
-    fun hideVestuarioDialog() {
-        _uiState.value = _uiState.value.copy(showVestuarioDialog = false)
-    }
-
-    fun searchClientes(query: String) {
-        _uiState.value = _uiState.value.copy(clienteSearchQuery = query)
-    }
-
-    fun searchVestuarios(query: String) {
-        _uiState.value = _uiState.value.copy(vestuarioSearchQuery = query)
-    }
-
-    fun setFechaInicio(fecha: Date) {
-        _uiState.value = _uiState.value.copy(fechaInicio = fecha)
-        calcularDias()
-    }
-
-    fun setFechaFin(fecha: Date) {
-        _uiState.value = _uiState.value.copy(fechaFin = fecha)
-        calcularDias()
-    }
-
-    private fun calcularDias() {
+    private fun validarDuracion() {
         val inicio = _uiState.value.fechaInicio
         val fin = _uiState.value.fechaFin
-
-        if (inicio != null && fin != null && fin.after(inicio)) {
+        if (inicio != null && fin != null) {
             val diff = fin.time - inicio.time
             val dias = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
-            _uiState.value = _uiState.value.copy(diasAlquiler = dias)
-        } else {
-            _uiState.value = _uiState.value.copy(diasAlquiler = 0)
+            _uiState.update { it.copy(diasAlquiler = dias) }
         }
     }
 
-    fun onAdelantoChange(adelanto: String) {
-        _uiState.value = _uiState.value.copy(adelanto = adelanto)
-        calcularSaldo()
-    }
-
-    private fun calcularSaldo() {
-        val precio = _uiState.value.precioTotal.toDoubleOrNull() ?: 0.0
-        val adelanto = _uiState.value.adelanto.toDoubleOrNull() ?: 0.0
-        val saldo = precio - adelanto
-        _uiState.value = _uiState.value.copy(saldo = saldo)
-    }
-
-    fun onObservacionesChange(observaciones: String) {
-        _uiState.value = _uiState.value.copy(observaciones = observaciones)
-    }
-
-    fun createAlquiler() {
-        // Validar campos
-        if (_uiState.value.selectedCliente == null) {
-            _uiState.value = _uiState.value.copy(error = "Debe seleccionar un cliente")
+    fun crearAlquiler() {
+        val state = _uiState.value
+        
+        // Validaciones Senior: No vacíos y tipos correctos
+        if (state.selectedCliente == null) {
+            _uiState.update { it.copy(error = "Debes seleccionar un cliente") }
             return
         }
-
-        if (_uiState.value.selectedVestuario == null) {
-            _uiState.value = _uiState.value.copy(error = "Debe seleccionar un vestuario")
+        if (state.selectedItem == null) {
+            _uiState.update { it.copy(error = "Debes seleccionar un producto") }
             return
         }
-
-        if (_uiState.value.fechaInicio == null) {
-            _uiState.value = _uiState.value.copy(error = "Debe seleccionar fecha de inicio")
+        if (state.fechaFin == null) {
+            _uiState.update { it.copy(error = "Indica la fecha de devolución") }
             return
         }
-
-        if (_uiState.value.fechaFin == null) {
-            _uiState.value = _uiState.value.copy(error = "Debe seleccionar fecha de devolución")
-            return
-        }
-
-        val cantidad = _uiState.value.cantidad.toIntOrNull()
-        if (cantidad == null || cantidad <= 0) {
-            _uiState.value = _uiState.value.copy(error = "La cantidad debe ser mayor a 0")
-            return
-        }
-
-        val precioUnit = _uiState.value.precioUnitario.toDoubleOrNull()
-        if (precioUnit == null || precioUnit <= 0) {
-            _uiState.value = _uiState.value.copy(error = "Precio inválido")
-            return
-        }
-
-        val precioTotal = _uiState.value.precioTotal.toDoubleOrNull() ?: 0.0
-        val adelanto = _uiState.value.adelanto.toDoubleOrNull() ?: 0.0
-
-        if (adelanto > precioTotal) {
-            _uiState.value = _uiState.value.copy(error = "El adelanto no puede ser mayor al precio total")
-            return
-        }
-
-        // Crear alquiler
-        val alquiler = Alquiler(
-            clienteId = _uiState.value.selectedCliente!!.id,
-            clienteNombre = _uiState.value.selectedCliente!!.nombreCompleto,
-            vestuarioId = _uiState.value.selectedVestuario!!.id,
-            vestuarioNombre = _uiState.value.selectedVestuario!!.danza,
-            vestuarioCodigo = _uiState.value.selectedVestuario!!.codigo,
-            cantidad = cantidad,  // ✅
-            fechaInicio = Timestamp(_uiState.value.fechaInicio!!),
-            fechaFinPrevista = Timestamp(_uiState.value.fechaFin!!),
-            precioUnitario = precioUnit,  // ✅
-            precioTotal = precioTotal,
-            adelanto = adelanto,
-            saldo = _uiState.value.saldo,
-            estado = EstadoAlquiler.ACTIVO,
-            observaciones = _uiState.value.observaciones,
-            createdAt = Timestamp.now(),
-            updatedAt = Timestamp.now()
-        )
 
         viewModelScope.launch {
-            createAlquilerUseCase(alquiler).collect { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true)
-                    }
-                    is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            isSuccess = true,
-                            successMessage = "Alquiler creado exitosamente"
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
+            try {
+                val workspaceId = workspaceManager.getWorkspaceId()
+                
+                // Normalización de datos (Trimming y Casing)
+                val nuevoAlquiler = Alquiler(
+                    workspaceId = workspaceId,
+                    clienteId = state.selectedCliente.id,
+                    clienteNombre = state.selectedCliente.nombreCompleto.trim(),
+                    clienteDni = state.selectedCliente.dni.trim(),
+                    clienteTelefono = state.selectedCliente.telefono.trim(),
+                    itemId = state.selectedItem.id,
+                    itemNombre = state.selectedItem.nombre.trim(),
+                    itemCodigo = state.selectedItem.codigo.trim(),
+                    cantidad = state.cantidad.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                    fechaInicio = Timestamp(state.fechaInicio ?: Date()),
+                    fechaFinPrevista = Timestamp(state.fechaFin),
+                    precioUnitario = state.precioUnitario.toDoubleOrNull() ?: 0.0,
+                    precioTotal = state.precioTotal,
+                    adelanto = state.adelanto.toDoubleOrNull() ?: 0.0,
+                    saldo = state.saldo,
+                    observaciones = state.observaciones.trim()
+                )
+
+                createAlquilerUseCase(nuevoAlquiler).collect { result ->
+                    when (result) {
+                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
+                        is Resource.Success -> {
+                            _uiState.update { it.copy(
+                                isLoading = false, 
+                                isSuccess = true,
+                                successMessage = "Alquiler registrado correctamente"
+                            ) }
+                            enviarConfirmacionWhatsApp(nuevoAlquiler)
+                        }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = "Error técnico: ${e.localizedMessage}") }
             }
         }
     }
 
-    fun clearMessages() {
-        _uiState.value = _uiState.value.copy(
-            error = null,
-            successMessage = null
-        )
+    private fun enviarConfirmacionWhatsApp(alquiler: Alquiler) {
+        viewModelScope.launch {
+            val business = workspaceManager.currentWorkspace.value?.nombre ?: "Nuestro negocio"
+            enviarMensajeUseCase.enviarConfirmacionAlquiler(
+                telefono = alquiler.clienteTelefono,
+                cliente = alquiler.clienteNombre,
+                item = alquiler.itemNombre,
+                fechaDevolucion = alquiler.fechaFinFormatted,
+                monto = alquiler.precioFormateado,
+                negocio = business
+            ).collect { }
+        }
     }
+
+    // Control de Diálogos
+    fun showClienteDialog() = _uiState.update { it.copy(showClienteDialog = true) }
+    fun hideClienteDialog() = _uiState.update { it.copy(showClienteDialog = false) }
+    fun showItemDialog() = _uiState.update { it.copy(showItemDialog = true) }
+    fun hideItemDialog() = _uiState.update { it.copy(showItemDialog = false) }
+    fun onObservacionesChange(v: String) = _uiState.update { it.copy(observaciones = v) }
+    fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 }
 
 data class CreateAlquilerUiState(
     val clientes: List<Cliente> = emptyList(),
-    val vestuariosDisponibles: List<Vestuario> = emptyList(),
+    val itemsTotales: List<Item> = emptyList(),
+    val itemsDisponibles: List<Item> = emptyList(),
+    val categorias: List<Categoria> = emptyList(),
     val selectedCliente: Cliente? = null,
-    val selectedVestuario: Vestuario? = null,
-    val cantidad: String = "1",  // ✅ NUEVO
-    val fechaInicio: Date? = null,
+    val selectedItem: Item? = null,
+    val categoriaFiltro: Categoria? = null,
+    val cantidad: String = "1",
+    val fechaInicio: Date? = Date(),
     val fechaFin: Date? = null,
     val diasAlquiler: Int = 0,
-    val precioUnitario: String = "",  // ✅ NUEVO
-    val precioTotal: String = "",
-    val adelanto: String = "",
+    val precioUnitario: String = "0.0",
+    val precioTotal: Double = 0.0,
+    val adelanto: String = "0.0",
     val saldo: Double = 0.0,
     val observaciones: String = "",
     val showClienteDialog: Boolean = false,
-    val showVestuarioDialog: Boolean = false,
-    val clienteSearchQuery: String = "",
-    val vestuarioSearchQuery: String = "",
+    val showItemDialog: Boolean = false,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val error: String? = null,

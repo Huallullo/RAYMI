@@ -65,12 +65,12 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
             val telefonoCliente = obtenerTelefonoCliente(alquiler.clienteId)
             if (telefonoCliente.isBlank()) return
 
-            // Ignoramos el resultado; si falla, el siguiente ciclo lo reintentará
-            enviarMensajeUseCase.enviarRecordatorioVencido(
-                telefonoCliente = telefonoCliente,
-                nombreCliente   = alquiler.clienteNombre,
-                vestuarioNombre = alquiler.vestuarioNombre,
-                diasVencido     = (-alquiler.diasRestantes).coerceAtLeast(1)
+            // Usamos el nuevo caso de uso con la plantilla profesional
+            enviarMensajeUseCase.enviarRecordatorioDevolucion(
+                telefono = telefonoCliente,
+                cliente = alquiler.clienteNombre,
+                item = alquiler.itemNombre,
+                esVencido = true
             ).first()
         } catch (_: Exception) {
             // No propagamos el error para seguir con el resto de alquileres
@@ -101,9 +101,9 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 id              = id,
                 clienteId       = data["clienteId"]       as? String    ?: return null,
                 clienteNombre   = data["clienteNombre"]   as? String    ?: "",
-                vestuarioId     = data["vestuarioId"]     as? String    ?: return null,
-                vestuarioNombre = data["vestuarioNombre"] as? String    ?: "",
-                vestuarioCodigo = data["vestuarioCodigo"] as? String    ?: "",
+                itemId          = data["itemId"]          as? String    ?: (data["vestuarioId"] as? String) ?: return null,
+                itemNombre      = data["itemNombre"]      as? String    ?: (data["vestuarioNombre"] as? String) ?: "",
+                itemCodigo      = data["itemCodigo"]      as? String    ?: (data["vestuarioCodigo"] as? String) ?: "",
                 cantidad        = (data["cantidad"]       as? Long)?.toInt() ?: 1,
                 fechaInicio     = data["fechaInicio"]     as? Timestamp ?: Timestamp.now(),
                 fechaFinPrevista= data["fechaFinPrevista"]as? Timestamp ?: Timestamp.now(),

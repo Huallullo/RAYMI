@@ -11,9 +11,7 @@ import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.cliente.GetClienteByIdUseCase
 import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,6 +19,7 @@ import javax.inject.Inject
 class ClienteDetailViewModel @Inject constructor(
     private val getClienteByIdUseCase: GetClienteByIdUseCase,
     private val updateClienteUseCase: UpdateClienteUseCase,
+    private val deleteClienteUseCase: com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase,
     private val getAlquileresUseCase: GetAlquileresUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -118,6 +117,24 @@ class ClienteDetailViewModel @Inject constructor(
                             error = result.message
                         )
                     }
+                }
+            }
+        }
+    }
+
+    fun eliminarCliente(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            deleteClienteUseCase(clienteId).collect { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        _uiState.update { it.copy(isLoading = false, successMessage = "Cliente eliminado") }
+                        onSuccess()
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    }
+                    is Resource.Loading -> { }
                 }
             }
         }

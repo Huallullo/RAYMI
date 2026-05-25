@@ -8,6 +8,9 @@ import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -36,18 +39,13 @@ class RaymiApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        try {
-            // Programar verificación de alquileres vencidos
-            scheduleOverdueCheckUseCase()
-        } catch (e: Exception) {
-            // Si falla la programación del worker, continuar de todas formas
-            android.util.Log.e("RaymiApp", "Error al programar verificación de alquileres: ${e.message}", e)
+        // Ejecutar tareas de inicialización en segundo plano para NO bloquear el arranque de la UI
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                scheduleOverdueCheckUseCase()
+            } catch (e: Exception) {
+                android.util.Log.e("RaymiApp", "Error al programar verificación de alquileres: ${e.message}", e)
+            }
         }
-
-        // Poblar datos de prueba si la base está vacía
-        // COMENTADO: No poblar datos de prueba en producción
-        /*CoroutineScope(Dispatchers.IO).launch {
-            firebaseDataSource.populateTestDataIfEmpty()
-        }*/
     }
 }

@@ -159,4 +159,18 @@ object RaymiColors {
     val PulseBlue = Color(0xFF448AFF)
     val PulseGreen = Color(0xFF69F0AE)
     val PulseGold = Color(0xFFFFEB3B)
+
+    // 🏆 PALETA PREMIUM SAAS (NUEVA - Diseño Senior)
+    // Elegancia, confianza y profesionalismo
+    val IndigoPrimary = Color(0xFF4F46E5) // Indigo moderno (Stripe/SaaS style)
+    val IndigoDark = Color(0xFF3730A3)
+    val IndigoLight = Color(0xFF818CF8)
+    
+    val EmeraldAccent = Color(0xFF10B981) // Verde esmeralda para éxito/crecimiento
+    val EmeraldDark = Color(0xFF065F46)
+    
+    val Slate900 = Color(0xFF0F172A) // Azul pizarra muy oscuro para textos/fondos dark
+    val Slate700 = Color(0xFF334155)
+    val Slate500 = Color(0xFF64748B)
+    val Slate50 = Color(0xFFF8FAFC) // Fondo ultra limpio
 }

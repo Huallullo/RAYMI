@@ -8,16 +8,21 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/**
+ * Representa un Alquiler Genérico (SaaS).
+ * Reemplaza referencias a "Vestuario" por "Item" para soportar cualquier rubro.
+ */
 data class Alquiler(
     val id: String = "",
-    val workspaceId: String = "",              // A qué workspace pertenece (SaaS)
+    val workspaceId: String = "",              // A qué negocio pertenece
     val clienteId: String = "",
     val clienteNombre: String = "",
-    val clienteDni: String = "",               // Para boleta PERÚ
-    val clienteEmail: String = "",             // Para boleta PERÚ
-    val vestuarioId: String = "",
-    val vestuarioNombre: String = "",
-    val vestuarioCodigo: String = "",
+    val clienteDni: String = "",               // DNI para mercado PERÚ
+    val clienteTelefono: String = "",          // Para notificaciones WhatsApp
+    val clienteEmail: String = "",
+    val itemId: String = "",                   // ID del producto (antes vestuarioId)
+    val itemNombre: String = "",               // Nombre del producto alquilado
+    val itemCodigo: String = "",               // SKU del producto
     val cantidad: Int = 1,
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
@@ -28,7 +33,7 @@ data class Alquiler(
     val saldo: Double = 0.0,
     val estado: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
-    val boletaId: String? = null,              // Link a boleta electrónica PERÚ
+    val boletaId: String? = null,              // Referencia a facturación electrónica
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
@@ -39,23 +44,21 @@ data class Alquiler(
             return (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
         }
 
+    /**
+     * Calcula cuántos días quedan para la devolución.
+     */
     val diasRestantes: Int
         get() {
             if (estado != EstadoAlquiler.ACTIVO) return 0
-            // Normalizar fechas a medianoche (zona horaria local)
             val hoy = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             }.time
 
             val fin = Calendar.getInstance().apply {
                 time = fechaFinPrevista.toDate()
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             }.time
 
             val diffMillis = fin.time - hoy.time
@@ -73,9 +76,6 @@ data class Alquiler(
 
     val precioFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioTotal)
-
-    val precioUnitarioFormateado: String
-        get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioUnitario)
 
     val adelantoFormateado: String
         get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(adelanto)

@@ -9,10 +9,10 @@ class BusinessRepositoryImpl @Inject constructor(
 ) : BusinessRepository {
 
     override suspend fun getBusinessConfig(negocioId: String): Map<String, Any>? {
-        return dataSource.getBusinessDocument("negocios", negocioId)
+        return dataSource.getDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, negocioId)
     }
 
     override suspend fun updateBusinessConfig(negocioId: String, config: Map<String, Any>) {
-        dataSource.updateBusinessDocument("negocios", negocioId, config)
+        dataSource.updateDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, negocioId, config)
     }
 }

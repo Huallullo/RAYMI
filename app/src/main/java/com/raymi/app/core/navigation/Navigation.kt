@@ -1,11 +1,13 @@
 package com.raymi.app.core.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.History
@@ -18,18 +20,31 @@ sealed class Screen(val route: String) {
     // Auth
     object Splash : Screen("splash")
     object Login : Screen("login")
+    object WorkspaceSelection : Screen("workspace_selection")
+    object WorkspaceCreate : Screen("workspace_create")
 
     // Main
     object Dashboard : Screen("dashboard")
     object Clientes : Screen("clientes")
     object Vestuarios : Screen("vestuarios")
+    object Items : Screen("items")
+    object ItemCreate : Screen("item_create")
+    object Categorias : Screen("categorias")
     object Alquileres : Screen("alquileres")
     object Historial : Screen("historial")
     object Profile : Screen("profile")
+    object BusinessSettings : Screen("business_settings")
+    object Plans : Screen("plans")
 
     // Detalle
     object ClienteDetalle : Screen("cliente/{clienteId}") {
         fun createRoute(clienteId: String) = "cliente/$clienteId"
+    }
+    object ItemDetalle : Screen("item/{itemId}") {
+        fun createRoute(itemId: String) = "item/$itemId"
+    }
+    object ItemEdit : Screen("item_edit/{itemId}") {
+        fun createRoute(itemId: String) = "item_edit/$itemId"
     }
     object VestuarioDetalle : Screen("vestuario/{vestuarioId}") {
         fun createRoute(vestuarioId: String) = "vestuario/$vestuarioId"
@@ -59,9 +74,9 @@ sealed class BottomNavItem(
         selectedIcon = Icons.Filled.People
     )
 
-    object Vestuarios : BottomNavItem(
-        route = Screen.Vestuarios.route,
-        title = "Vestuarios",
+    object Items : BottomNavItem(
+        route = Screen.Items.route,
+        title = "Inventario",
         icon = Icons.Outlined.Checkroom,
         selectedIcon = Icons.Filled.Checkroom
     )
@@ -79,13 +94,21 @@ sealed class BottomNavItem(
         icon = Icons.Outlined.History,
         selectedIcon = Icons.Filled.History
     )
+
+    object Profile : BottomNavItem(
+        route = Screen.Profile.route,
+        title = "Perfil",
+        icon = Icons.Outlined.AccountCircle,
+        selectedIcon = Icons.Filled.AccountCircle
+    )
 }
 
 // Lista de items del bottom navigation
 val bottomNavItems = listOf(
     BottomNavItem.Dashboard,
     BottomNavItem.Clientes,
-    BottomNavItem.Vestuarios,
+    BottomNavItem.Items,
     BottomNavItem.Alquileres,
-    BottomNavItem.Historial
+    BottomNavItem.Historial,
+    BottomNavItem.Profile
 )

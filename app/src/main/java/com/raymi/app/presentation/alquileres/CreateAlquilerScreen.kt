@@ -2,657 +2,367 @@ package com.raymi.app.presentation.alquileres
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Notes
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.EditCalendar
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
-import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.core.utils.formatTo
 import com.raymi.app.domain.model.Cliente
-import com.raymi.app.domain.model.Vestuario
-import com.raymi.app.presentation.clientes.ClienteItem
-import com.raymi.app.presentation.components.RaymiSearchBar
-import java.util.Calendar
-import java.util.Locale
+import com.raymi.app.domain.model.Item
+import com.raymi.app.presentation.clientes.ModernClienteItem
+import com.raymi.app.presentation.components.*
+import java.util.*
 
+/**
+ * Pantalla de Creación de Alquiler Premium.
+ * Diseño Senior: Proceso guiado, cálculos automatizados y estética moderna.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAlquilerScreen(
     viewModel: CreateAlquilerViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit,
-    onAlquilerCreated: (String) -> Unit
+    onNavigateBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
-    // Mostrar mensajes
-    LaunchedEffect(uiState.error, uiState.successMessage) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
-            viewModel.clearMessages()
-        }
-        uiState.successMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearMessages()
-        }
-    }
-
-    // Navegar cuando se crea exitosamente
+    // QA Fix: Feedback visual proactivo
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
             onNavigateBack()
         }
     }
 
+    LaunchedEffect(uiState.error, uiState.successMessage) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Nuevo Alquiler") },
+            CenterAlignedTopAppBar(
+                title = { Text("Registrar Alquiler", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Información
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+            // 1. Selección de Actores (Cliente e Ítem)
+            SelectionSection(
+                title = "Quién y Qué",
+                content = {
+                    SelectionTile(
+                        label = "Cliente",
+                        value = uiState.selectedCliente?.nombreCompleto ?: "Seleccionar Cliente",
+                        icon = Icons.Default.Person,
+                        isSelected = uiState.selectedCliente != null,
+                        onClick = { viewModel.showClienteDialog() }
                     )
-                    Column {
-                        Text(
-                            text = "Crear Alquiler",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    
+                    SelectionTile(
+                        label = "Producto / Servicio",
+                        value = uiState.selectedItem?.nombre ?: "Seleccionar Ítem",
+                        icon = Icons.Default.Inventory2,
+                        isSelected = uiState.selectedItem != null,
+                        onClick = { viewModel.showItemDialog() }
+                    )
+                }
+            )
+
+            // 2. Tiempos y Duración
+            SelectionSection(
+                title = "Periodo de Alquiler",
+                content = {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        DatePickerField(
+                            label = "Entrega",
+                            date = uiState.fechaInicio,
+                            modifier = Modifier.weight(1f),
+                            onDateSelected = { viewModel.setFechaInicio(it) }
                         )
-                        Text(
-                            text = "Completa los datos para registrar un nuevo alquiler",
-                            style = MaterialTheme.typography.bodySmall
+                        DatePickerField(
+                            label = "Devolución",
+                            date = uiState.fechaFin,
+                            modifier = Modifier.weight(1f),
+                            onDateSelected = { viewModel.setFechaFin(it) }
                         )
                     }
-                }
-            }
-
-            // Sección: Cliente
-            Text(
-                text = "1. Seleccionar Cliente",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CustomShapes.CardShape
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (uiState.selectedCliente != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = uiState.selectedCliente!!.nombreCompleto,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "DNI: ${uiState.selectedCliente!!.dni}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            IconButton(onClick = { viewModel.showClienteDialog() }) {
-                                Icon(Icons.Filled.Edit, contentDescription = "Cambiar")
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = { viewModel.showClienteDialog() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Person, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Seleccionar Cliente")
-                        }
-                    }
-                }
-            }
-
-            // Sección: Vestuario
-            Text(
-                text = "2. Seleccionar Vestuario",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CustomShapes.CardShape
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (uiState.selectedVestuario != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = uiState.selectedVestuario!!.danza,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Código: ${uiState.selectedVestuario!!.codigo}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = uiState.selectedVestuario!!.precioFormateado,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            IconButton(onClick = { viewModel.showVestuarioDialog() }) {
-                                Icon(Icons.Filled.Edit, contentDescription = "Cambiar")
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = { viewModel.showVestuarioDialog() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Checkroom, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Seleccionar Vestuario")
-                        }
-                    }
-                }
-            }
-
-            // Sección: Cantidad
-            Text(
-                text = "3. Cantidad de Vestuarios",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CustomShapes.CardShape
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = uiState.cantidad,
-                        onValueChange = { viewModel.onCantidadChange(it) },
-                        label = { Text("Cantidad *") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.ShoppingCart, contentDescription = null)
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    if (uiState.selectedVestuario != null && uiState.cantidad.isNotBlank()) {
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Precio unitario:",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = uiState.selectedVestuario!!.precioFormateado,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Cantidad:",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "x ${uiState.cantidad}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Sección: Fechas
-            Text(
-                text = "4. Configurar Fechas",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CustomShapes.CardShape
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Fecha de inicio (con calendario en español)
-                    OutlinedTextField(
-                        value = uiState.fechaInicio?.formatTo("dd/MM/yyyy") ?: "",
-                        onValueChange = {},
-                        label = { Text("Fecha de Inicio") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.CalendarToday, contentDescription = null)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                val calendar = Calendar.getInstance(Locale("es", "PE"))
-                                DatePickerDialog(
-                                    context,
-                                    { _, year, month, day ->
-                                        calendar.set(year, month, day)
-                                        viewModel.setFechaInicio(calendar.time)
-                                    },
-                                    calendar.get(Calendar.YEAR),
-                                    calendar.get(Calendar.MONTH),
-                                    calendar.get(Calendar.DAY_OF_MONTH)
-                                ).show()
-                            }) {
-                                Icon(Icons.Filled.EditCalendar, contentDescription = "Seleccionar")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        readOnly = true
-                    )
-
-                    // Fecha de fin (con calendario en español)
-                    OutlinedTextField(
-                        value = uiState.fechaFin?.formatTo("dd/MM/yyyy") ?: "",
-                        onValueChange = {},
-                        label = { Text("Fecha de Devolución Prevista") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.Event, contentDescription = null)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                val calendar = Calendar.getInstance(Locale("es", "PE"))
-                                if (uiState.fechaInicio != null) {
-                                    calendar.time = uiState.fechaInicio!!
-                                }
-                                DatePickerDialog(
-                                    context,
-                                    { _, year, month, day ->
-                                        calendar.set(year, month, day)
-                                        viewModel.setFechaFin(calendar.time)
-                                    },
-                                    calendar.get(Calendar.YEAR),
-                                    calendar.get(Calendar.MONTH),
-                                    calendar.get(Calendar.DAY_OF_MONTH)
-                                ).show()
-                            }) {
-                                Icon(Icons.Filled.EditCalendar, contentDescription = "Seleccionar")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        readOnly = true
-                    )
-
                     if (uiState.diasAlquiler > 0) {
                         Text(
-                            text = "Duración: ${uiState.diasAlquiler} día(s)",
-                            style = MaterialTheme.typography.bodyMedium,
+                            "Duración estimada: ${uiState.diasAlquiler} días",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-            }
-
-            // Sección: Pago
-            Text(
-                text = "5. Información de Pago",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CustomShapes.CardShape
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = uiState.precioTotal,
-                        onValueChange = {},
-                        label = { Text("Precio Total") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.AttachMoney, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        readOnly = true,
-                        enabled = false
-                    )
-
-                    OutlinedTextField(
-                        value = uiState.adelanto,
-                        onValueChange = { viewModel.onAdelantoChange(it) },
-                        label = { Text("Adelanto (opcional)") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.Payments, contentDescription = null)
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    HorizontalDivider()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Saldo:",
-                            style = MaterialTheme.typography.titleMedium
+            // 3. Resumen Económico
+            SelectionSection(
+                title = "Liquidación y Pagos",
+                content = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = uiState.cantidad,
+                                onValueChange = viewModel::onCantidadChange,
+                                label = { Text("Cantidad") },
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = MaterialTheme.shapes.large
+                            )
+                            OutlinedTextField(
+                                value = String.format(Locale.getDefault(), "%.2f", uiState.precioTotal),
+                                onValueChange = {},
+                                label = { Text("Monto Total") },
+                                modifier = Modifier.weight(1f),
+                                readOnly = true,
+                                prefix = { Text("S/. ") },
+                                shape = MaterialTheme.shapes.large,
+                                colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                            )
+                        }
+                        
+                        OutlinedTextField(
+                            value = uiState.adelanto,
+                            onValueChange = viewModel::onAdelantoChange,
+                            label = { Text("Adelanto Recibido") },
+                            modifier = Modifier.fillMaxWidth(),
+                            prefix = { Text("S/. ") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = MaterialTheme.shapes.large
                         )
-                        Text(
-                            text = "S/. ${String.format(Locale.getDefault(), "%.2f", uiState.saldo)}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (uiState.saldo > 0) RaymiColors.Warning else RaymiColors.Success
-                        )
-                    }
-                }
-            }
-
-            // Observaciones
-            OutlinedTextField(
-                value = uiState.observaciones,
-                onValueChange = { viewModel.onObservacionesChange(it) },
-                label = { Text("Observaciones (opcional)") },
-                leadingIcon = {
-                    Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = null)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 3
-            )
-
-            // Botón de crear
-            Button(
-                onClick = { viewModel.createAlquiler() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Icon(Icons.Filled.Check, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Crear Alquiler")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-
-    // Diálogo de selección de cliente
-    if (uiState.showClienteDialog) {
-        SelectClienteDialog(
-            clientes = uiState.clientes,
-            searchQuery = uiState.clienteSearchQuery,
-            onSearchQueryChange = { viewModel.searchClientes(it) },
-            onClienteSelect = { viewModel.selectCliente(it) },
-            onDismiss = { viewModel.hideClienteDialog() }
-        )
-    }
-
-    // Diálogo de selección de vestuario
-    if (uiState.showVestuarioDialog) {
-        SelectVestuarioDialog(
-            vestuarios = uiState.vestuariosDisponibles,
-            searchQuery = uiState.vestuarioSearchQuery,
-            onSearchQueryChange = { viewModel.searchVestuarios(it) },
-            onVestuarioSelect = { viewModel.selectVestuario(it) },
-            onDismiss = { viewModel.hideVestuarioDialog() }
-        )
-    }
-}
-
-@Composable
-fun SelectClienteDialog(
-    clientes: List<Cliente>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onClienteSelect: (Cliente) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val filteredClientes = remember(clientes, searchQuery) {
-        if (searchQuery.isBlank()) clientes
-        else clientes.filter {
-            it.nombreCompleto.contains(searchQuery, ignoreCase = true) ||
-                    it.dni.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Seleccionar Cliente") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-            ) {
-                RaymiSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChange,
-                    placeholder = "Buscar cliente...",
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                LazyColumn {
-                    items(filteredClientes) { cliente ->
-                        ClienteItem(cliente = cliente, onClick = { onClienteSelect(cliente) })
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
-    )
-}
-
-@Composable
-fun SelectVestuarioDialog(
-    vestuarios: List<Vestuario>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onVestuarioSelect: (Vestuario) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val filteredVestuarios = remember(vestuarios, searchQuery) {
-        if (searchQuery.isBlank()) vestuarios
-        else vestuarios.filter {
-            it.codigo.contains(searchQuery, ignoreCase = true) ||
-                    it.danza.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Seleccionar Vestuario Disponible") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-            ) {
-                RaymiSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChange,
-                    placeholder = "Buscar vestuario...",
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filteredVestuarios) { vestuario ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onVestuarioSelect(vestuario) }
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp)
+                        
+                        if (uiState.saldo > 0) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = vestuario.danza,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Código: ${vestuario.codigo}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = vestuario.precioFormateado,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    "Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%.2f", uiState.saldo)}",
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
                 }
+            )
+
+            // 4. Notas Finales
+            OutlinedTextField(
+                value = uiState.observaciones,
+                onValueChange = viewModel::onObservacionesChange,
+                label = { Text("Notas adicionales") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                shape = MaterialTheme.shapes.large
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { viewModel.crearAlquiler() },
+                modifier = Modifier.fillMaxWidth().height(58.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                enabled = !uiState.isLoading
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                } else {
+                    Icon(Icons.Default.TaskAlt, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Confirmar Alquiler", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+            
+            if (uiState.error != null) {
+                Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
+    }
+
+    if (uiState.showClienteDialog) {
+        GenericSelectionDialog(
+            title = "Seleccionar Cliente",
+            items = uiState.clientes,
+            onDismiss = { viewModel.hideClienteDialog() },
+            itemContent = { cliente ->
+                ModernClienteItem(cliente = cliente, onClick = { viewModel.seleccionarCliente(cliente) })
+            }
+        )
+    }
+
+    if (uiState.showItemDialog) {
+        GenericSelectionDialog(
+            title = "Seleccionar Producto",
+            items = uiState.itemsDisponibles,
+            onDismiss = { viewModel.hideItemDialog() },
+            header = {
+                // QA: Filtro por categoría dentro del diálogo
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = uiState.categoriaFiltro == null,
+                            onClick = { viewModel.filtrarPorCategoria(null) },
+                            label = { Text("Todos") },
+                            shape = CircleShape
+                        )
+                    }
+                    items(uiState.categorias) { categoria ->
+                        FilterChip(
+                            selected = uiState.categoriaFiltro?.id == categoria.id,
+                            onClick = { viewModel.filtrarPorCategoria(categoria) },
+                            label = { Text(categoria.nombre) },
+                            shape = CircleShape
+                        )
+                    }
+                }
+            },
+            itemContent = { item ->
+                Surface(
+                    onClick = { viewModel.seleccionarItem(item) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(item.nombre, fontWeight = FontWeight.Bold)
+                            Text("S/. ${item.precio} • SKU: ${item.codigo}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun SelectionSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+        content()
+    }
+}
+
+@Composable
+fun SelectionTile(label: String, value: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@Composable
+fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelected: (Date) -> Unit) {
+    val context = LocalContext.current
+    OutlinedTextField(
+        value = date?.formatTo("dd/MM/yyyy") ?: "",
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        modifier = modifier.clickable {
+            val cal = Calendar.getInstance()
+            date?.let { cal.time = it }
+            DatePickerDialog(context, { _, y, m, d ->
+                cal.set(y, m, d)
+                onDateSelected(cal.time)
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        },
+        enabled = false,
+        shape = MaterialTheme.shapes.large,
+        colors = TextFieldDefaults.colors(disabledTextColor = MaterialTheme.colorScheme.onSurface, disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant)
+    )
+}
+
+@Composable
+fun <T> GenericSelectionDialog(
+    title: String, 
+    items: List<T>, 
+    onDismiss: () -> Unit, 
+    header: @Composable (() -> Unit)? = null, // QA Fix: Añadir header para filtros
+    itemContent: @Composable (T) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                header?.invoke()
+                
+                if (items.isEmpty()) {
+                    Text("No hay elementos disponibles en este momento.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(items) { itemContent(it) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
     )
 }

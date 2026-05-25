@@ -2,6 +2,7 @@ package com.raymi.app.presentation.clientes
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,266 +11,145 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.raymi.app.core.theme.CustomShapes
-import com.raymi.app.presentation.alquileres.AlquilerItem
-
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.*
 import java.util.Locale
 
+/**
+ * Detalle del Cliente Premium.
+ * Diseño Senior: Cabecera elegante, métricas de fidelización y lista de historial integrada.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
-
 fun ClienteDetailScreen(
     clienteId: String,
     viewModel: ClienteDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onNavigateToAlquiler: (String) -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.error, uiState.successMessage) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
+    // Observar mensajes (QA Fix: Mensaje de confirmación en edición)
+    LaunchedEffect(uiState.successMessage, uiState.error) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
-        uiState.successMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
     }
 
+    LaunchedEffect(clienteId) {
+        viewModel.loadClienteData()
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Detalle del Cliente") },
+            CenterAlignedTopAppBar(
+                title = { Text("Ficha del Cliente", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (uiState.cliente != null) {
-                            showEditDialog = true
-                        }
-                    }) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Editar")
+                    IconButton(onClick = { showEditDialog = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                uiState.isLoading -> {
-                    RaymiLoadingIndicator(message = "Cargando cliente...")
-                }
-
-                uiState.cliente == null -> {
-                    RaymiErrorState(
-                        message = "No se pudo cargar el cliente",
-                        onRetry = { viewModel.loadClienteData() }
-                    )
-                }
-
-                else -> {
+                uiState.isLoading -> RaymiLoadingIndicator(message = "Consultando historial...")
+                uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadClienteData() })
+                uiState.cliente != null -> {
                     val cliente = uiState.cliente!!
-
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Cabecera con avatar
-                        Card(
+                        // 1. Cabecera de Identidad
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            AvatarWithInitials(
+                                initials = cliente.iniciales,
+                                size = 100,
+                                backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                                textColor = MaterialTheme.colorScheme.primary
                             )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                AvatarWithInitials(
-                                    initials = cliente.iniciales,
-                                    size = 80
-                                )
-
-                                Text(
-                                    text = cliente.nombreCompleto,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(cliente.nombreCompleto, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                                Text("Cliente desde: ${cliente.createdAtFormatted}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
 
-                        // Información personal
-                        Text(
-                            text = "Información Personal",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        // 2. KPIs de Fidelización
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            InfoSquareSmall(
+                                label = "Alquileres",
+                                value = uiState.totalAlquileres.toString(),
+                                icon = Icons.Default.Repeat,
+                                modifier = Modifier.weight(1f)
+                            )
+                            InfoSquareSmall(
+                                label = "Inversión",
+                                value = "S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.totalGastado)}",
+                                icon = Icons.Default.Payments,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
 
-                        Card(
+                        // 3. Información de Contacto
+                        Text("Datos de Contacto", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = CustomShapes.CardShape
+                            shape = MaterialTheme.shapes.large,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                InfoRow(
-                                    icon = Icons.Filled.Badge,
-                                    label = "DNI",
-                                    value = cliente.dni
-                                )
-
-                                HorizontalDivider()
-
-                                InfoRow(
-                                    icon = Icons.Filled.Phone,
-                                    label = "Teléfono",
-                                    value = cliente.telefono
-                                )
-
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                ContactRow(icon = Icons.Default.Badge, label = "DNI / Identificación", value = cliente.dni)
+                                ContactRow(icon = Icons.Default.Phone, label = "Teléfono móvil", value = cliente.telefono)
                                 if (cliente.email.isNotBlank()) {
-                                    HorizontalDivider()
-                                    InfoRow(
-                                        icon = Icons.Filled.Email,
-                                        label = "Email",
-                                        value = cliente.email
-                                    )
+                                    ContactRow(icon = Icons.Default.Mail, label = "Correo electrónico", value = cliente.email)
                                 }
-
                                 if (cliente.direccion.isNotBlank()) {
-                                    HorizontalDivider()
-                                    InfoRow(
-                                        icon = Icons.Filled.Home,
-                                        label = "Dirección",
-                                        value = cliente.direccion
-                                    )
+                                    ContactRow(icon = Icons.Default.LocationOn, label = "Dirección", value = cliente.direccion)
                                 }
                             }
                         }
 
-                        // Estadísticas
-                        Text(
-                            text = "Estadísticas",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Card(
-                                modifier = Modifier.weight(1f),
-                                shape = CustomShapes.CardShape
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "${uiState.totalAlquileres}",
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "Total alquileres",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Card(
-                                modifier = Modifier.weight(1f),
-                                shape = CustomShapes.CardShape
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "S/. ${String.format(Locale.getDefault(), "%.2f", uiState.totalGastado)}",
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "Total gastado",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-
-                        // Historial de alquileres
-                        Text(
-                            text = "Historial de Alquileres",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
+                        // 4. Últimos Movimientos
+                        Text("Historial Reciente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.alquileres.isEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = CustomShapes.CardShape
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.History,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                    )
-                                    Text(
-                                        text = "Sin alquileres registrados",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            RaymiEmptyState(
+                                icon = Icons.Default.History,
+                                title = "Sin actividad",
+                                description = "Este cliente aún no tiene alquileres registrados."
+                            )
                         } else {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                uiState.alquileres.forEach { alquiler ->
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                uiState.alquileres.take(5).forEach { alquiler ->
                                     AlquilerItem(
                                         alquiler = alquiler,
                                         onClick = { onNavigateToAlquiler(alquiler.id) }
@@ -278,13 +158,13 @@ fun ClienteDetailScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
         }
     }
-    // Al final del composable:
+
     if (showEditDialog && uiState.cliente != null) {
         EditClienteDialog(
             cliente = uiState.cliente!!,
@@ -295,5 +175,63 @@ fun ClienteDetailScreen(
             },
             isLoading = uiState.isLoading
         )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar Cliente") },
+            text = { Text("¿Estás seguro de eliminar a este cliente? Esta acción no se puede deshacer y borrará su historial.") },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        viewModel.eliminarCliente { onNavigateBack() }
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun InfoSquareSmall(label: String, value: String, icon: ImageVector, modifier: Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelSmall)
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun ContactRow(icon: ImageVector, label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+            modifier = Modifier.size(36.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+        }
     }
 }
