@@ -25,6 +25,7 @@ import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.data.remote.ReniecData
+import androidx.compose.ui.platform.testTag
 
 /**
  * Diálogo para agregar un nuevo cliente con Diseño Senior.
@@ -50,7 +51,7 @@ fun AddClienteDialog(
     var nombreError by remember { mutableStateOf(false) }
     var apellidosError by remember { mutableStateOf(false) }
     var telefonoError by remember { mutableStateOf(false) }
-    
+
     var isConsultingReniec by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
@@ -99,13 +100,13 @@ fun AddClienteDialog(
                         value = dni,
                         onValueChange = { if (it.length <= 8) dni = it; dniError = null },
                         label = { Text("DNI") },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).testTag("cliente_dni_input"),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                         isError = dniError != null,
                         shape = MaterialTheme.shapes.large,
                         leadingIcon = { Icon(Icons.Default.Badge, null) }
                     )
-                    
+
                     IconButton(
                         onClick = { consultarReniec() },
                         modifier = Modifier.size(56.dp).padding(top = 8.dp),
@@ -123,7 +124,7 @@ fun AddClienteDialog(
                     value = nombre,
                     onValueChange = { nombre = it; if(it.isNotBlank()) nombreError = false },
                     label = { Text("Nombres") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("cliente_nombre_input"),
                     isError = nombreError,
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Person, null) }
@@ -133,7 +134,7 @@ fun AddClienteDialog(
                     value = apellidos,
                     onValueChange = { apellidos = it; if(it.isNotBlank()) apellidosError = false },
                     label = { Text("Apellidos") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("cliente_apellidos_input"),
                     isError = apellidosError,
                     shape = MaterialTheme.shapes.large
                 )
@@ -143,13 +144,13 @@ fun AddClienteDialog(
                     value = telefono,
                     onValueChange = { if (it.length <= 9) { telefono = it; if(it.length >= 9) telefonoError = false } },
                     label = { Text("WhatsApp / Celular") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("cliente_telefono_input"),
                     isError = telefonoError,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Phone, null) }
                 )
-                
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -199,7 +200,7 @@ fun AddClienteDialog(
                         createdAt = Timestamp.now()
                     ))
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp).testTag("cliente_guardar_button"),
                 shape = MaterialTheme.shapes.large
             ) {
                 if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)

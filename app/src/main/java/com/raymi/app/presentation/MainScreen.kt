@@ -17,6 +17,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.raymi.app.core.navigation.*
+import androidx.compose.ui.platform.testTag
 
 /**
  * Pantalla contenedora principal (Scaffold Maestro).
@@ -69,7 +70,8 @@ fun MainScreen(
                                             restoreState = true
                                         }
                                     }
-                                }
+                                },
+                                modifier = Modifier.testTag("nav_${item.title.lowercase()}")
                             )
                         }
                     }
@@ -77,7 +79,6 @@ fun MainScreen(
             }
         }
     ) { paddingValues ->
-        // Contenedor del Grafo de Navegación
         Box(modifier = Modifier.padding(paddingValues)) {
             RaymiNavGraph(
                 navController = navController,
@@ -91,14 +92,15 @@ fun MainScreen(
 fun NavigationItemCustom(
     item: BottomNavItem,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     val iconSize = 24.dp
 
     Column(
-        modifier = Modifier
-            .width(85.dp) // Ancho fijo para garantizar scroll y lectura
+        modifier = modifier
+            .width(85.dp)
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

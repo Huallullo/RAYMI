@@ -126,7 +126,10 @@ class AuthRepositoryImpl @Inject constructor(
                     emit(Resource.Success(user))
                 } catch (e: Exception) {
                     AppLogger.e("AuthRepository", "Error al crear perfil en registro: ${e.message}")
-                    emit(Resource.Error("Registro exitoso, pero hubo un error al crear tu negocio: ${e.localizedMessage}"))
+                    val detail = if (e.message?.contains("PERMISSION_DENIED") == true) 
+                        "Error de permisos en Firebase. Asegúrate de haber desplegado las reglas de Firestore correctamente." 
+                        else e.localizedMessage
+                    emit(Resource.Error("Registro exitoso en Auth, pero falló la base de datos: $detail"))
                 }
             } else {
                 emit(Resource.Error("Error al registrar usuario"))

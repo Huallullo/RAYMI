@@ -97,6 +97,7 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.androidx.junit)
     // Core desugaring for iText compatibility
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
@@ -185,6 +186,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 

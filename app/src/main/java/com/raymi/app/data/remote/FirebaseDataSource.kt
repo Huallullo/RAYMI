@@ -201,32 +201,51 @@ class FirebaseDataSource @Inject constructor(
 
         try {
             firestore.runBatch { batch ->
-                // 1. Crear el negocio
+                // 1. Crear el negocio (doc raíz)
                 batch.set(negocioRef, mapOf(
-                    "nombre" to negocioNombre, "rubro" to "alquileres", "pais" to "PE",
-                    "moneda" to "PEN", "plan" to "FREE", "ownerUid" to uid,
-                    "createdAt" to now, "updatedAt" to now, "ultimoAcceso" to now
+                    "id" to negocioRef.id,
+                    "nombre" to negocioNombre, 
+                    "rubro" to "alquileres", 
+                    "pais" to "PE",
+                    "moneda" to "PEN", 
+                    "plan" to "FREE", 
+                    "ownerUid" to uid,
+                    "createdAt" to now, 
+                    "updatedAt" to now, 
+                    "ultimoAcceso" to now
                 ))
 
-                // 2. Crear las estadísticas iniciales
+                // 2. Crear las estadísticas iniciales (subcolección)
                 batch.set(statsRef, mapOf(
                     "totalItems" to 0L,
                     "alquileresActivos" to 0L,
                     "totalIngresos" to 0.0,
-                    "totalClientes" to 0L
+                    "totalClientes" to 0L,
+                    "updatedAt" to now
                 ))
 
-                // 3. Crear el perfil de usuario
+                // 3. Crear el perfil de usuario (colección raíz)
                 batch.set(usuarioRef, mapOf(
-                    "uid" to uid, "email" to email, "emailLowercase" to email.lowercase(),
-                    "nombre" to (user.displayName ?: ""), "negocioId" to negocioRef.id,
-                    "rol" to "owner", "idioma" to "es", "createdAt" to now, "updatedAt" to now
-                ))
+                    "uid" to uid, 
+                    "email" to email, 
+                    "emailLowercase" to email.lowercase(),
+                    "nombre" to (user.displayName ?: ""), 
+                    "negocioId" to negocioRef.id,
+                    "rol" to "owner", 
+                    "idioma" to "es", 
+                    "createdAt" to now, 
+                    "updatedAt" to now
+                ), com.google.firebase.firestore.SetOptions.merge())
 
-                // 3. Agregar al usuario como miembro
+                // 4. Agregar al usuario como miembro (subcolección)
                 batch.set(miembroRef, mapOf(
-                    "uid" to uid, "email" to email, "nombre" to (user.displayName ?: ""),
-                    "rol" to "owner", "estado" to "ACTIVO", "createdAt" to now, "updatedAt" to now
+                    "uid" to uid, 
+                    "email" to email, 
+                    "nombre" to (user.displayName ?: ""),
+                    "rol" to "owner", 
+                    "estado" to "ACTIVO", 
+                    "createdAt" to now, 
+                    "updatedAt" to now
                 ))
             }.await()
             

@@ -2,7 +2,6 @@ package com.raymi.app.presentation.items
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.Categoria
+import androidx.compose.ui.platform.testTag
 
 /**
  * Pantalla de Registro de Ítem Personalizable (SaaS).
@@ -73,7 +73,7 @@ fun AddItemScreen(
         ) {
             // 1. Clasificación
             Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            
+
             ExposedDropdownMenuBox(
                 expanded = isCatDropdownExpanded,
                 onExpandedChange = { isCatDropdownExpanded = it }
@@ -85,11 +85,14 @@ fun AddItemScreen(
                     label = { Text("Selecciona una Categoría") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCatDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                        .testTag("item_categoria_spinner"),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) }
                 )
-                
+
                 ExposedDropdownMenu(
                     expanded = isCatDropdownExpanded,
                     onDismissRequest = { isCatDropdownExpanded = false }
@@ -110,13 +113,15 @@ fun AddItemScreen(
 
             // 2. Información General
             Text("Información Básica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            
+
             OutlinedTextField(
                 value = uiState.nombre,
                 onValueChange = viewModel::onNombreChange,
                 label = { Text("Nombre del Ítem") },
                 placeholder = { Text("Ej: Vestido de Gala, Drone 4K, Camioneta") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("item_nombre_input"),
                 shape = MaterialTheme.shapes.large
             )
 
@@ -125,7 +130,9 @@ fun AddItemScreen(
                     value = uiState.codigo,
                     onValueChange = viewModel::onCodigoChange,
                     label = { Text("Código/SKU") },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("item_codigo_input"),
                     shape = MaterialTheme.shapes.large
                 )
                 OutlinedTextField(
@@ -133,7 +140,9 @@ fun AddItemScreen(
                     onValueChange = viewModel::onPrecioChange,
                     label = { Text("Precio Alquiler") },
                     prefix = { Text("S/. ") },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("item_precio_input"),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = MaterialTheme.shapes.large
                 )
@@ -164,8 +173,7 @@ fun AddItemScreen(
             }
 
             uiState.atributos.forEach { (key, value) ->
-                // Heurística simple para determinar si es número (QA Fix)
-                val isNumberField = key.endsWith("(N)") 
+                val isNumberField = key.endsWith("(N)")
                 val displayKey = key.removeSuffix("(N)")
 
                 AttributeEditField(
@@ -173,7 +181,7 @@ fun AddItemScreen(
                     value = value,
                     onValueChange = { newValue ->
                         if (!isNumberField || newValue.isEmpty() || newValue.all { it.isDigit() || it == '.' }) {
-                             viewModel.onAtributoChange(key, newValue)
+                            viewModel.onAtributoChange(key, newValue)
                         }
                     },
                     onDelete = { viewModel.eliminarAtributo(key) },
@@ -186,7 +194,10 @@ fun AddItemScreen(
             // 4. Botón Final
             Button(
                 onClick = { viewModel.guardarItem() },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .testTag("item_guardar_button"),
                 shape = MaterialTheme.shapes.extraLarge,
                 enabled = !uiState.isLoading
             ) {
@@ -214,7 +225,7 @@ fun AddItemScreen(
                         label = { Text("Nombre (Ej: Talla, Color, Marca, Placa)") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(vertical = 4.dp).clickable { isNumberType = !isNumberType }

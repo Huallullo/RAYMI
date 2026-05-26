@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.domain.model.Workspace
 import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
+import androidx.compose.ui.platform.testTag
 
 /**
  * Hub de Negocios (SaaS Selection).
@@ -153,7 +154,9 @@ fun PremiumWorkspaceCard(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("workspace_card"),
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))

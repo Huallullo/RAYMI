@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.presentation.components.RaymiEmptyState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import androidx.compose.ui.platform.testTag
 
 /**
  * Gestión de Categorías Premium.
@@ -57,7 +58,10 @@ fun CategoriasScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.testTag("fab_add_categoria")
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Nueva Categoría")
             }
         }
@@ -98,15 +102,18 @@ fun CategoriasScreen(
                     value = nuevaCatNombre,
                     onValueChange = { nuevaCatNombre = it },
                     label = { Text("Nombre de la categoría") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("categoria_nombre_input")
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.agregarCategoria(nuevaCatNombre)
-                    nuevaCatNombre = ""
-                    showAddDialog = false
-                }) { Text("Guardar") }
+                Button(
+                    onClick = {
+                        viewModel.agregarCategoria(nuevaCatNombre)
+                        nuevaCatNombre = ""
+                        showAddDialog = false
+                    },
+                    modifier = Modifier.testTag("categoria_guardar_button")
+                ) { Text("Guardar") }
             },
             dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancelar") } }
         )

@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,7 +87,8 @@ fun ItemsScreen(
                 text = { Text("Nuevo Ítem", fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = CustomShapes.CardShape
+                shape = CustomShapes.CardShape,
+                modifier = Modifier.testTag("fab_add_item")   // ✅ AÑADIDO
             )
         }
     ) { paddingValues ->

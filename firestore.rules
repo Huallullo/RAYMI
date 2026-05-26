@@ -10,11 +10,6 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
     }
 
-    function isBusinessOwner(negocioId) {
-      return isSignedIn()
-        && get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
-    }
-
     // Perfil de usuario
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
@@ -25,17 +20,23 @@ service cloud.firestore {
       // Permitir crear si el usuario se marca como dueño
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
 
-      // Permitir leer/actualizar a miembros o al dueño (en caso de que el documento de miembro falle)
+      // Permitir leer/actualizar a miembros o al dueño
       allow read, update: if isSignedIn() && (isBusinessMember(negocioId) || resource.data.ownerUid == request.auth.uid);
 
-      // Miembros: El dueño puede crear el primer miembro (él mismo)
+      // Miembros
       match /miembros/{mUid} {
         allow read, write: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
       }
 
-      // Subcolecciones internas (clientes, items, alquileres)
+      // Subcolecciones internas (metadata, clientes, items, alquileres)
       match /{subcollection=**} {
-        allow read, write: if isBusinessMember(negocioId);
+        // Permitir lectura/escritura si es miembro o si es el dueño
+        allow read, write: if isSignedIn() && (
+          isBusinessMember(negocioId) ||
+          get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid ||
+          // Permiso especial para la creación inicial en el batch de registro
+          request.method == "create"
+        );
       }
     }
 

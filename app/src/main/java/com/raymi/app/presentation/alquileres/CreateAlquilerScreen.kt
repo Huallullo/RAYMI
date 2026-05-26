@@ -33,6 +33,7 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.clientes.ModernClienteItem
 import com.raymi.app.presentation.components.*
 import java.util.*
+import androidx.compose.ui.platform.testTag   // ✅ IMPORTADO
 
 /**
  * Pantalla de Creación de Alquiler Premium.
@@ -96,15 +97,17 @@ fun CreateAlquilerScreen(
                         value = uiState.selectedCliente?.nombreCompleto ?: "Seleccionar Cliente",
                         icon = Icons.Default.Person,
                         isSelected = uiState.selectedCliente != null,
-                        onClick = { viewModel.showClienteDialog() }
+                        onClick = { viewModel.showClienteDialog() },
+                        modifier = Modifier.testTag("alquiler_select_cliente")   // ✅ AÑADIDO
                     )
-                    
+
                     SelectionTile(
                         label = "Producto / Servicio",
                         value = uiState.selectedItem?.nombre ?: "Seleccionar Ítem",
                         icon = Icons.Default.Inventory2,
                         isSelected = uiState.selectedItem != null,
-                        onClick = { viewModel.showItemDialog() }
+                        onClick = { viewModel.showItemDialog() },
+                        modifier = Modifier.testTag("alquiler_select_item")   // ✅ AÑADIDO
                     )
                 }
             )
@@ -123,7 +126,7 @@ fun CreateAlquilerScreen(
                         DatePickerField(
                             label = "Devolución",
                             date = uiState.fechaFin,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).testTag("alquiler_fecha_fin"),   // ✅ AÑADIDO
                             onDateSelected = { viewModel.setFechaFin(it) }
                         )
                     }
@@ -163,17 +166,17 @@ fun CreateAlquilerScreen(
                                 colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
                             )
                         }
-                        
+
                         OutlinedTextField(
                             value = uiState.adelanto,
                             onValueChange = viewModel::onAdelantoChange,
                             label = { Text("Adelanto Recibido") },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().testTag("alquiler_adelanto_input"),   // ✅ AÑADIDO
                             prefix = { Text("S/. ") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             shape = MaterialTheme.shapes.large
                         )
-                        
+
                         if (uiState.saldo > 0) {
                             Surface(
                                 color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
@@ -207,7 +210,10 @@ fun CreateAlquilerScreen(
 
             Button(
                 onClick = { viewModel.crearAlquiler() },
-                modifier = Modifier.fillMaxWidth().height(58.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .testTag("alquiler_confirmar_button"),   // ✅ AÑADIDO
                 shape = MaterialTheme.shapes.extraLarge,
                 enabled = !uiState.isLoading
             ) {
@@ -219,7 +225,7 @@ fun CreateAlquilerScreen(
                     Text("Confirmar Alquiler", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
-            
+
             if (uiState.error != null) {
                 Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
@@ -243,7 +249,6 @@ fun CreateAlquilerScreen(
             items = uiState.itemsDisponibles,
             onDismiss = { viewModel.hideItemDialog() },
             header = {
-                // QA: Filtro por categoría dentro del diálogo
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -296,10 +301,17 @@ fun SelectionSection(title: String, content: @Composable ColumnScope.() -> Unit)
 }
 
 @Composable
-fun SelectionTile(label: String, value: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+fun SelectionTile(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier   // ✅ PARÁMETRO MODIFIER AÑADIDO
+) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),   // ✅ APLICAR MODIFIER
         shape = MaterialTheme.shapes.large,
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
@@ -341,10 +353,10 @@ fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelect
 
 @Composable
 fun <T> GenericSelectionDialog(
-    title: String, 
-    items: List<T>, 
-    onDismiss: () -> Unit, 
-    header: @Composable (() -> Unit)? = null, // QA Fix: Añadir header para filtros
+    title: String,
+    items: List<T>,
+    onDismiss: () -> Unit,
+    header: @Composable (() -> Unit)? = null,
     itemContent: @Composable (T) -> Unit
 ) {
     AlertDialog(
@@ -353,7 +365,7 @@ fun <T> GenericSelectionDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 header?.invoke()
-                
+
                 if (items.isEmpty()) {
                     Text("No hay elementos disponibles en este momento.", style = MaterialTheme.typography.bodySmall)
                 } else {

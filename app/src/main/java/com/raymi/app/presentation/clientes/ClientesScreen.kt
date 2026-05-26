@@ -20,11 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.*
+import androidx.compose.ui.platform.testTag
 
-/**
- * Pantalla de Directorio de Clientes Premium.
- * Diseño Senior: Búsqueda avanzada, ordenamiento por chips y lista de alta performance.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientesScreen(
@@ -37,7 +34,6 @@ fun ClientesScreen(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Observar mensajes de éxito/error (QA Fix: Mensaje de confirmación)
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -53,7 +49,7 @@ fun ClientesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LargeTopAppBar(
-                title = { 
+                title = {
                     Column {
                         Text("Mis Clientes", fontWeight = FontWeight.Black)
                         Text("${uiState.clientes.size} contactos registrados", style = MaterialTheme.typography.bodySmall)
@@ -73,11 +69,12 @@ fun ClientesScreen(
                 icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
                 text = { Text("Nuevo Cliente") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = CustomShapes.CardShape
+                shape = CustomShapes.CardShape,
+                modifier = Modifier.testTag("fab_add_cliente")
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             
             // 1. Buscador Inteligente
             RaymiSearchBar(

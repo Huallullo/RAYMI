@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun LoginScreen(
@@ -74,22 +75,22 @@ fun LoginScreen(
     }
 
     LaunchedEffect(uiState.error, uiState.infoMessage) {
-        uiState.error?.let { 
+        uiState.error?.let {
             snackbarHostState.showSnackbar(
                 message = it,
                 duration = SnackbarDuration.Long,
                 actionLabel = "Entendido"
             )
-            viewModel.clearError() 
+            viewModel.clearError()
         }
-        uiState.infoMessage?.let { 
+        uiState.infoMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearInfoMessage() 
+            viewModel.clearInfoMessage()
         }
     }
 
     Scaffold(
-        snackbarHost = { 
+        snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
                 Snackbar(
                     modifier = Modifier.padding(12.dp),
@@ -103,7 +104,7 @@ fun LoginScreen(
     ) { paddingValues ->
         // Diferenciación de fondo por modo (Senior UX)
         val backgroundColor by animateColorAsState(
-            if (uiState.isRegisterMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
+            if (uiState.isRegisterMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             else MaterialTheme.colorScheme.background,
             label = "BgColorAnimation"
         )
@@ -173,9 +174,9 @@ fun LoginScreen(
                 // Encabezado Dinámico
                 AnimatedContent(
                     targetState = uiState.isRegisterMode,
-                    transitionSpec = { 
+                    transitionSpec = {
                         (fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 2 }))
-                            .togetherWith(fadeOut(tween(400))) 
+                            .togetherWith(fadeOut(tween(400)))
                     },
                     label = "HeaderAnimation"
                 ) { isRegister ->
@@ -216,13 +217,16 @@ fun LoginScreen(
                         focusManager.clearFocus()
                         if (uiState.isRegisterMode) viewModel.register() else viewModel.login()
                     },
-                    modifier = Modifier.fillMaxWidth().height(58.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp)
+                        .testTag("login_button"),
                     shape = MaterialTheme.shapes.extraLarge,
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
                     enabled = !uiState.isLoading
                 ) {
                     Text(
-                        if (uiState.isRegisterMode) "COMENZAR AHORA" else "ENTRAR AL SISTEMA", 
+                        if (uiState.isRegisterMode) "COMENZAR AHORA" else "ENTRAR AL SISTEMA",
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.sp
                     )
@@ -248,7 +252,7 @@ fun LoginScreen(
                         )
                     }
                 }
-                
+
                 if (!uiState.isRegisterMode) {
                     TextButton(
                         onClick = viewModel::resetPassword,
@@ -257,7 +261,7 @@ fun LoginScreen(
                         Text("Recuperar mi contraseña", style = MaterialTheme.typography.labelMedium)
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
@@ -274,7 +278,7 @@ fun LoginScreen(
                         CircularProgressIndicator(strokeWidth = 3.dp)
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Sincronizando con la nube...", 
+                            "Sincronizando con la nube...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -294,11 +298,32 @@ fun AuthForm(
     passwordFocusRequester: FocusRequester
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Campo Nombre del Negocio (Solo en Registro)
+        AnimatedVisibility(visible = uiState.isRegisterMode) {
+            OutlinedTextField(
+                value = uiState.businessName,
+                onValueChange = viewModel::onBusinessNameChange,
+                label = { Text("Nombre de tu Negocio") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("business_name_input"),
+                shape = MaterialTheme.shapes.large,
+                leadingIcon = { Icon(Icons.Default.Storefront, contentDescription = null) },
+                isError = uiState.businessNameError != null,
+                supportingText = uiState.businessNameError?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
+            )
+        }
+
         OutlinedTextField(
             value = uiState.email,
             onValueChange = viewModel::onEmailChange,
             label = { Text("Correo Electrónico") },
-            modifier = Modifier.fillMaxWidth().focusRequester(emailFocusRequester),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(emailFocusRequester)
+                .testTag("email_input"),
             shape = MaterialTheme.shapes.large,
             leadingIcon = { Icon(Icons.Default.Mail, contentDescription = null) },
             isError = uiState.emailError != null,
@@ -312,7 +337,10 @@ fun AuthForm(
             value = uiState.password,
             onValueChange = viewModel::onPasswordChange,
             label = { Text("Contraseña") },
-            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(passwordFocusRequester)
+                .testTag("password_input"),
             shape = MaterialTheme.shapes.large,
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             trailingIcon = {
