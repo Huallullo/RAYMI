@@ -23,11 +23,12 @@ class AlquilerRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : AlquilerRepository {
 
-    override suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>> {
+    override suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
         return dataSource.observeBusinessAlquileresOrderedLimited(
             orderByField = "createdAt",
             descending = true,
-            limit = 500
+            limit = 500,
+            negocioId = workspaceId
         )
             .map { documents ->
                 val alquileres = documents
@@ -108,13 +109,13 @@ class AlquilerRepositoryImpl @Inject constructor(
     ): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            // IMPORTANTE: ahora usamos "itemId" en lugar de "vestuarioId"
-            val documents = dataSource.queryBusinessAlquileres(
-                field = "itemId",
-                value = vestuarioId,
-                limit = 300
-            )
-            val alquileres = documents.map { (id, data) ->
+            // QA Fix: Buscar poritemId (nuevo) y vestuarioId (legacy)
+            val byItemId = dataSource.queryBusinessAlquileres("itemId", vestuarioId, 500)
+            val byVestuarioId = dataSource.queryBusinessAlquileres("vestuarioId", vestuarioId, 500)
+            
+            val allDocs = (byItemId + byVestuarioId).distinctBy { it.first }
+            
+            val alquileres = allDocs.map { (id, data) ->
                 AlquilerDto.fromMap(id, data).toDomain()
             }.sortedByDescending { it.createdAt }
             emit(Resource.Success(alquileres))

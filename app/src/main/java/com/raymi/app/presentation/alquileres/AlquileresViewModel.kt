@@ -42,12 +42,13 @@ class AlquileresViewModel @Inject constructor(
         observeJob?.cancel()
         observeJob = viewModelScope.launch {
             try {
-                // Obtenemos el ID del workspace actual del manager centralizado
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(isLoading = false, alquileres = emptyList(), filteredAlquileres = emptyList()) }
+                    return@launch
+                }
                 
-                // NOTA: El caso de uso debería recibir el workspaceId para filtrar en Firestore
-                // Si el caso de uso aún no está actualizado, lo manejamos localmente por ahora.
-                getAlquileresUseCase().collect { result ->
+                getAlquileresUseCase(workspaceId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                         is Resource.Success -> {
@@ -64,7 +65,7 @@ class AlquileresViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "No se pudo identificar el negocio activo") }
+                _uiState.update { it.copy(isLoading = false, error = "No se pudo identificar el negocio activo") }
             }
         }
     }

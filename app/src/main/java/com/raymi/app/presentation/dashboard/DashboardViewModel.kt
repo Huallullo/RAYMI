@@ -83,7 +83,7 @@ class DashboardViewModel @Inject constructor(
 
                     // 2. Alquileres en TIEMPO REAL
                     launch {
-                        getAlquileresUseCase().collect { result ->
+                        getAlquileresUseCase(workspaceId).collect { result ->
                             if (result is Resource.Success) {
                                 val alquileres = result.data ?: emptyList()
                                 latestAlquileres = alquileres
@@ -103,12 +103,17 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun calcularActividadSemanal(alquileres: List<Alquiler>) {
-        val dias = listOf("Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom")
-        val actividad = dias.associateWith { 0 }.toMutableMap()
-        alquileres.take(20).forEach { _ ->
-            val diaAleatorio = dias.random()
-            actividad[diaAleatorio] = actividad[diaAleatorio]!! + 1
+        val diasSemana = listOf("Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab")
+        val actividad = mutableMapOf("Lun" to 0, "Mar" to 0, "Mie" to 0, "Jue" to 0, "Vie" to 0, "Sab" to 0, "Dom" to 0)
+        
+        val calendar = java.util.Calendar.getInstance()
+        alquileres.forEach { alquiler ->
+            calendar.time = alquiler.createdAt.toDate()
+            val diaIdx = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1
+            val diaNombre = diasSemana[diaIdx]
+            actividad[diaNombre] = (actividad[diaNombre] ?: 0) + 1
         }
+
         _uiState.update { it.copy(actividadSemanal = actividad) }
     }
 

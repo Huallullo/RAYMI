@@ -28,7 +28,13 @@ data class UserPlan(
 
 enum class PlanType {
     FREE,   // S/. 0: Con anuncios, 1 workspace, 50 items
-    PRO     // S/. 19.99/mes: Sin anuncios, ilimitado
+    PRO;    // S/. 19.99/mes: Sin anuncios, ilimitado
+
+    companion object {
+        const val PRICE_FREE = 0.0
+        const val PRICE_PRO = 19.90 // Unificado según sugerencia comercial
+        const val CURRENCY = "PEN"
+    }
 }
 
 data class PlanDetails(

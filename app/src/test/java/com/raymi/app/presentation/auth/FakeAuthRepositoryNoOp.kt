@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class FakeAuthRepositoryNoOp : AuthRepository {
-    override val currentUser: FirebaseUser? = null
+    override suspend fun getCurrentUser(): FirebaseUser? = null
+    
+    override suspend fun getCurrentBusinessId(): String = "test-business-id"
 
     override suspend fun login(email: String, password: String): Flow<Resource<FirebaseUser>> = flow {
         if (email == "admin@raymi.com" && password == "admin123") {

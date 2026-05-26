@@ -33,11 +33,14 @@ class CategoriaRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val dto = CategoriaDto.fromDomain(categoria)
-            val path = "negocios/${categoria.workspaceId}/categorias"
-            val id = dataSource.addDocument(path, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
+            val id = dataSource.addBusinessDocument(
+                workspaceId = categoria.workspaceId,
+                collection = "categorias",
+                data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            )
             emit(Resource.Success(id))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al crear categoría"))
+            emit(Resource.Error("Error al crear categoría: ${e.message}"))
         }
     }
 

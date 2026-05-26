@@ -50,10 +50,31 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
      * Obtiene todos los alquileres activos que están vencidos desde Firestore.
      */
     private suspend fun obtenerAlquileresVencidos(): List<Alquiler> {
-        return firebaseDataSource
-            .getAllDocuments(FirebaseDataSource.COLLECTION_ALQUILERES)
-            .mapNotNull { (id, data) -> mapToAlquiler(id, data) }
-            .filter { it.estado == EstadoAlquiler.ACTIVO && it.estaVencido }
+        val todosLosVencidos = mutableListOf<Alquiler>()
+        
+        try {
+            // Obtenemos todos los negocios para procesarlos uno por uno (SaaS Architecture)
+            val negocios = firebaseDataSource.getAllDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS)
+            
+            negocios.forEach { (negocioId, _) ->
+                val alquileresNegocio = firebaseDataSource.queryBusinessDocuments(
+                    collection = "alquileres",
+                    field = "estado",
+                    value = "ACTIVO",
+                    limit = 1000,
+                    negocioId = negocioId
+                ).mapNotNull { (id, data) -> 
+                    // Manual mapping to handle legacy/new fields consistently
+                    mapToAlquiler(id, data) 
+                }.filter { it.estaVencido }
+                
+                todosLosVencidos.addAll(alquileresNegocio)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CheckOverdueWorker", "Error al obtener alquileres SaaS: ${e.message}")
+        }
+        
+        return todosLosVencidos
     }
 
     /**

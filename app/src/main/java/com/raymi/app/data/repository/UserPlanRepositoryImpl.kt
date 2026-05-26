@@ -66,13 +66,13 @@ class UserPlanRepositoryImpl @Inject constructor(
         return when (planType) {
             PlanType.FREE -> Resource.Success(mapOf(
                 "nombre" to "Plan Gratuito",
-                "precio" to 0.0,
+                "precio" to PlanType.PRICE_FREE,
                 "items" to 50,
                 "workspaces" to 1
             ))
             PlanType.PRO -> Resource.Success(mapOf(
                 "nombre" to "Plan Pro Business",
-                "precio" to 19.99,
+                "precio" to PlanType.PRICE_PRO,
                 "items" to "Ilimitados",
                 "workspaces" to "Ilimitados"
             ))

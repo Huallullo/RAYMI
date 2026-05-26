@@ -175,6 +175,10 @@ class CreateAlquilerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Negocio no identificado") }
+                    return@launch
+                }
                 
                 // Normalización de datos (Trimming y Casing)
                 val nuevoAlquiler = Alquiler(

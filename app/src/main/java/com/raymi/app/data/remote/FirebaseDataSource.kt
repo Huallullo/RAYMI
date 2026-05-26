@@ -25,7 +25,6 @@ class FirebaseDataSource @Inject constructor(
         const val COLLECTION_ALQUILERES = "alquileres"
         const val COLLECTION_USUARIOS = "usuarios"
         const val COLLECTION_NEGOCIOS = "negocios"
-        const val COLLECTION_WORKSPACES = "negocios"
         const val COLLECTION_CLIENTES_DNI_INDEX = "clientes_dni_index"
         const val COLLECTION_VESTUARIOS_CODIGO_INDEX = "vestuarios_codigo_index"
         const val DEFAULT_QUERY_LIMIT = 500L
@@ -167,7 +166,7 @@ class FirebaseDataSource @Inject constructor(
         val uid = auth.currentUser?.uid ?: throw IllegalStateException("Usuario no autenticado")
         val email = auth.currentUser?.email ?: ""
         
-        val workspaceRef = firestore.collection(COLLECTION_WORKSPACES).document()
+        val workspaceRef = firestore.collection(COLLECTION_NEGOCIOS).document()
         val statsRef = workspaceRef.collection("metadata").document("stats")
         val miembroRef = workspaceRef.collection("miembros").document(uid)
         
@@ -315,9 +314,11 @@ class FirebaseDataSource @Inject constructor(
         collection: String,
         field: String,
         value: Any,
-        limit: Long = DEFAULT_QUERY_LIMIT
+        limit: Long = DEFAULT_QUERY_LIMIT,
+        negocioId: String? = null
     ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = businessCollection(collection)
+        val targetNegocioId = negocioId ?: getCurrentBusinessId()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(targetNegocioId).collection(collection)
             .whereEqualTo(field, value)
             .limit(limit)
             .get()
@@ -371,6 +372,11 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun deleteBusinessDocument(collection: String, documentId: String) {
         businessCollection(collection).document(documentId).delete().await()
+    }
+
+    suspend fun addBusinessDocument(workspaceId: String, collection: String, data: Map<String, Any>): String {
+        val docRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection(collection).add(data).await()
+        return docRef.id
     }
 
     // ========== FUNCIONES BUSINESS PARA CLIENTES (¡LA QUE FALTABA!) ==========
@@ -476,7 +482,7 @@ class FirebaseDataSource @Inject constructor(
      * Esto evita leer toda la colección para obtener totales en el Dashboard.
      */
     suspend fun updateStats(workspaceId: String, field: String, increment: Long) {
-        val statsRef = firestore.collection(COLLECTION_WORKSPACES).document(workspaceId)
+        val statsRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
             .collection("metadata").document("stats")
         
         // Usar set con merge para asegurar que el documento exista sin fallar
@@ -488,7 +494,7 @@ class FirebaseDataSource @Inject constructor(
      * Costo: 1 lectura de Firestore.
      */
     suspend fun getStats(workspaceId: String): Map<String, Any>? {
-        val snapshot = firestore.collection(COLLECTION_WORKSPACES).document(workspaceId)
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
             .collection("metadata").document("stats").get().await()
         return if (snapshot.exists()) snapshot.data else null
     }

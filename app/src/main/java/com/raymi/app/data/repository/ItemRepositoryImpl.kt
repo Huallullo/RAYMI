@@ -56,16 +56,35 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun addItem(item: Item): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
-            val dto = ItemDto.fromDomain(item)
-            val id = dataSource.addBusinessItemWithUniqueCodigo(
-                itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
-                codigoRaw = item.codigo
-            )
+            var finalItem = item
+            var success = false
+            var id = ""
+            var attempts = 0
             
-            // Actualización atómica de estadísticas
-            dataSource.updateStats(item.workspaceId, "totalItems", 1L)
+            while (!success && attempts < 3) {
+                try {
+                    val dto = ItemDto.fromDomain(finalItem)
+                    id = dataSource.addBusinessItemWithUniqueCodigo(
+                        itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
+                        codigoRaw = finalItem.codigo
+                    )
+                    success = true
+                } catch (e: IllegalStateException) {
+                    if (e.message?.contains("código") == true) {
+                        attempts++
+                        finalItem = finalItem.copy(codigo = com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem())
+                    } else {
+                        throw e
+                    }
+                }
+            }
 
-            emit(Resource.Success(id))
+            if (success) {
+                dataSource.updateStats(item.workspaceId, "totalItems", 1L)
+                emit(Resource.Success(id))
+            } else {
+                emit(Resource.Error("No se pudo generar un código único tras varios intentos"))
+            }
         } catch (e: Exception) {
             emit(Resource.Error("Error al agregar ítem: ${e.message}"))
         }

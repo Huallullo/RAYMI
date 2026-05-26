@@ -26,8 +26,16 @@ object GeneradorCodigo {
      * con transacciones atómicas (ver [FirebaseDataSource.addVestuarioWithUniqueCodigo]).
      */
     fun generarCodigoVestuario(): String {
+        return generarCodigoConPrefijo("VES")
+    }
+
+    fun generarCodigoItem(): String {
+        return generarCodigoConPrefijo("ITEM")
+    }
+
+    private fun generarCodigoConPrefijo(prefijo: String): String {
         val fecha  = SimpleDateFormat("yyMMdd", Locale.getDefault()).format(Date())
         val numero = (random.nextInt(900) + 100) // 100-999, siempre 3 dígitos
-        return "VES-$fecha-$numero"
+        return "$prefijo-$fecha-$numero"
     }
 }

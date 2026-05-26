@@ -13,7 +13,7 @@ interface AlquilerRepository {
     /**
      * Obtiene todos los alquileres
      */
-    suspend fun getAlquileres(): Flow<Resource<List<Alquiler>>>
+    suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene un alquiler por su ID

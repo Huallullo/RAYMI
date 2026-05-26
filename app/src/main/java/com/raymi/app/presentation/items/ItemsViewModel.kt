@@ -44,8 +44,10 @@ class ItemsViewModel @Inject constructor(
                     // QA Fix: Corrutinas paralelas para flujos continuos
                     launch {
                         getCategoriasUseCase(workspaceId).collect { result ->
-                            if (result is Resource.Success) {
-                                _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                            when (result) {
+                                is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+                                is Resource.Success -> _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                                is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                             }
                         }
                     }
@@ -54,7 +56,7 @@ class ItemsViewModel @Inject constructor(
                         cargarItems(workspaceId)
                     }
                 } else {
-                    _uiState.update { it.copy(error = "Negocio no identificado") }
+                    _uiState.update { it.copy(isLoading = false, items = emptyList(), itemsFiltrados = emptyList()) }
                 }
             }
         }

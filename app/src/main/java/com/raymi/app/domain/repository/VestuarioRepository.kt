@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Interfaz del repositorio de vestuarios
  */
+@Deprecated("Usar ItemRepository para seguir arquitectura SaaS genérica")
 interface VestuarioRepository {
 
     /**

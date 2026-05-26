@@ -30,6 +30,11 @@ class CategoriasViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(isLoading = false, categorias = emptyList()) }
+                    return@launch
+                }
+                
                 getCategoriasUseCase(workspaceId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
@@ -38,7 +43,7 @@ class CategoriasViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "No hay negocio seleccionado") }
+                _uiState.update { it.copy(isLoading = false, error = "No hay negocio seleccionado") }
             }
         }
     }
@@ -53,6 +58,11 @@ class CategoriasViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(error = "No hay negocio seleccionado") }
+                    return@launch
+                }
+
                 val nueva = Categoria(
                     workspaceId = workspaceId,
                     nombre = nombreLimpio.split(" ").joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } },

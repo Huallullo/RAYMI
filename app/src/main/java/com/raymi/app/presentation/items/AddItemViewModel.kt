@@ -33,9 +33,7 @@ class AddItemViewModel @Inject constructor(
     }
 
     private fun generarCodigoAutomatico() {
-        val timestamp = System.currentTimeMillis().toString().takeLast(6)
-        val random = (10..99).random()
-        onCodigoChange("ITEM-$timestamp$random")
+        onCodigoChange(com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem())
     }
 
     private fun cargarCategorias() {

@@ -25,10 +25,10 @@ class WorkspaceManager @Inject constructor() {
     }
 
     /**
-     * Obtiene el ID del workspace actual. Lanza excepción si no hay uno seleccionado.
+     * Obtiene el ID del workspace actual. Retorna null si no hay uno seleccionado.
      */
-    fun getWorkspaceId(): String {
-        return _currentWorkspace.value?.id ?: throw IllegalStateException("No hay un workspace seleccionado")
+    fun getWorkspaceId(): String? {
+        return _currentWorkspace.value?.id
     }
 
     /**

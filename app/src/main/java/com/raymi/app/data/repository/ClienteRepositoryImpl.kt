@@ -123,11 +123,11 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // Temporal: mientras alquileres no estén migrados, usamos la colección global
-            val alquileres = dataSource.queryDocumentsLimited(
-                FirebaseDataSource.COLLECTION_ALQUILERES,
-                "clienteId",
-                clienteId,
+            // QA Fix: Usar la colección de alquileres del negocio actual
+            val alquileres = dataSource.queryBusinessDocuments(
+                collection = "alquileres",
+                field = "clienteId",
+                value = clienteId,
                 limit = 300
             )
             if (alquileres.any { (_, data) -> data["estado"] == "ACTIVO" }) {
