@@ -67,6 +67,7 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String) {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
         val pago = Pago(alquilerId = alquilerId, monto = monto, metodoPago = metodo, referencia = referencia)
@@ -174,6 +175,7 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
+    @Suppress("UNUSED_FUNCTION")
     fun compartirPdfPorWhatsApp() {
         val pdfUri = _uiState.value.pdfUri ?: run {
             _uiState.value = _uiState.value.copy(error = "Primero genera el PDF")

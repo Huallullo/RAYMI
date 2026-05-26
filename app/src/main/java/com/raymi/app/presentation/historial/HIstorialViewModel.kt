@@ -55,7 +55,7 @@ class HistorialViewModel @Inject constructor(
                         is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.update { it.copy(error = "No se pudo cargar el historial del negocio") }
             }
         }

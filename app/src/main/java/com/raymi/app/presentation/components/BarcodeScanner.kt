@@ -91,7 +91,7 @@ fun BarcodeScanner(
                     try {
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalyzer)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Log error
                     }
                 }, ContextCompat.getMainExecutor(ctx))

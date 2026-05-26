@@ -56,7 +56,7 @@ class CategoriaRepositoryImpl @Inject constructor(
             val path = "negocios/${categoria.workspaceId}/categorias"
             dataSource.updateDocument(path, categoria.id, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
             emit(Resource.Success(Unit))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emit(Resource.Error("Error al actualizar categoría"))
         }
     }
@@ -67,7 +67,7 @@ class CategoriaRepositoryImpl @Inject constructor(
             val path = "negocios/$workspaceId/categorias"
             dataSource.deleteDocument(path, categoriaId)
             emit(Resource.Success(Unit))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emit(Resource.Error("Error al eliminar categoría"))
         }
     }

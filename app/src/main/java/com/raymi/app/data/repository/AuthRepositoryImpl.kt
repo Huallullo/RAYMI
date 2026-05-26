@@ -3,6 +3,7 @@ package com.raymi.app.data.repository
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.raymi.app.core.utils.AppLogger
+import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
@@ -12,13 +13,14 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 class AuthRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val dataSource: FirebaseDataSource,
+    private val authDataSource: AuthDataSource
 ) : AuthRepository {
 
     /**
      * Versión suspendida de obtener el usuario actual
      */
-    override suspend fun getCurrentUser(): FirebaseUser? = dataSource.getCurrentUser()
+    override suspend fun getCurrentUser(): FirebaseUser? = authDataSource.getCurrentUser()
 
     /**
      * Obtiene el ID del negocio actual (obliga a crear/obtener el negocio)
@@ -41,7 +43,7 @@ class AuthRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            val result = dataSource.signIn(email, password)
+            val result = authDataSource.signIn(email, password)
             val user = result.user
 
             if (user != null) {
@@ -117,7 +119,7 @@ class AuthRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            val result = dataSource.signUp(email, password)
+            val result = authDataSource.signUp(email, password)
             val user = result.user
 
             if (user != null) {
@@ -164,7 +166,7 @@ class AuthRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            dataSource.sendPasswordResetEmail(email.trim())
+            authDataSource.sendPasswordResetEmail(email.trim())
             emit(Resource.Success(Unit))
 
         } catch (e: CancellationException) {
@@ -189,7 +191,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout(): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            dataSource.signOut()
+            authDataSource.signOut()
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e
@@ -201,5 +203,5 @@ class AuthRepositoryImpl @Inject constructor(
     /**
      * Verifica si hay un usuario autenticado (no suspendida)
      */
-    override fun isUserAuthenticated(): Boolean = dataSource.isUserAuthenticated()
+    override fun isUserAuthenticated(): Boolean = authDataSource.isUserAuthenticated()
 }

@@ -169,6 +169,10 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    
+    // Explicitly add common for ML Kit if needed
+    implementation("com.google.mlkit:vision-common:17.3.0")
+    implementation("com.google.mlkit:barcode-scanning-common:17.0.0")
 
     // PDF - iText for Android
     implementation("com.itextpdf:itext7-core:7.2.6") {

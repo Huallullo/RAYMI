@@ -191,7 +191,7 @@ class LoginViewModel @Inject constructor(
                 } else {
                     _uiState.update { it.copy(isLoading = false, error = "Usuario no autenticado") }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 _navigationEvent.emit(NavigationEvent.GoToWorkspaceSelection)
             }

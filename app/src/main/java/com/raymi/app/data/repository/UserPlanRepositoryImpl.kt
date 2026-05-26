@@ -40,7 +40,7 @@ class UserPlanRepositoryImpl @Inject constructor(
             val dto = UserPlanDto.fromDomain(newPlan)
             dataSource.updateDocument(FirebaseDataSource.COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
             emit(Resource.Success(newPlan))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emit(Resource.Error("Error al crear plan inicial"))
         }
     }
@@ -58,7 +58,7 @@ class UserPlanRepositoryImpl @Inject constructor(
             val dto = UserPlanDto.fromDomain(proPlan)
             dataSource.updateDocument(FirebaseDataSource.COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
             emit(Resource.Success(proPlan))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emit(Resource.Error("Error al subir a PRO"))
         }
     }
@@ -91,7 +91,7 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val ownedWorkspaces = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
                 ownedWorkspaces.size < plan.workspacesLimit
             } else false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -108,7 +108,7 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
                 currentItems < plan.itemsLimit
             } else false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }

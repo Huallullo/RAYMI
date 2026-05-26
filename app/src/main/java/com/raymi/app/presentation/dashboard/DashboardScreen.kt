@@ -1,6 +1,5 @@
 package com.raymi.app.presentation.dashboard
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.ads.AdManager
 import com.raymi.app.presentation.components.*
-import java.util.*
 
 /**
  * Dashboard Ejecutivo Premium v2.

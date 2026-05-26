@@ -27,11 +27,6 @@ class FirebaseDataSource @Inject constructor(
     }
 
     // ========== OPERACIONES GENÉRICAS (colecciones raíz) ==========
-    suspend fun addDocument(collection: String, data: Map<String, Any>): String {
-        val docRef = firestore.collection(collection).add(data).await()
-        return docRef.id
-    }
-
     suspend fun getDocument(collection: String, documentId: String): Map<String, Any>? {
         val snapshot = firestore.collection(collection).document(documentId).get().await()
         return if (snapshot.exists()) snapshot.data else null
@@ -40,15 +35,6 @@ class FirebaseDataSource @Inject constructor(
     suspend fun getAllDocuments(collection: String): List<Pair<String, Map<String, Any>>> {
         val snapshot = firestore.collection(collection).get().await()
         return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-    }
-
-    suspend fun getAllDocumentsOrderedLimited(
-        collection: String,
-        orderByField: String,
-        descending: Boolean = true,
-        limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> {
-        return getDocumentsPageOrdered(collection, orderByField, descending, limit, null).first
     }
 
     suspend fun getDocumentsPageOrdered(
@@ -70,10 +56,6 @@ class FirebaseDataSource @Inject constructor(
         firestore.collection(collection).document(documentId).update(data).await()
     }
 
-    suspend fun setDocument(collection: String, documentId: String, data: Map<String, Any>) {
-        firestore.collection(collection).document(documentId).set(data).await()
-    }
-
     suspend fun deleteDocument(collection: String, documentId: String) {
         firestore.collection(collection).document(documentId).delete().await()
     }
@@ -87,103 +69,11 @@ class FirebaseDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
-    suspend fun queryDocumentsLimited(
-        collection: String,
-        field: String,
-        value: Any,
-        limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection).whereEqualTo(field, value).limit(limit).get().await()
-        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-    }
-
-    fun observeCollection(collection: String): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
-        if (auth.currentUser == null) {
-            close(Exception("Usuario no autenticado"))
-            return@callbackFlow
-        }
-        val subscription = firestore.collection(collection).addSnapshotListener { snapshot, error ->
-            if (error != null) { close(error); return@addSnapshotListener }
-            if (snapshot != null) {
-                val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-                trySend(documents)
-            }
-        }
-        awaitClose { subscription.remove() }
-    }
-
-    fun observeCollectionOrderedLimited(
-        collection: String,
-        orderByField: String,
-        descending: Boolean = true,
-        limit: Long = 200
-    ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
-        if (auth.currentUser == null) {
-            close(Exception("Usuario no autenticado"))
-            return@callbackFlow
-        }
-        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
-        val subscription = firestore.collection(collection)
-            .orderBy(orderByField, direction)
-            .limit(limit)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
-                if (snapshot != null) {
-                    val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-                    trySend(documents)
-                }
-            }
-        awaitClose { subscription.remove() }
-    }
-
-    suspend fun customQuery(
-        collection: String,
-        queryBuilder: (Query) -> Query
-    ): List<Pair<String, Map<String, Any>>> {
-        val query = queryBuilder(firestore.collection(collection))
-        val snapshot = query.get().await()
-        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-    }
-
     // ========== AUTENTICACIÓN ==========
     fun getCurrentUser() = auth.currentUser
-    fun isUserAuthenticated() = auth.currentUser != null
-    suspend fun signIn(email: String, password: String) = auth.signInWithEmailAndPassword(email, password).await()
-    suspend fun signUp(email: String, password: String) = auth.createUserWithEmailAndPassword(email, password).await()
-    suspend fun sendPasswordResetEmail(email: String) = auth.sendPasswordResetEmail(email).await()
-    fun signOut() = auth.signOut()
 
     // ========== PERFILES Y NEGOCIOS (SaaS) ==========
     
-    suspend fun createWorkspaceAtomic(
-        workspaceData: Map<String, Any>,
-        statsData: Map<String, Any>
-    ): String {
-        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Usuario no autenticado")
-        val email = auth.currentUser?.email ?: ""
-        
-        val workspaceRef = firestore.collection(COLLECTION_NEGOCIOS).document()
-        val statsRef = workspaceRef.collection("metadata").document("stats")
-        val miembroRef = workspaceRef.collection("miembros").document(uid)
-        
-        val now = FieldValue.serverTimestamp()
-
-        firestore.runBatch { batch ->
-            batch.set(workspaceRef, workspaceData + mapOf("createdAt" to now, "updatedAt" to now))
-            batch.set(statsRef, statsData)
-            // IMPORTANTE: Según tus reglas de seguridad, DEBE existir un miembro para poder leer el negocio
-            batch.set(miembroRef, mapOf(
-                "uid" to uid,
-                "email" to email,
-                "rol" to "owner",
-                "estado" to "ACTIVO",
-                "createdAt" to now
-            ))
-        }.await()
-        
-        return workspaceRef.id
-    }
-
     suspend fun createBusinessProfileForUser(user: FirebaseUser, businessName: String): String {
         val uid = user.uid
         val email = user.email.orEmpty().trim()
@@ -341,7 +231,7 @@ class FirebaseDataSource @Inject constructor(
         orderByField: String,
         descending: Boolean = true,
         limit: Long = 200,
-        negocioId: String? = null // QA Fix: Permitir pasar el ID directamente
+        negocioId: String? = null
     ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
         val user = auth.currentUser ?: run { close(Exception("Usuario no autenticado")); return@callbackFlow }
         val finalNegocioId = negocioId ?: try { ensureBusinessProfileForUser(user) } catch (e: Exception) { close(e); return@callbackFlow }

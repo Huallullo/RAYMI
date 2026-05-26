@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.theme.CustomShapes
@@ -29,7 +28,7 @@ fun ClientesScreen(
     viewModel: ClientesViewModel = hiltViewModel(),
     onClienteClick: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    navigatedFromResult: Boolean
+    @Suppress("UNUSED_PARAMETER") navigatedFromResult: Boolean
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()

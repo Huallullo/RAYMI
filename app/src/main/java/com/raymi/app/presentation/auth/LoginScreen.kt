@@ -43,7 +43,7 @@ fun LoginScreen(
     onNavigateToDashboard: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
     onNavigateToWorkspaceSelection: () -> Unit,
-    onNavigateBack: () -> Unit
+    @Suppress("UNUSED_PARAMETER") onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

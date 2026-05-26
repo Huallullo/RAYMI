@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.presentation.components.RaymiErrorState
@@ -28,7 +27,7 @@ import com.raymi.app.presentation.components.RaymiLoadingIndicator
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditItemScreen(
-    itemId: String,
+    @Suppress("UNUSED_PARAMETER") itemId: String,
     viewModel: EditItemViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
