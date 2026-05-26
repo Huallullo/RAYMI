@@ -1,7 +1,9 @@
 package com.raymi.app.data.repository
 
 import com.raymi.app.data.model.dto.WorkspaceDto
+import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.data.remote.WorkspaceDataSource
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.Workspace
 import com.raymi.app.domain.repository.WorkspaceRepository
@@ -12,7 +14,9 @@ import javax.inject.Singleton
 
 @Singleton
 class WorkspaceRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val dataSource: FirebaseDataSource,
+    private val workspaceDataSource: WorkspaceDataSource,
+    private val authDataSource: AuthDataSource
 ) : WorkspaceRepository {
 
     override suspend fun getWorkspacesByUser(userId: String): Flow<Resource<List<Workspace>>> = flow {
@@ -46,6 +50,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun createWorkspace(workspace: Workspace): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
+            val user = authDataSource.getCurrentUser() ?: throw IllegalStateException("Usuario no autenticado")
             val dto = WorkspaceDto.fromDomain(workspace)
             val workspaceData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             
@@ -56,7 +61,12 @@ class WorkspaceRepositoryImpl @Inject constructor(
                 "totalClientes" to 0L
             )
 
-            val id = dataSource.createWorkspaceAtomic(workspaceData, statsData)
+            val id = workspaceDataSource.createWorkspaceAtomic(
+                workspaceData = workspaceData,
+                statsData = statsData,
+                uid = user.uid,
+                email = user.email ?: ""
+            )
             emit(Resource.Success(id))
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Error al crear workspace"))

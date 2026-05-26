@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.testTag
 
 /**
  * Pantalla de Registro de Ítem Personalizable (SaaS).
- * El usuario puede clasificar sus productos y añadir campos según el tipo de negocio.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +68,6 @@ fun AddItemScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Clasificación
             Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             ExposedDropdownMenuBox(
@@ -109,14 +107,13 @@ fun AddItemScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // 2. Información General
             Text("Información Básica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = uiState.nombre,
                 onValueChange = viewModel::onNombreChange,
                 label = { Text("Nombre del Ítem") },
-                placeholder = { Text("Ej: Vestido de Gala, Drone 4K, Camioneta") },
+                placeholder = { Text("Ej: Vestido de Gala, Drone 4K") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("item_nombre_input"),
@@ -148,7 +145,6 @@ fun AddItemScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // 3. Personalización (Campos Dinámicos)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -160,14 +156,6 @@ fun AddItemScreen(
                     Spacer(Modifier.width(4.dp))
                     Text("Añadir Campo")
                 }
-            }
-
-            if (uiState.atributos.isEmpty()) {
-                Text(
-                    "Personaliza tu ítem con campos específicos para tu negocio.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             uiState.atributos.forEach { (key, value) ->
@@ -189,7 +177,6 @@ fun AddItemScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 4. Botón Final
             Button(
                 onClick = { viewModel.guardarItem() },
                 modifier = Modifier
@@ -208,7 +195,6 @@ fun AddItemScreen(
         }
     }
 
-    // Diálogo para nuevo campo personalizado
     if (showAttrDialog) {
         var isNumberType by remember { mutableStateOf(false) }
 
@@ -220,7 +206,7 @@ fun AddItemScreen(
                     OutlinedTextField(
                         value = newAttrKey,
                         onValueChange = { newAttrKey = it },
-                        label = { Text("Nombre (Ej: Talla, Color, Marca, Placa)") },
+                        label = { Text("Nombre (Ej: Talla, Marca)") },
                         modifier = Modifier.fillMaxWidth()
                     )
 

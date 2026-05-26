@@ -22,13 +22,9 @@ object GeneradorCodigo {
      *
      * El componente aleatorio de 3 dígitos reduce la probabilidad de colisión
      * cuando se crean varios vestuarios el mismo día. Para una garantía absoluta
-     * de unicidad en Firestore se usa la colección `vestuarios_codigo_index`
-     * con transacciones atómicas (ver [FirebaseDataSource.addVestuarioWithUniqueCodigo]).
+     * de unicidad en Firestore se usa la colección `items_codigo_index`
+     * con transacciones atómicas (ver ItemDataSource).
      */
-    fun generarCodigoVestuario(): String {
-        return generarCodigoConPrefijo("VES")
-    }
-
     fun generarCodigoItem(): String {
         return generarCodigoConPrefijo("ITEM")
     }

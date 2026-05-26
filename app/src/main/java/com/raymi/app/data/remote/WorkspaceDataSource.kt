@@ -31,4 +31,29 @@ class WorkspaceDataSource @Inject constructor(
         val snapshot = firestore.collection(COLLECTION_USUARIOS).document(uid).get().await()
         return if (snapshot.exists()) snapshot.data else null
     }
+
+    suspend fun createWorkspaceAtomic(
+        workspaceData: Map<String, Any>,
+        statsData: Map<String, Any>,
+        uid: String,
+        email: String
+    ): String {
+        val workspaceRef = firestore.collection(COLLECTION_NEGOCIOS).document()
+        val statsRef = workspaceRef.collection("metadata").document("stats")
+        val miembroRef = workspaceRef.collection("miembros").document(uid)
+        val now = FieldValue.serverTimestamp()
+
+        firestore.runBatch { batch ->
+            batch.set(workspaceRef, workspaceData + mapOf("id" to workspaceRef.id, "createdAt" to now, "updatedAt" to now))
+            batch.set(statsRef, statsData + mapOf("updatedAt" to now))
+            batch.set(miembroRef, mapOf(
+                "uid" to uid,
+                "email" to email,
+                "rol" to "owner",
+                "estado" to "ACTIVO",
+                "createdAt" to now
+            ))
+        }.await()
+        return workspaceRef.id
+    }
 }

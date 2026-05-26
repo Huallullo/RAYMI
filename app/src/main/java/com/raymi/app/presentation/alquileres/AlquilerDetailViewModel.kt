@@ -67,6 +67,9 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Reservado para diálogo de abonos futuros
+     */
     @Suppress("UNUSED_PARAMETER")
     fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String) {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return

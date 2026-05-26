@@ -110,6 +110,22 @@ class RentalDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { it.data }
     }
 
+    suspend fun getAlquiler(workspaceId: String, alquilerId: String): Map<String, Any>? {
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+            .collection("alquileres").document(alquilerId).get().await()
+        return if (snapshot.exists()) snapshot.data else null
+    }
+
+    suspend fun updateAlquiler(workspaceId: String, alquilerId: String, data: Map<String, Any>) {
+        firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+            .collection("alquileres").document(alquilerId).update(data).await()
+    }
+
+    suspend fun deleteAlquiler(workspaceId: String, alquilerId: String) {
+        firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+            .collection("alquileres").document(alquilerId).delete().await()
+    }
+
     suspend fun registrarDevolucionTransactional(workspaceId: String, alquilerId: String) {
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)

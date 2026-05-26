@@ -1,12 +1,6 @@
 package com.raymi.app.core.di
 
 import android.content.Context
-import com.raymi.app.data.remote.AuthDataSource
-import com.raymi.app.data.remote.ClientDataSource
-import com.raymi.app.data.remote.ItemDataSource
-import com.raymi.app.data.remote.RentalDataSource
-import com.raymi.app.data.remote.StorageDataSource
-import com.raymi.app.data.remote.WorkspaceDataSource
 import com.raymi.app.data.repository.*
 import com.raymi.app.domain.repository.*
 import dagger.Binds

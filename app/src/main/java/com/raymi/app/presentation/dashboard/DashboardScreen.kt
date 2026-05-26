@@ -19,16 +19,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.ads.AdManager
 import com.raymi.app.presentation.components.*
+import java.util.Locale
 
 /**
  * Dashboard Ejecutivo Premium v2.
- * Diseño Senior: Visualización de datos en tiempo real y estética funcional limpia.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +80,6 @@ fun DashboardScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(28.dp)
                 ) {
-                    // 1. Resumen Ejecutivo (Finanzas)
                     ExecutiveSummaryCard(
                         ingresoMes = uiState.estadisticas.ingresosMes,
                         ingresoTotal = uiState.estadisticas.ingresosTotales,
@@ -89,13 +87,11 @@ fun DashboardScreen(
                         onExport = { viewModel.exportarResumenFinancieroPdf() }
                     )
 
-                    // 2. Gráfico de Actividad Semanal (Visual)
                     if (uiState.actividadSemanal.isNotEmpty()) {
                         Text("Actividad últimos 7 días", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         WeeklyActivityChart(uiState.actividadSemanal)
                     }
 
-                    // 3. Estado Operativo (KPIs de Inventario y Clientes)
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Estado Operativo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         OperationsGrid(
@@ -108,13 +104,11 @@ fun DashboardScreen(
                         )
                     }
 
-                    // 4. Gestión Rápida
                     QuickManagementRow(
                         onNewRental = onNavigateToAlquileres,
                         onNewClient = onNavigateToClientes
                     )
 
-                    // 5. Publicidad (solo FREE)
                     if (AdManager.debeMostrarAnuncios(uiState.currentPlan)) {
                         Surface(
                             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),

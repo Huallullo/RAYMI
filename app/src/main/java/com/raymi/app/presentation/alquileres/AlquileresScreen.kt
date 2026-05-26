@@ -1,6 +1,5 @@
 package com.raymi.app.presentation.alquileres
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +25,6 @@ import com.raymi.app.presentation.components.*
 
 /**
  * Pantalla de Gestión de Alquileres (Contratos).
- * Diseño Senior: Enfoque en legibilidad de estados y fechas críticas.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,13 +69,12 @@ fun AlquileresScreen(
                 text = { Text("Registrar Alquiler") },
                 shape = CustomShapes.CardShape,
                 containerColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.testTag("fab_create_alquiler")   // ✅ AÑADIDO
+                modifier = Modifier.testTag("fab_create_alquiler")
             )
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             
-            // Barra de búsqueda profesional
             RaymiSearchBar(
                 query = uiState.searchQuery,
                 onQueryChange = { viewModel.searchAlquileres(it) },
@@ -118,7 +114,6 @@ fun AlquileresScreen(
         }
     }
 
-    // Modal de Filtros por Estado
     if (showFilters) {
         AlertDialog(
             onDismissRequest = { showFilters = false },
