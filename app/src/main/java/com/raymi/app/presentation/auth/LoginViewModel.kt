@@ -154,7 +154,8 @@ class LoginViewModel @Inject constructor(
                     businessName = "",
                     emailError = null,
                     passwordError = null,
-                    businessNameError = null
+                    businessNameError = null,
+                    isLoginSuccessful = true
                 )
                 // El login/registro fue exitoso en Auth y Firestore inicial
                 verificarConfiguracionYNavigar()

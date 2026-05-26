@@ -1,6 +1,7 @@
 package com.raymi.app.domain.usecase.alquiler
 
 import com.raymi.app.domain.model.Alquiler
+import com.raymi.app.domain.model.DomainError
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AlquilerRepository
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,7 @@ class CreateAlquilerUseCase @Inject constructor(
      * @param alquiler Alquiler a crear
      * @return Flow con el resultado de la operación
      */
-    suspend operator fun invoke(alquiler: Alquiler): Flow<Resource<String>> = flow {
+    operator fun invoke(alquiler: Alquiler): Flow<Resource<String>> = flow {
         // Validar datos del alquiler
         if (alquiler.clienteId.isBlank()) {
             emit(Resource.Error("Debe seleccionar un cliente"))
@@ -37,7 +38,7 @@ class CreateAlquilerUseCase @Inject constructor(
         }
 
         if (alquiler.adelanto < 0) {
-            emit(Resource.Error("El adelanto no puede ser negativo"))
+            emit(Resource.Error(DomainError.NegativeBalance.message))
             return@flow
         }
 
@@ -48,7 +49,7 @@ class CreateAlquilerUseCase @Inject constructor(
 
         // Validar fechas
         if (alquiler.fechaFinPrevista.seconds <= alquiler.fechaInicio.seconds) {
-            emit(Resource.Error("La fecha de fin debe ser posterior a la fecha de inicio"))
+            emit(Resource.Error(DomainError.InvalidDateRange.message))
             return@flow
         }
 

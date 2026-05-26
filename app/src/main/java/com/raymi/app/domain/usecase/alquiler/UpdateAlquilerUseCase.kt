@@ -11,7 +11,7 @@ import javax.inject.Inject
 class UpdateAlquilerUseCase @Inject constructor(
     private val alquilerRepository: AlquilerRepository
 ) {
-    suspend operator fun invoke(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
+    operator fun invoke(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
         // Validaciones
         if (alquiler.id.isBlank()) {
             emit(Resource.Error("ID de alquiler inválido"))

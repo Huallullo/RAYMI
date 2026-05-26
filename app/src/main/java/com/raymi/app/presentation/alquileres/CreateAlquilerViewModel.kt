@@ -26,8 +26,11 @@ class CreateAlquilerViewModel @Inject constructor(
     private val getCategoriasUseCase: com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase,
     private val createAlquilerUseCase: CreateAlquilerUseCase,
     private val enviarMensajeUseCase: EnviarMensajeUseCase,
-    private val workspaceManager: WorkspaceManager
+    private val workspaceManager: WorkspaceManager,
+    savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
+
+    private val preselectedItemId: String? = savedStateHandle["itemId"]
 
     private val _uiState = MutableStateFlow(CreateAlquilerUiState())
     val uiState: StateFlow<CreateAlquilerUiState> = _uiState.asStateFlow()
@@ -68,11 +71,20 @@ class CreateAlquilerViewModel @Inject constructor(
                         getItemsUseCase(workspaceId).collect { result ->
                             if (result is Resource.Success) {
                                 val data = result.data ?: emptyList()
+                                val disponibles = data.filter { it.estado == "DISPONIBLE" }
+                                
                                 _uiState.update { state ->
                                     state.copy(
                                         itemsTotales = data,
                                         itemsDisponibles = aplicarFiltroCategoria(data, state.categoriaFiltro)
                                     )
+                                }
+                                
+                                // QA Senior: Pre-seleccionar ítem si viene de navegación
+                                if (!preselectedItemId.isNullOrBlank() && _uiState.value.selectedItem == null) {
+                                    data.find { it.id == preselectedItemId }?.let { preselected ->
+                                        seleccionarItem(preselected)
+                                    }
                                 }
                             }
                         }

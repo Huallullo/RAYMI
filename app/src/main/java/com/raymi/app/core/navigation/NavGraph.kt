@@ -166,20 +166,22 @@ fun RaymiNavGraph(
         }
 
         /**
-         * Vestuarios - Lista de vestuarios (LEGACY)
+         * Vestuarios - Redirigido a Inventario Genérico (Legacy Redirect)
          */
         composable(route = Screen.Vestuarios.route) {
-            val navigatedFromResult = navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.get<Boolean>("refresh") ?: false
-            VestuariosScreen(
-                onVestuarioClick = { vestuarioId ->
-                    navController.navigate(Screen.VestuarioDetalle.createRoute(vestuarioId))
+            ItemsScreen(
+                onItemClick = { itemId ->
+                    navController.navigate(Screen.ItemDetalle.createRoute(itemId))
+                },
+                onAddItem = {
+                    navController.navigate(Screen.ItemCreate.route)
+                },
+                onNavigateToCategorias = {
+                    navController.navigate(Screen.Categorias.route)
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                },
-                navigatedFromResult = navigatedFromResult
+                }
             )
         }
 
@@ -217,7 +219,9 @@ fun RaymiNavGraph(
                 onEditItem = { id ->
                     navController.navigate(Screen.ItemEdit.createRoute(id))
                 },
-                onRentItem = { /* Navegar a crear alquiler con este item */ }
+                onRentItem = { id ->
+                    navController.navigate("create_alquiler?itemId=$id")
+                }
             )
         }
 
@@ -298,9 +302,18 @@ fun RaymiNavGraph(
         }
 
         /**
-         * Crear nuevo alquiler
+         * Crear nuevo alquiler (Soporta itemId opcional)
          */
-        composable(route = "create_alquiler") {
+        composable(
+            route = "create_alquiler?itemId={itemId}",
+            arguments = listOf(
+                navArgument("itemId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
             CreateAlquilerScreen(
                 onNavigateBack = {
                     navController.popBackStack()

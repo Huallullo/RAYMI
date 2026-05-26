@@ -20,7 +20,7 @@ class ReniecServiceTest {
     fun `consultarPorDni con DNI invalido retorna error`() = runBlocking {
         val result = reniecService.consultarPorDni("123")
         assertTrue(result is Resource.Error)
-        assertEquals("DNI inválido. Debe tener 8 dígitos.", (result as Resource.Error).message)
+        assertEquals("El DNI debe tener exactamente 8 dígitos numéricos", (result as Resource.Error).message)
     }
 
     @Test

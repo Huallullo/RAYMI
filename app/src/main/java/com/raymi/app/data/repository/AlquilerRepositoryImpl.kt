@@ -174,8 +174,15 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             
-            // Necesitamos el workspaceId para actualizar stats
+            // Verificación Senior: No permitir devolución si hay saldo pendiente
             val alquilerSnapshot = dataSource.getBusinessAlquiler(alquilerId)
+            val saldo = (alquilerSnapshot?.get("saldo") as? Number)?.toDouble() ?: 0.0
+            
+            if (saldo > 0.01) { // Pequeño margen para errores de precisión double
+                emit(Resource.Error("No se puede registrar devolución: Existe un saldo pendiente de S/. $saldo"))
+                return@flow
+            }
+
             val workspaceId = alquilerSnapshot?.get("workspaceId") as? String
             
             dataSource.registrarDevolucionBusiness(alquilerId)
@@ -204,6 +211,17 @@ class AlquilerRepositoryImpl @Inject constructor(
     ): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
+            
+            // Validar transición (Regla Senior)
+            val actual = dataSource.getBusinessAlquiler(alquilerId)
+            val estadoActualStr = actual?.get("estado") as? String ?: "ACTIVO"
+            val estadoActual = try { EstadoAlquiler.valueOf(estadoActualStr) } catch(_: Exception) { EstadoAlquiler.ACTIVO }
+
+            if (estadoActual == EstadoAlquiler.DEVUELTO || estadoActual == EstadoAlquiler.CANCELADO) {
+                emit(Resource.Error("No se puede cambiar el estado de un alquiler ya finalizado (${estadoActual.name})"))
+                return@flow
+            }
+
             dataSource.updateBusinessAlquiler(
                 alquilerId,
                 mapOf(

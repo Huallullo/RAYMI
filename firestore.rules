@@ -1,6 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ========== FUNCIONES DE AYUDA ==========
     function isSignedIn() {
       return request.auth != null;
     }
@@ -10,39 +12,75 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
     }
 
-    // Perfil de usuario
+    function isOwner(negocioId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+    }
+
+    // ========== REGLAS POR COLECCIÓN ==========
+
+    // Perfil de usuario (Seguridad: Solo el dueño puede leer/escribir su perfil)
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
-    // Negocios y toda su data interna
+    // Negocios (SaaS Multi-Tenant)
     match /negocios/{negocioId} {
-      // Permitir crear si el usuario se marca como dueño
+      // Solo el dueño puede crear el negocio
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
 
-      // Permitir leer/actualizar a miembros o al dueño
-      allow read, update: if isSignedIn() && (isBusinessMember(negocioId) || resource.data.ownerUid == request.auth.uid);
+      // Lectura y actualización para miembros activos o el dueño
+      allow read, update: if isSignedIn() && (isBusinessMember(negocioId) || isOwner(negocioId));
 
-      // Miembros
+      // Solo el dueño puede borrar un negocio completo
+      allow delete: if isSignedIn() && isOwner(negocioId);
+
+      // Subcolección de Miembros
       match /miembros/{mUid} {
-        allow read, write: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
+        allow read: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
+        allow write: if isSignedIn() && isOwner(negocioId);
       }
 
-      // Subcolecciones internas (metadata, clientes, items, alquileres)
-      match /{subcollection=**} {
-        // Permitir lectura/escritura si es miembro o si es el dueño
-        allow read, write: if isSignedIn() && (
-          isBusinessMember(negocioId) ||
-          get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid ||
-          // Permiso especial para la creación inicial en el batch de registro
-          request.method == "create"
-        );
+      // Subcolección de Clientes (Validación de forma)
+      match /clientes/{clienteId} {
+        allow read, write: if isBusinessMember(negocioId);
+
+        // Validación Senior: DNI debe ser de 8 caracteres si se provee
+        allow write: if isBusinessMember(negocioId) &&
+          (!request.resource.data.keys().contains('dni') || request.resource.data.dni.size() == 8);
+      }
+
+      // Subcolección de Items/Inventario
+      match /items/{itemId} {
+        allow read, write: if isBusinessMember(negocioId);
+
+        // Invariante: Precio nunca negativo
+        allow write: if isBusinessMember(negocioId) &&
+          request.resource.data.precio >= 0;
+      }
+
+      // Subcolección de Alquileres
+      match /alquileres/{alquilerId} {
+        allow read, write: if isBusinessMember(negocioId);
+
+        // Invariante Senior: Saldo no puede ser mayor al total
+        allow write: if isBusinessMember(negocioId) &&
+          request.resource.data.saldo <= request.resource.data.precioTotal;
+      }
+
+      // Metadata y Estadísticas
+      match /metadata/{docId} {
+        allow read: if isBusinessMember(negocioId);
+        // Permitir creación inicial en batch y actualizaciones atómicas
+        allow write: if isSignedIn() && (isBusinessMember(negocioId) || request.method == "create");
       }
     }
 
-    // BLOQUEO TOTAL: colecciones raíz antiguas
+    // ========== BLOQUEO DE LEGACY ==========
+    // Colecciones raíz antiguas están deshabilitadas por seguridad SaaS
     match /clientes/{doc} { allow read, write: if false; }
     match /vestuarios/{doc} { allow read, write: if false; }
     match /alquileres/{doc} { allow read, write: if false; }
+    match /workspaces/{doc} { allow read, write: if false; }
   }
 }
