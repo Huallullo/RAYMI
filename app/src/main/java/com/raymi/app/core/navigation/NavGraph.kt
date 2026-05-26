@@ -6,7 +6,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.raymi.app.presentation.splash.SplashScreen
 import com.raymi.app.presentation.alquileres.AlquilerDetailScreen
 import com.raymi.app.presentation.alquileres.AlquileresScreen
 import com.raymi.app.presentation.alquileres.CreateAlquilerScreen

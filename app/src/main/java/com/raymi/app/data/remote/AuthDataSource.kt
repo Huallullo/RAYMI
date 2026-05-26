@@ -27,6 +27,4 @@ class AuthDataSource @Inject constructor(
         auth.sendPasswordResetEmail(email).await()
         
     fun signOut() = auth.signOut()
-    
-    fun getUid(): String? = auth.currentUser?.uid
 }

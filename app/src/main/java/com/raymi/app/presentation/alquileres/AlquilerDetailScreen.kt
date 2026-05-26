@@ -17,8 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.raymi.app.core.theme.CustomShapes
-import com.raymi.app.core.theme.RaymiColors
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
 

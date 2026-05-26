@@ -11,7 +11,6 @@ import com.raymi.app.domain.usecase.alquiler.GetAlquilerByIdUseCase
 import com.raymi.app.domain.usecase.alquiler.GetPagosUseCase
 import com.raymi.app.domain.usecase.alquiler.RegistrarDevolucionUseCase
 import com.raymi.app.domain.usecase.alquiler.UpdateAlquilerUseCase
-import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import com.raymi.app.domain.usecase.pdf.GenerarPdfAlquilerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -25,7 +24,6 @@ class AlquilerDetailViewModel @Inject constructor(
     private val updateAlquilerUseCase: UpdateAlquilerUseCase,
     private val addPagoUseCase: AddPagoUseCase,
     private val getPagosUseCase: GetPagosUseCase,
-    private val enviarMensajeUseCase: EnviarMensajeUseCase,
     private val generarPdfAlquilerUseCase: GenerarPdfAlquilerUseCase,
     private val workspaceManager: WorkspaceManager,
     savedStateHandle: SavedStateHandle
@@ -165,39 +163,6 @@ class AlquilerDetailViewModel @Inject constructor(
                             isProcessing = false,
                             successMessage = "¡Recibo generado! Ya puedes compartirlo.",
                             pdfUri = result.data
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isProcessing = false,
-                            error = result.message
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Suppress("UNUSED_FUNCTION")
-    fun compartirPdfPorWhatsApp() {
-        val pdfUri = _uiState.value.pdfUri ?: run {
-            _uiState.value = _uiState.value.copy(error = "Primero genera el PDF")
-            return
-        }
-
-        val alquiler = _uiState.value.alquiler ?: return
-        val mensaje = "Detalle del alquiler de ${alquiler.itemNombre} para ${alquiler.clienteNombre}"
-
-        viewModelScope.launch {
-            enviarMensajeUseCase.compartirBoletaDigital(pdfUri, mensaje).collect { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isProcessing = true)
-                    }
-                    is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            isProcessing = false,
-                            successMessage = result.data ?: "Enviado"
                         )
                     }
                     is Resource.Error -> {

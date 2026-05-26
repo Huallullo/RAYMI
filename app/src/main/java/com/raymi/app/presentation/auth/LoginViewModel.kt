@@ -228,10 +228,6 @@ class LoginViewModel @Inject constructor(
     fun clearInfoMessage() {
         _uiState.value = _uiState.value.copy(infoMessage = null)
     }
-
-    fun clearNavigationEvent() {
-        // No es necesario con SharedFlow
-    }
 }
 
 data class LoginUiState(

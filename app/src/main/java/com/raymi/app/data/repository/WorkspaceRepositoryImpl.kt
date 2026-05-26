@@ -50,7 +50,6 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun createWorkspace(workspace: Workspace): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
-            val user = authDataSource.getCurrentUser() ?: throw IllegalStateException("Usuario no autenticado")
             val dto = WorkspaceDto.fromDomain(workspace)
             val workspaceData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             
@@ -61,12 +60,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
                 "totalClientes" to 0L
             )
 
-            val id = workspaceDataSource.createWorkspaceAtomic(
-                workspaceData = workspaceData,
-                statsData = statsData,
-                uid = user.uid,
-                email = user.email ?: ""
-            )
+            val id = dataSource.createWorkspaceAtomic(workspaceData, statsData)
             emit(Resource.Success(id))
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Error al crear workspace"))

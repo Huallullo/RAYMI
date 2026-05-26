@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 // Rutas de navegación
 sealed class Screen(val route: String) {
     // Auth
-    object Splash : Screen("splash")
     object Login : Screen("login")
     object WorkspaceSelection : Screen("workspace_selection")
     object WorkspaceCreate : Screen("workspace_create")

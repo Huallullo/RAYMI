@@ -26,13 +26,8 @@ object GeneradorCodigo {
      * con transacciones atómicas (ver ItemDataSource).
      */
     fun generarCodigoItem(): String {
-        return generarCodigoConPrefijo("ITEM")
-    }
-
-    private fun generarCodigoConPrefijo(prefijo: String): String {
         val fecha  = SimpleDateFormat("yyMMdd", Locale.getDefault()).format(Date())
-        // Aumentamos a 4 dígitos para reducir colisiones a 1/9000 por día por prefijo
         val numero = (random.nextInt(9000) + 1000)
-        return "$prefijo-$fecha-$numero"
+        return "ITEM-$fecha-$numero"
     }
 }

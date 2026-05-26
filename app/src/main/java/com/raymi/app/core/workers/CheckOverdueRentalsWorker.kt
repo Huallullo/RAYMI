@@ -11,7 +11,6 @@ import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.first
 
 import kotlinx.coroutines.CancellationException
 

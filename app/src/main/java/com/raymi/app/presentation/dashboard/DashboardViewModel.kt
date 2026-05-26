@@ -10,7 +10,6 @@ import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.workspace.GetWorkspaceStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,8 +25,6 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
-
-    private var dashboardJob: Job? = null
 
     init {
         observeWorkspace()
@@ -105,11 +102,6 @@ class DashboardViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    fun loadDashboardData() {
-        // Los datos se cargan automáticamente vía observeDashboardData()
-        // Este método queda para triggers manuales si se requiere
     }
 
     private fun calcularActividadSemanal(alquileres: List<Alquiler>) {

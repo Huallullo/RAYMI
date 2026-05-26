@@ -251,7 +251,7 @@ class AlquilerRepositoryImpl @Inject constructor(
                     monto = (data["monto"] as? Number)?.toDouble() ?: 0.0,
                     metodoPago = try { 
                         MetodoPago.valueOf(data["metodoPago"] as? String ?: "EFECTIVO") 
-                    } catch (e: Exception) { 
+                    } catch (_: Exception) {
                         MetodoPago.EFECTIVO
                     },
                     referencia = data["referencia"] as? String ?: "",

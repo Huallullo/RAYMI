@@ -49,7 +49,7 @@ data class AlquilerDto(
         precioTotal = precioTotal,
         adelanto = adelanto,
         saldo = saldo,
-        estado = try { EstadoAlquiler.valueOf(estado) } catch (e: Exception) { EstadoAlquiler.ACTIVO },
+        estado = try { EstadoAlquiler.valueOf(estado) } catch (_: Exception) { EstadoAlquiler.ACTIVO },
         observaciones = observaciones,
         createdAt = createdAt,
         updatedAt = updatedAt
