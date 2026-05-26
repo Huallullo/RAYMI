@@ -6,7 +6,6 @@ import com.google.firebase.auth.FirebaseUser
 import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
-import com.raymi.app.domain.usecase.business.CheckBusinessConfigUseCase
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.usecase.workspace.GetCurrentWorkspaceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +16,6 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val checkBusinessConfigUseCase: CheckBusinessConfigUseCase,
     private val getCurrentWorkspaceUseCase: GetCurrentWorkspaceUseCase,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -25,8 +23,8 @@ class LoginViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = MutableSharedFlow<NavigationEvent>()
+    val navigationEvent: SharedFlow<NavigationEvent> = _navigationEvent.asSharedFlow()
 
     // Acciones de UI
     fun onEmailChange(email: String) {
@@ -180,11 +178,11 @@ class LoginViewModel @Inject constructor(
                             if (workspace != null) {
                                 workspaceManager.setWorkspace(workspace)
                                 _uiState.value = _uiState.value.copy(isLoading = false)
-                                _navigationEvent.value = NavigationEvent.GoToDashboard
+                                _navigationEvent.emit(NavigationEvent.GoToDashboard)
                             } else {
                                 // No tiene negocio aún
                                 _uiState.value = _uiState.value.copy(isLoading = false)
-                                _navigationEvent.value = NavigationEvent.GoToWorkspaceSelection
+                                _navigationEvent.emit(NavigationEvent.GoToWorkspaceSelection)
                             }
                         } else if (result is Resource.Error) {
                             _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
@@ -195,7 +193,7 @@ class LoginViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                _navigationEvent.value = NavigationEvent.GoToWorkspaceSelection
+                _navigationEvent.emit(NavigationEvent.GoToWorkspaceSelection)
             }
         }
     }
@@ -232,7 +230,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun clearNavigationEvent() {
-        _navigationEvent.value = null
+        // No es necesario con SharedFlow
     }
 }
 

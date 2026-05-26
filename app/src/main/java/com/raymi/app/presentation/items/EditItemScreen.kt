@@ -81,7 +81,9 @@ fun EditItemScreen(
                             label = { Text("Mover a Categoría") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCatDropdownExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) }
                         )

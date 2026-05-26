@@ -27,9 +27,9 @@ class ReniecServiceTest {
     fun `consultarPorDni con DNI de mock retorna datos exitosos`() = runBlocking {
         val result = reniecService.consultarPorDni("44444444")
         
-        if (result is Resource.Success) {
-            assertEquals("JUAN CARLOS", result.data?.nombres)
-        }
+        assertTrue("El resultado debería ser Success", result is Resource.Success)
+        val data = (result as Resource.Success).data
+        assertEquals("JUAN CARLOS", data?.nombres)
     }
 
     @Test

@@ -58,9 +58,7 @@ fun LoginScreen(
                 NavigationEvent.GoToDashboard -> onNavigateToDashboard()
                 NavigationEvent.GoToOnboarding -> onNavigateToOnboarding()
                 NavigationEvent.GoToWorkspaceSelection -> onNavigateToWorkspaceSelection()
-                null -> {}
             }
-            viewModel.clearNavigationEvent()
         }
     }
 

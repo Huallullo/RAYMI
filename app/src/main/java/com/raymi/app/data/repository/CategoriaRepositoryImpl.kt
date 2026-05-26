@@ -18,8 +18,13 @@ class CategoriaRepositoryImpl @Inject constructor(
     override suspend fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
         emit(Resource.Loading())
         try {
-            // Buscamos en la subcolección del negocio siguiendo el plan SaaS y reglas de Firestore
-            val response = dataSource.queryDocuments("negocios/$workspaceId/categorias", "activa", true)
+            // Usamos queryBusinessDocuments para asegurar que respete el aislamiento del negocio
+            val response = dataSource.queryBusinessDocuments(
+                collection = "categorias",
+                field = "activa",
+                value = true,
+                negocioId = workspaceId
+            )
             val categorias = response.map { (id, data) ->
                 CategoriaDto.fromMap(id, data).toDomain()
             }.sortedBy { it.orden }

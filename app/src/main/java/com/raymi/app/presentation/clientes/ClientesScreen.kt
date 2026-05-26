@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ContactSupport
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -115,7 +116,7 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                     uiState.isLoading -> RaymiLoadingIndicator(message = "Accediendo a contactos...")
                     uiState.visibleClientes.isEmpty() -> {
                         RaymiEmptyState(
-                            icon = Icons.Default.ContactSupport,
+                            icon = Icons.AutoMirrored.Filled.ContactSupport,
                             title = "Sin Contactos",
                             description = if (uiState.searchQuery.isEmpty()) "Comienza a registrar clientes para tu negocio." else "No hay coincidencias para tu búsqueda.",
                             actionText = if (uiState.searchQuery.isEmpty()) "Registrar Ahora" else null,

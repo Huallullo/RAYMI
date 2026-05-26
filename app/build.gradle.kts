@@ -124,6 +124,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)
 
@@ -161,6 +162,13 @@ dependencies {
 
     // Lottie
     implementation(libs.lottie.compose)
+
+    // Barcode Scanning & Camera
+    implementation(libs.barcode.scanning)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
     // PDF - iText for Android
     implementation("com.itextpdf:itext7-core:7.2.6") {

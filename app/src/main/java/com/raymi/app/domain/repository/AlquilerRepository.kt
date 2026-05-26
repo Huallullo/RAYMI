@@ -31,9 +31,9 @@ interface AlquilerRepository {
     suspend fun getAlquileresByCliente(clienteId: String): Flow<Resource<List<Alquiler>>>
 
     /**
-     * Obtiene alquileres de un vestuario específico
+     * Obtiene alquileres de un ítem específico
      */
-    suspend fun getAlquileresByVestuario(vestuarioId: String): Flow<Resource<List<Alquiler>>>
+    suspend fun getAlquileresByItem(itemId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Crea un nuevo alquiler
@@ -59,4 +59,14 @@ interface AlquilerRepository {
      * Elimina un alquiler
      */
     suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
+
+    /**
+     * Registra un nuevo pago para un alquiler
+     */
+    suspend fun addPago(workspaceId: String, alquilerId: String, pago: com.raymi.app.domain.model.Pago): Flow<Resource<Unit>>
+
+    /**
+     * Obtiene el historial de pagos de un alquiler
+     */
+    suspend fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<com.raymi.app.domain.model.Pago>>>
 }

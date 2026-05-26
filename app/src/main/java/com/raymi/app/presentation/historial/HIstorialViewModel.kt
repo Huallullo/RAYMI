@@ -48,7 +48,7 @@ class HistorialViewModel @Inject constructor(
                             _uiState.update { it.copy(
                                 allAlquileres = concluidos,
                                 filteredAlquileres = concluidos,
-                                totalRecaudado = concluidos.sumOf { a -> a.precioTotal - a.saldo },
+                                totalRecaudado = concluidos.sumOf { it.adelanto },
                                 isLoading = false 
                             ) }
                         }

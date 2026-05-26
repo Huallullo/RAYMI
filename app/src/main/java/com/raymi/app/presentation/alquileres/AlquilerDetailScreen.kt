@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.AssignmentReturn
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +84,7 @@ fun AlquilerDetailScreen(
                         modifier = Modifier.padding(24.dp).fillMaxWidth().height(56.dp),
                         shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        Icon(Icons.Default.AssignmentReturn, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.AssignmentReturn, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
                         Text("Registrar Devolución", fontWeight = FontWeight.Bold)
                     }

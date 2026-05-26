@@ -23,8 +23,6 @@ import com.raymi.app.presentation.items.ItemsScreen
 import com.raymi.app.presentation.plans.PlansScreen
 import com.raymi.app.presentation.profile.ProfileScreen
 import com.raymi.app.presentation.settings.BusinessSettingsScreen
-import com.raymi.app.presentation.vestuarios.VestuarioDetailScreen
-import com.raymi.app.presentation.vestuarios.VestuariosScreen
 import com.raymi.app.presentation.workspace.CreateWorkspaceScreen
 import com.raymi.app.presentation.workspace.WorkspaceSelectionScreen
 
@@ -166,26 +164,6 @@ fun RaymiNavGraph(
         }
 
         /**
-         * Vestuarios - Redirigido a Inventario Genérico (Legacy Redirect)
-         */
-        composable(route = Screen.Vestuarios.route) {
-            ItemsScreen(
-                onItemClick = { itemId ->
-                    navController.navigate(Screen.ItemDetalle.createRoute(itemId))
-                },
-                onAddItem = {
-                    navController.navigate(Screen.ItemCreate.route)
-                },
-                onNavigateToCategorias = {
-                    navController.navigate(Screen.Categorias.route)
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        /**
          * Inventario Genérico (SaaS)
          */
         composable(route = Screen.Items.route) {
@@ -256,29 +234,6 @@ fun RaymiNavGraph(
         composable(route = Screen.Categorias.route) {
             CategoriasScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        /**
-         * Detalle de Vestuario
-         */
-        composable(
-            route = Screen.VestuarioDetalle.route,
-            arguments = listOf(
-                navArgument("vestuarioId") {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val vestuarioId = backStackEntry.arguments?.getString("vestuarioId") ?: ""
-            VestuarioDetailScreen(
-                vestuarioId = vestuarioId,
-                onNavigateBack = {
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("refresh", true)
                     navController.popBackStack()
                 }
             )

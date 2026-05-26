@@ -71,7 +71,6 @@ class CreateAlquilerViewModel @Inject constructor(
                         getItemsUseCase(workspaceId).collect { result ->
                             if (result is Resource.Success) {
                                 val data = result.data ?: emptyList()
-                                val disponibles = data.filter { it.estado == "DISPONIBLE" }
                                 
                                 _uiState.update { state ->
                                     state.copy(
@@ -138,7 +137,8 @@ class CreateAlquilerViewModel @Inject constructor(
         _uiState.update { state ->
             val pUnit = state.precioUnitario.toDoubleOrNull() ?: 0.0
             val cant = state.cantidad.toIntOrNull() ?: 1
-            val total = pUnit * cant
+            val dias = state.diasAlquiler.coerceAtLeast(1)
+            val total = pUnit * cant * dias
             val pagado = state.adelanto.toDoubleOrNull() ?: 0.0
             state.copy(
                 precioTotal = total,
@@ -164,6 +164,7 @@ class CreateAlquilerViewModel @Inject constructor(
             val diff = fin.time - inicio.time
             val dias = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
             _uiState.update { it.copy(diasAlquiler = dias) }
+            recalcularFinanzas() // QA Senior: Recalcular al cambiar fechas
         }
     }
 

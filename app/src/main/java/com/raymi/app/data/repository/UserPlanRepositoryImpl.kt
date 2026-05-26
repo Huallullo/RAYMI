@@ -8,6 +8,7 @@ import com.raymi.app.domain.model.UserPlan
 import com.raymi.app.domain.repository.UserPlanRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,12 +81,35 @@ class UserPlanRepositoryImpl @Inject constructor(
     }
 
     override suspend fun canCreateWorkspace(userId: String): Boolean {
-        // Lógica para verificar límites de workspace
-        return true // Por ahora simplificado
+        return try {
+            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
+            if (planResult is Resource.Success) {
+                val plan = planResult.data ?: return false
+                if (plan.plan == PlanType.PRO) return true
+                
+                // Contar negocios donde el usuario es dueño
+                val ownedWorkspaces = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
+                ownedWorkspaces.size < plan.workspacesLimit
+            } else false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override suspend fun canAddMoreItems(userId: String, workspaceId: String): Boolean {
-        // Lógica para verificar límites de items
-        return true // Por ahora simplificado
+        return try {
+            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
+            if (planResult is Resource.Success) {
+                val plan = planResult.data ?: return false
+                if (plan.plan == PlanType.PRO) return true
+                
+                // Usar estadísticas atómicas para evitar lecturas costosas
+                val stats = dataSource.getStats(workspaceId)
+                val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
+                currentItems < plan.itemsLimit
+            } else false
+        } catch (e: Exception) {
+            false
+        }
     }
 }

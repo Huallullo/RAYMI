@@ -86,7 +86,7 @@ fun AddItemScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCatDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
                         .testTag("item_categoria_spinner"),
                     shape = MaterialTheme.shapes.large,

@@ -2,6 +2,7 @@ package com.raymi.app.data.repository
 
 import com.raymi.app.data.model.dto.ItemDto
 import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.data.remote.ItemDataSource
 import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 
 @Singleton
 class ItemRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val dataSource: FirebaseDataSource,
+    private val itemDataSource: ItemDataSource
 ) : ItemRepository {
 
     override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> {
@@ -61,16 +63,18 @@ class ItemRepositoryImpl @Inject constructor(
             var id = ""
             var attempts = 0
             
-            while (!success && attempts < 3) {
+            // QA Senior: Aumentamos a 5 intentos por alta concurrencia SaaS
+            while (!success && attempts < 5) {
                 try {
                     val dto = ItemDto.fromDomain(finalItem)
-                    id = dataSource.addBusinessItemWithUniqueCodigo(
+                    id = itemDataSource.addItemTransactional(
+                        workspaceId = finalItem.workspaceId,
                         itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
-                        codigoRaw = finalItem.codigo
+                        codigo = finalItem.codigo
                     )
                     success = true
                 } catch (e: IllegalStateException) {
-                    if (e.message?.contains("código") == true) {
+                    if (e.message?.contains("código") == true || e.message?.contains("existe") == true) {
                         attempts++
                         finalItem = finalItem.copy(codigo = com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem())
                     } else {
@@ -80,7 +84,6 @@ class ItemRepositoryImpl @Inject constructor(
             }
 
             if (success) {
-                dataSource.updateStats(item.workspaceId, "totalItems", 1L)
                 emit(Resource.Success(id))
             } else {
                 emit(Resource.Error("No se pudo generar un código único tras varios intentos"))

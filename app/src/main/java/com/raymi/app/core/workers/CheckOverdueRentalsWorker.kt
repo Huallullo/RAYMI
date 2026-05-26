@@ -13,10 +13,10 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * Worker que verifica diariamente alquileres vencidos y notifica a los clientes.
- *
- * Se programa desde [ScheduleOverdueCheckUseCase] con periodicidad de 1 día.
  */
 @HiltWorker
 class CheckOverdueRentalsWorker @AssistedInject constructor(
@@ -34,13 +34,15 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            // Notificar a cada cliente con alquiler vencido
+            // Notificar y actualizar cada alquiler vencido
             vencidos.forEach { alquiler ->
                 notificarClienteVencido(alquiler)
+                marcarComoVencidoEnFirestore(alquiler)
             }
 
             Result.success()
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             // Reintentar si hay error de red; fallar definitivamente en errores de lógica
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
@@ -78,6 +80,22 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
     }
 
     /**
+     * Actualiza el estado en Firestore a VENCIDO.
+     */
+    private suspend fun marcarComoVencidoEnFirestore(alquiler: Alquiler) {
+        try {
+            firebaseDataSource.updateBusinessDocument(
+                collection = "alquileres",
+                documentId = alquiler.id,
+                data = mapOf(
+                    "estado" to "VENCIDO",
+                    "updatedAt" to Timestamp.now()
+                )
+            )
+        } catch (_: Exception) { }
+    }
+
+    /**
      * Envía notificación WhatsApp/SMS al cliente del alquiler vencido.
      * Los errores de envío se ignoran para no bloquear el resto de notificaciones.
      */
@@ -86,13 +104,13 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
             val telefonoCliente = obtenerTelefonoCliente(alquiler.clienteId)
             if (telefonoCliente.isBlank()) return
 
-            // Usamos el nuevo caso de uso con la plantilla profesional
+            // Usamos collect para esperar el resultado final sin colgar el worker
             enviarMensajeUseCase.enviarRecordatorioDevolucion(
                 telefono = telefonoCliente,
                 cliente = alquiler.clienteNombre,
                 item = alquiler.itemNombre,
                 esVencido = true
-            ).first()
+            ).collect { }
         } catch (_: Exception) {
             // No propagamos el error para seguir con el resto de alquileres
         }

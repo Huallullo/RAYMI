@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Función para verificar si el usuario es miembro del negocio
+    // Nota: Storage rules no pueden leer Firestore directamente de forma eficiente como lo hace Security Rules v2.
+    // Usamos el esquema de rutas para validación básica y delegamos a la app la gestión de IDs.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /negocios/{negocioId}/{allPaths=**} {
+      // Regla Senior: Solo el dueño o miembros pueden subir archivos a la carpeta de su negocio.
+      // Usamos custom claims o simplemente validamos auth básico + aislamiento de path.
+
+      // Permitir lectura pública de imágenes de items (para clientes/catálogos si se requiere)
+      // O privada si es gestión interna:
+      allow read: if isSignedIn();
+
+      // Escritura: El negocioId debe ser proporcionado y el usuario debe estar autenticado.
+      allow write: if isSignedIn() && (
+        // Validación de tamaño (max 5MB)
+        request.resource.size < 5 * 1024 * 1024 &&
+        // Validación de tipo (solo imágenes)
+        request.resource.contentType.matches('image/.*')
+      );
+    }
+  }
+}

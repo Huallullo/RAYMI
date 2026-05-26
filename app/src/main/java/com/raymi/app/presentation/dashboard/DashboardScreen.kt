@@ -101,7 +101,7 @@ fun DashboardScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Estado Operativo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         OperationsGrid(
-                            inventario = uiState.estadisticas.totalVestuarios,
+                            inventario = uiState.estadisticas.totalItems,
                             alquilados = uiState.estadisticas.alquileresActivos,
                             clientes = uiState.estadisticas.totalClientes,
                             onInventoryClick = onNavigateToItems,

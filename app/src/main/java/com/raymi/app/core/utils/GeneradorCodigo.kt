@@ -35,7 +35,8 @@ object GeneradorCodigo {
 
     private fun generarCodigoConPrefijo(prefijo: String): String {
         val fecha  = SimpleDateFormat("yyMMdd", Locale.getDefault()).format(Date())
-        val numero = (random.nextInt(900) + 100) // 100-999, siempre 3 dígitos
+        // Aumentamos a 4 dígitos para reducir colisiones a 1/9000 por día por prefijo
+        val numero = (random.nextInt(9000) + 1000)
         return "$prefijo-$fecha-$numero"
     }
 }

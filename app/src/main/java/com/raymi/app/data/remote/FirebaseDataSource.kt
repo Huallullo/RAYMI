@@ -21,12 +21,8 @@ class FirebaseDataSource @Inject constructor(
 
     companion object {
         const val COLLECTION_CLIENTES = "clientes"
-        const val COLLECTION_VESTUARIOS = "vestuarios"
-        const val COLLECTION_ALQUILERES = "alquileres"
         const val COLLECTION_USUARIOS = "usuarios"
         const val COLLECTION_NEGOCIOS = "negocios"
-        const val COLLECTION_CLIENTES_DNI_INDEX = "clientes_dni_index"
-        const val COLLECTION_VESTUARIOS_CODIGO_INDEX = "vestuarios_codigo_index"
         const val DEFAULT_QUERY_LIMIT = 500L
     }
 
@@ -568,81 +564,4 @@ class FirebaseDataSource @Inject constructor(
     ): Flow<List<Pair<String, Map<String, Any>>>> =
         observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit, negocioId)
 
-    // ========== FUNCIONES ANTIGUAS (se mantienen por compatibilidad temporal) ==========
-    suspend fun createAlquilerAndMarkVestuarioAlquilado(
-        alquilerData: Map<String, Any>,
-        vestuarioId: String
-    ): String {
-        return firestore.runTransaction { transaction ->
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
-            val vestuarioSnap = transaction.get(vestuarioRef)
-            if (!vestuarioSnap.exists()) throw IllegalStateException("Vestuario no encontrado")
-            if (vestuarioSnap.getString("estado") != "DISPONIBLE") throw IllegalStateException("El vestuario no está disponible")
-            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document()
-            transaction.set(alquilerRef, alquilerData)
-            transaction.update(vestuarioRef, "estado", "ALQUILADO")
-            alquilerRef.id
-        }.await()
-    }
-
-    suspend fun registrarDevolucionAtomica(alquilerId: String) {
-        firestore.runTransaction { transaction ->
-            val alquilerRef = firestore.collection(COLLECTION_ALQUILERES).document(alquilerId)
-            val alquilerSnap = transaction.get(alquilerRef)
-            if (!alquilerSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
-            val vestuarioId = alquilerSnap.getString("vestuarioId") ?: throw IllegalStateException("Vestuario no encontrado en el alquiler")
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document(vestuarioId)
-            transaction.update(alquilerRef, mapOf("estado" to "DEVUELTO", "fechaDevolucion" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
-            transaction.update(vestuarioRef, "estado", "DISPONIBLE")
-        }.await()
-    }
-
-    suspend fun addClienteWithUniqueDni(
-        clienteData: Map<String, Any>,
-        dniRaw: String
-    ): String {
-        val dni = dniRaw.trim().uppercase()
-        return firestore.runTransaction { transaction ->
-            val dniIndexRef = firestore.collection(COLLECTION_CLIENTES_DNI_INDEX).document(dni)
-            if (transaction.get(dniIndexRef).exists()) throw IllegalStateException("Ya existe un cliente con este DNI")
-            val clienteRef = firestore.collection(COLLECTION_CLIENTES).document()
-            transaction.set(clienteRef, clienteData)
-            transaction.set(dniIndexRef, mapOf("clienteId" to clienteRef.id, "dni" to dni, "createdAt" to FieldValue.serverTimestamp()))
-            clienteRef.id
-        }.await()
-    }
-
-    suspend fun addVestuarioWithUniqueCodigo(
-        vestuarioData: Map<String, Any>,
-        codigoRaw: String
-    ): String {
-        val codigo = codigoRaw.trim().uppercase()
-        return firestore.runTransaction { transaction ->
-            val codigoIndexRef = firestore.collection(COLLECTION_VESTUARIOS_CODIGO_INDEX).document(codigo)
-            if (transaction.get(codigoIndexRef).exists()) throw IllegalStateException("Ya existe un vestuario con este código")
-            val vestuarioRef = firestore.collection(COLLECTION_VESTUARIOS).document()
-            transaction.set(vestuarioRef, vestuarioData)
-            transaction.set(codigoIndexRef, mapOf("vestuarioId" to vestuarioRef.id, "codigo" to codigo, "createdAt" to FieldValue.serverTimestamp()))
-            vestuarioRef.id
-        }.await()
-    }
-
-    suspend fun queryArrayContains(
-        collection: String,
-        field: String,
-        value: String
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection).whereArrayContains(field, value).get().await()
-        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-    }
-
-    suspend fun queryArrayContainsLimited(
-        collection: String,
-        field: String,
-        value: String,
-        limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(collection).whereArrayContains(field, value).limit(limit).get().await()
-        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-    }
 }

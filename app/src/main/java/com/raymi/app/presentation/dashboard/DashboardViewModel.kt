@@ -9,11 +9,13 @@ import com.raymi.app.domain.repository.UserPlanRepository
 import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.workspace.GetWorkspaceStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
@@ -26,20 +28,71 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private var dashboardJob: Job? = null
-    private var latestAlquileres: List<Alquiler> = emptyList()
 
     init {
         observeWorkspace()
-        loadDashboardData()
+        observeDashboardData()
     }
 
     private fun observeWorkspace() {
-        viewModelScope.launch {
-            workspaceManager.currentWorkspace.collectLatest { workspace ->
+        workspaceManager.currentWorkspace
+            .onEach { workspace ->
                 _uiState.update { it.copy(currentWorkspace = workspace) }
                 if (workspace != null) {
                     cargarPlan(workspace.ownerId)
                 }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun observeDashboardData() {
+        workspaceManager.currentWorkspace
+            .filterNotNull()
+            .flatMapLatest { workspace ->
+                combine(
+                    getWorkspaceStatsUseCase(workspace.id),
+                    getAlquileresUseCase(workspace.id)
+                ) { statsResult, alquileresResult ->
+                    Pair(statsResult, alquileresResult)
+                }
+            }
+            .onEach { (statsResult, alquileresResult) ->
+                handleDashboardResults(statsResult, alquileresResult)
+            }
+            .catch { e ->
+                _uiState.update { it.copy(isLoading = false, error = "Error de sincronización: ${e.message}") }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun handleDashboardResults(
+        statsResult: Resource<Map<String, Any>>,
+        alquileresResult: Resource<List<Alquiler>>
+    ) {
+        // Actualizar Estadísticas
+        if (statsResult is Resource.Success) {
+            val data = statsResult.data ?: emptyMap()
+            updateEstadisticas {
+                copy(
+                    totalClientes = (data["totalClientes"] as? Number)?.toInt() ?: 0,
+                    totalItems = (data["totalItems"] as? Number)?.toInt() ?: 0,
+                    alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt() ?: 0,
+                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
+                )
+            }
+        }
+
+        // Actualizar Alquileres
+        when (alquileresResult) {
+            is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+            is Resource.Success -> {
+                val alquileres = alquileresResult.data ?: emptyList()
+                calcularActividadSemanal(alquileres)
+                recalculateIngresos(alquileres)
+                _uiState.update { it.copy(isLoading = false) }
+            }
+            is Resource.Error -> {
+                _uiState.update { it.copy(isLoading = false, error = alquileresResult.message) }
             }
         }
     }
@@ -55,51 +108,8 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun loadDashboardData() {
-        dashboardJob?.cancel()
-        _uiState.update { it.copy(isLoading = true, error = null) }
-
-        dashboardJob = viewModelScope.launch {
-            try {
-                workspaceManager.currentWorkspace.collectLatest { workspace ->
-                    if (workspace == null) return@collectLatest
-                    val workspaceId = workspace.id
-
-                    // 1. Estadísticas Consolidadas en TIEMPO REAL
-                    launch {
-                        getWorkspaceStatsUseCase(workspaceId).collect { result ->
-                            if (result is Resource.Success) {
-                                val data = result.data ?: emptyMap()
-                                updateEstadisticas {
-                                    copy(
-                                        totalClientes = (data["totalClientes"] as? Number)?.toInt() ?: 0,
-                                        totalVestuarios = (data["totalItems"] as? Number)?.toInt() ?: 0,
-                                        alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt() ?: 0,
-                                        ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // 2. Alquileres en TIEMPO REAL
-                    launch {
-                        getAlquileresUseCase(workspaceId).collect { result ->
-                            if (result is Resource.Success) {
-                                val alquileres = result.data ?: emptyList()
-                                latestAlquileres = alquileres
-                                calcularActividadSemanal(alquileres)
-                                recalculateIngresos(alquileres)
-                                _uiState.update { it.copy(isLoading = false) }
-                            } else if (result is Resource.Error) {
-                                _uiState.update { it.copy(isLoading = false, error = result.message) }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Sincronización pendiente") }
-            }
-        }
+        // Los datos se cargan automáticamente vía observeDashboardData()
+        // Este método queda para triggers manuales si se requiere
     }
 
     private fun calcularActividadSemanal(alquileres: List<Alquiler>) {

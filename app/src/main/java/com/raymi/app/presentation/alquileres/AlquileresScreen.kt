@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -95,7 +96,7 @@ fun AlquileresScreen(
                     uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadAlquileres() })
                     uiState.filteredAlquileres.isEmpty() -> {
                         RaymiEmptyState(
-                            icon = Icons.Default.ReceiptLong,
+                            icon = Icons.AutoMirrored.Filled.ReceiptLong,
                             title = "Sin Movimientos",
                             description = "No hay alquileres que coincidan con la búsqueda.",
                             actionText = "Nuevo Alquiler",

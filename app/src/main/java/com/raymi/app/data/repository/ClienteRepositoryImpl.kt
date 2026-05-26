@@ -1,6 +1,7 @@
 package com.raymi.app.data.repository
 
 import com.raymi.app.data.model.dto.ClienteDto
+import com.raymi.app.data.remote.ClientDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
@@ -14,7 +15,8 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 class ClienteRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val dataSource: FirebaseDataSource,
+    private val clientDataSource: ClientDataSource
 ) : ClienteRepository {
 
     override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
@@ -82,17 +84,12 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             val dto = ClienteDto.fromDomain(cliente)
-            val documentId = dataSource.addBusinessClienteWithUniqueDni(
+            val documentId = clientDataSource.addClienteTransactional(
+                workspaceId = cliente.workspaceId,
                 clienteData = dto.toMap(),
-                dniRaw = cliente.dni
+                dni = cliente.dni
             )
-            
-            // Actualización de estadísticas atómicas
-            dataSource.updateStats(cliente.workspaceId, "totalClientes", 1L)
-
             emit(Resource.Success(documentId))
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al agregar cliente: ${e.message}"))
         }
