@@ -40,11 +40,17 @@ class EditItemViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(error = "Negocio no identificado", isLoading = false) }
+                    return@launch
+                }
                 
                 // 1. Cargar Categorías
-                getCategoriasUseCase(workspaceId).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                launch {
+                    getCategoriasUseCase(workspaceId).collect { result ->
+                        if (result is Resource.Success) {
+                            _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                        }
                     }
                 }
 

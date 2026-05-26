@@ -14,5 +14,5 @@ class GetAlquileresUseCase @Inject constructor(
      * Ejecuta la obtención de alquileres
      * @return Flow con la lista de alquileres
      */
-    suspend operator fun invoke(workspaceId: String) = alquilerRepository.getAlquileres()
+    suspend operator fun invoke(workspaceId: String) = alquilerRepository.getAlquileres(workspaceId)
 }

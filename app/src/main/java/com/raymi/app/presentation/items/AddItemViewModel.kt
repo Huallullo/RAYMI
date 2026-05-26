@@ -39,10 +39,16 @@ class AddItemViewModel @Inject constructor(
     private fun cargarCategorias() {
         viewModelScope.launch {
             try {
-                val workspaceId = workspaceManager.getWorkspaceId()
+                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
                 getCategoriasUseCase(workspaceId).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+                    when (result) {
+                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+                        is Resource.Success -> {
+                            _uiState.update { it.copy(categorias = result.data ?: emptyList(), isLoading = false) }
+                        }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -100,6 +106,10 @@ class AddItemViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Negocio no identificado") }
+                    return@launch
+                }
                 
                 // Sanitización de atributos (Trimming de valores)
                 val atributosLimpios = state.atributos.mapValues { it.value.trim() }

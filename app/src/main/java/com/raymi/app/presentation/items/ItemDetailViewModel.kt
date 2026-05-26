@@ -29,6 +29,11 @@ class ItemDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
+                if (workspaceId == null) {
+                    _uiState.update { it.copy(error = "Negocio no identificado", isLoading = false) }
+                    return@launch
+                }
+
                 itemRepository.getItemById(workspaceId, itemId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }

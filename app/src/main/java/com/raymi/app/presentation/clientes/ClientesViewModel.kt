@@ -106,8 +106,14 @@ class ClientesViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             
             // Asegurar que el cliente tenga el workspaceId actual
+            val currentWorkspaceId = workspaceManager.getWorkspaceId()
+            if (currentWorkspaceId == null) {
+                _uiState.update { it.copy(isLoading = false, error = "Negocio no identificado") }
+                return@launch
+            }
+
             val clienteConWorkspace = if (cliente.workspaceId.isBlank()) {
-                cliente.copy(workspaceId = workspaceManager.getWorkspaceId())
+                cliente.copy(workspaceId = currentWorkspaceId)
             } else {
                 cliente
             }

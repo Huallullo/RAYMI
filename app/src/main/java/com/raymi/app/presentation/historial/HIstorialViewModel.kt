@@ -35,8 +35,8 @@ class HistorialViewModel @Inject constructor(
     fun cargarHistorial() {
         viewModelScope.launch {
             try {
-                workspaceManager.getWorkspaceId() // Validamos sesión
-                getAlquileresUseCase().collect { result ->
+                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+                getAlquileresUseCase(workspaceId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                         is Resource.Success -> {

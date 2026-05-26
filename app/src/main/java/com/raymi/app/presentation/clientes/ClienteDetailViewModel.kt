@@ -21,6 +21,7 @@ class ClienteDetailViewModel @Inject constructor(
     private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase,
     private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -62,7 +63,8 @@ class ClienteDetailViewModel @Inject constructor(
 
     private fun loadAlquileres() {
         viewModelScope.launch {
-            getAlquileresUseCase().collect { result ->
+            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+            getAlquileresUseCase(workspaceId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
                         val alquileres = result.data?.filter {

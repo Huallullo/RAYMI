@@ -22,6 +22,7 @@ class VestuarioDetailViewModel @Inject constructor(
     private val getVestuarioByIdUseCase: GetVestuarioByIdUseCase,
     private val getAlquileresUseCase: GetAlquileresUseCase,
     private val updateVestuarioUseCase: UpdateVestuarioUseCase,
+    private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -63,7 +64,8 @@ class VestuarioDetailViewModel @Inject constructor(
 
     private fun loadHistorial() {
         viewModelScope.launch {
-            getAlquileresUseCase().collect { result ->
+            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+            getAlquileresUseCase(workspaceId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
                         val alquileres = result.data?.filter {
