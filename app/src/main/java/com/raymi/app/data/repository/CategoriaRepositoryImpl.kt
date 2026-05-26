@@ -18,7 +18,11 @@ class CategoriaRepositoryImpl @Inject constructor(
     override suspend fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
         emit(Resource.Loading())
         try {
-            // Usamos queryBusinessDocuments para asegurar que respete el aislamiento del negocio
+            if (workspaceId.isBlank()) {
+                emit(Resource.Error("ID de negocio no válido"))
+                return@flow
+            }
+            
             val response = dataSource.queryBusinessDocuments(
                 collection = "categorias",
                 field = "activa",
@@ -30,7 +34,12 @@ class CategoriaRepositoryImpl @Inject constructor(
             }.sortedBy { it.orden }
             emit(Resource.Success(categorias))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al cargar categorías: ${e.localizedMessage}"))
+            val errorMsg = if (e.message?.contains("PERMISSION_DENIED") == true) {
+                "Acceso denegado: Revisa tus permisos en Firebase."
+            } else {
+                "Error al cargar categorías: ${e.localizedMessage}"
+            }
+            emit(Resource.Error(errorMsg))
         }
     }
 
@@ -53,22 +62,29 @@ class CategoriaRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val dto = CategoriaDto.fromDomain(categoria)
-            val path = "negocios/${categoria.workspaceId}/categorias"
-            dataSource.updateDocument(path, categoria.id, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
+            dataSource.updateBusinessDocument(
+                collection = "categorias",
+                documentId = categoria.id,
+                data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            )
             emit(Resource.Success(Unit))
-        } catch (_: Exception) {
-            emit(Resource.Error("Error al actualizar categoría"))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al actualizar: ${e.message}"))
         }
     }
 
     override suspend fun deleteCategoria(workspaceId: String, categoriaId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val path = "negocios/$workspaceId/categorias"
-            dataSource.deleteDocument(path, categoriaId)
+            // Nota: En un sistema SaaS real, quizás prefieras un "borrado lógico" (activa = false)
+            // pero aquí implementamos el borrado físico solicitado.
+            dataSource.deleteBusinessDocument(
+                collection = "categorias",
+                documentId = categoriaId
+            )
             emit(Resource.Success(Unit))
-        } catch (_: Exception) {
-            emit(Resource.Error("Error al eliminar categoría"))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al eliminar: ${e.message}"))
         }
     }
 }

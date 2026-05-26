@@ -1,7 +1,6 @@
 package com.raymi.app.data.repository
 
 import com.google.firebase.Timestamp
-import com.raymi.app.core.utils.AppLogger
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.data.model.dto.AlquilerDto
 import com.raymi.app.data.remote.FirebaseDataSource
@@ -12,7 +11,6 @@ import com.raymi.app.domain.model.Pago
 import com.raymi.app.domain.model.MetodoPago
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AlquilerRepository
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -21,7 +19,7 @@ import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 
 /**
- * Implementación del repositorio de alquileres con rutas SaaS (negocios/{negocioId}/alquileres)
+ * Implementación del repositorio de alquileres con rutas SaaS.
  */
 class AlquilerRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
@@ -43,11 +41,7 @@ class AlquilerRepositoryImpl @Inject constructor(
             }
             .onStart { emit(Resource.Loading()) }
             .catch { e ->
-                if (e.message?.contains("Usuario no autenticado") == true) {
-                    emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
-                } else {
-                    emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
-                }
+                emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
             }
     }
 
@@ -57,8 +51,7 @@ class AlquilerRepositoryImpl @Inject constructor(
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
             val data = rentalDataSource.getAlquiler(workspaceId, id)
             if (data != null) {
-                val alquiler = AlquilerDto.fromMap(id, data).toDomain()
-                emit(Resource.Success(alquiler))
+                emit(Resource.Success(AlquilerDto.fromMap(id, data).toDomain()))
             } else {
                 emit(Resource.Error("Alquiler no encontrado"))
             }
@@ -67,67 +60,36 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getAlquileresByEstado(
-        estado: EstadoAlquiler
-    ): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByEstado(estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            val documents = dataSource.queryBusinessAlquileres(
-                field = "estado",
-                value = estado.name,
-                limit = 300
-            )
-            val alquileres = documents.map { (id, data) ->
-                AlquilerDto.fromMap(id, data).toDomain()
-            }.sortedByDescending { it.createdAt }
-            emit(Resource.Success(alquileres))
-        } catch (e: CancellationException) {
-            throw e
+            val documents = dataSource.queryBusinessAlquileres("estado", estado.name, 300)
+            val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener alquileres por estado: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
-    override suspend fun getAlquileresByCliente(
-        clienteId: String
-    ): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByCliente(clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            val documents = dataSource.queryBusinessAlquileres(
-                field = "clienteId",
-                value = clienteId,
-                limit = 300
-            )
-            val alquileres = documents.map { (id, data) ->
-                AlquilerDto.fromMap(id, data).toDomain()
-            }.sortedByDescending { it.createdAt }
-            emit(Resource.Success(alquileres))
-        } catch (e: CancellationException) {
-            throw e
+            val documents = dataSource.queryBusinessAlquileres("clienteId", clienteId, 300)
+            val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener alquileres del cliente: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
-    override suspend fun getAlquileresByItem(
-        itemId: String
-    ): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByItem(itemId: String): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            // QA Fix: Buscar por itemId (nuevo) y vestuarioId (legacy)
-            val byItemId = dataSource.queryBusinessAlquileres("itemId", itemId, 500)
-            val byVestuarioId = dataSource.queryBusinessAlquileres("vestuarioId", itemId, 500)
-            
-            val allDocs = (byItemId + byVestuarioId).distinctBy { it.first }
-            
-            val alquileres = allDocs.map { (id, data) ->
-                AlquilerDto.fromMap(id, data).toDomain()
-            }.sortedByDescending { it.createdAt }
-            emit(Resource.Success(alquileres))
-        } catch (e: CancellationException) {
-            throw e
+            val docs = dataSource.queryBusinessAlquileres("itemId", itemId, 500)
+            val alquileres = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener alquileres del producto: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
@@ -136,111 +98,69 @@ class AlquilerRepositoryImpl @Inject constructor(
             emit(Resource.Loading())
             val dto = AlquilerDto.fromDomain(alquiler)
             val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            
-            val documentId = rentalDataSource.createAlquilerTransactional(
-                workspaceId = alquiler.workspaceId,
-                alquilerData = dataMap,
-                itemId = alquiler.itemId
-            )
-
-            emit(Resource.Success(documentId))
+            val id = rentalDataSource.createAlquilerTransactional(alquiler.workspaceId, dataMap, alquiler.itemId)
+            emit(Resource.Success(id))
         } catch (e: Exception) {
-            AppLogger.e("AlquilerRepo", "Error en creación transaccional: ${e.message}")
-            emit(Resource.Error(e.message ?: "Error al crear alquiler"))
+            emit(Resource.Error(e.message ?: "Error al crear"))
         }
     }
 
     override suspend fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            if (alquiler.id.isBlank()) {
-                emit(Resource.Error("ID de alquiler inválido"))
-                return@flow
-            }
-            val dto = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now()))
-            val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
             rentalDataSource.updateAlquiler(alquiler.workspaceId, alquiler.id, dataMap)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al actualizar alquiler: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
     override suspend fun registrarDevolucion(alquilerId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
+            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
             rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al registrar devolución: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
-    override suspend fun updateEstadoAlquiler(
-        alquilerId: String,
-        estado: EstadoAlquiler
-    ): Flow<Resource<Unit>> = flow {
+    override suspend fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
-            
-            val actual = rentalDataSource.getAlquiler(workspaceId, alquilerId)
-            val estadoActualStr = actual?.get("estado") as? String ?: "ACTIVO"
-            val estadoActual = try { EstadoAlquiler.valueOf(estadoActualStr) } catch(_: Exception) { EstadoAlquiler.ACTIVO }
-
-            if (estadoActual == EstadoAlquiler.DEVUELTO || estadoActual == EstadoAlquiler.CANCELADO) {
-                emit(Resource.Error("No se puede cambiar el estado de un alquiler ya finalizado"))
-                return@flow
-            }
-
-            rentalDataSource.updateAlquiler(
-                workspaceId,
-                alquilerId,
-                mapOf("estado" to estado.name, "updatedAt" to Timestamp.now())
-            )
+            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
+            rentalDataSource.updateAlquiler(workspaceId, alquilerId, mapOf("estado" to estado.name, "updatedAt" to Timestamp.now()))
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al actualizar estado: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
     override suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
+            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
             rentalDataSource.deleteAlquiler(workspaceId, alquilerId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al eliminar alquiler: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
-    override suspend fun addPago(
-        workspaceId: String,
-        alquilerId: String,
-        pago: Pago
-    ): Flow<Resource<Unit>> = flow {
+    override suspend fun addPago(workspaceId: String, alquilerId: String, pago: Pago): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            val pagoData = mapOf(
-                "alquilerId" to alquilerId,
-                "monto" to pago.monto,
-                "metodoPago" to pago.metodoPago.name,
-                "referencia" to pago.referencia,
-                "fecha" to pago.fecha
-            )
-            rentalDataSource.addPago(workspaceId, alquilerId, pagoData)
+            val data = mapOf("alquilerId" to alquilerId, "monto" to pago.monto, "metodoPago" to pago.metodoPago.name, "referencia" to pago.referencia, "fecha" to pago.fecha)
+            rentalDataSource.addPago(workspaceId, alquilerId, data)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al registrar pago: ${e.message}"))
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
-    override suspend fun getPagos(
-        workspaceId: String,
-        alquilerId: String
-    ): Flow<Resource<List<Pago>>> = flow {
+    override suspend fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<Pago>>> = flow {
         try {
             emit(Resource.Loading())
             val docs = rentalDataSource.getPagos(workspaceId, alquilerId)
@@ -249,18 +169,14 @@ class AlquilerRepositoryImpl @Inject constructor(
                     id = data["id"] as? String ?: "",
                     alquilerId = data["alquilerId"] as? String ?: "",
                     monto = (data["monto"] as? Number)?.toDouble() ?: 0.0,
-                    metodoPago = try { 
-                        MetodoPago.valueOf(data["metodoPago"] as? String ?: "EFECTIVO") 
-                    } catch (_: Exception) {
-                        MetodoPago.EFECTIVO
-                    },
+                    metodoPago = try { MetodoPago.valueOf(data["metodoPago"] as? String ?: "EFECTIVO") } catch (_: Exception) { MetodoPago.EFECTIVO },
                     referencia = data["referencia"] as? String ?: "",
                     fecha = data["fecha"] as? Timestamp ?: Timestamp.now()
                 )
             }
             emit(Resource.Success(pagos))
         } catch (_: Exception) {
-            emit(Resource.Error("Error al obtener historial de pagos"))
+            emit(Resource.Error("Error al obtener pagos"))
         }
     }
 }

@@ -43,7 +43,6 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun getItemById(workspaceId: String, itemId: String): Flow<Resource<Item>> = flow {
         emit(Resource.Loading())
         try {
-            // Nota: Aquí usamos la colección dentro del workspace
             val data = dataSource.getBusinessDocument("items", itemId)
             if (data != null) {
                 emit(Resource.Success(ItemDto.fromMap(itemId, data).toDomain()))
@@ -58,35 +57,18 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun addItem(item: Item): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
-            var finalItem = item
-            var success = false
-            var id = ""
-            var attempts = 0
-            
-            // QA Senior: Aumentamos a 5 intentos por alta concurrencia SaaS
-            while (!success && attempts < 5) {
-                try {
-                    val dto = ItemDto.fromDomain(finalItem)
-                    id = itemDataSource.addItemTransactional(
-                        workspaceId = finalItem.workspaceId,
-                        itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
-                        codigo = finalItem.codigo
-                    )
-                    success = true
-                } catch (e: IllegalStateException) {
-                    if (e.message?.contains("código") == true || e.message?.contains("existe") == true) {
-                        attempts++
-                        finalItem = finalItem.copy(codigo = com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem())
-                    } else {
-                        throw e
-                    }
-                }
-            }
-
-            if (success) {
-                emit(Resource.Success(id))
+            val dto = ItemDto.fromDomain(item)
+            val id = itemDataSource.addItemTransactional(
+                workspaceId = item.workspaceId,
+                itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
+                codigo = item.codigo
+            )
+            emit(Resource.Success(id))
+        } catch (e: IllegalStateException) {
+            if (e.message?.contains("Ya existe") == true) {
+                emit(Resource.Error("El código '${item.codigo}' ya está en uso. Usa otro o deja que el sistema genere uno nuevo."))
             } else {
-                emit(Resource.Error("No se pudo generar un código único tras varios intentos"))
+                emit(Resource.Error(e.localizedMessage ?: "Error de validación"))
             }
         } catch (e: Exception) {
             emit(Resource.Error("Error al agregar ítem: ${e.message}"))
@@ -112,10 +94,7 @@ class ItemRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             dataSource.deleteBusinessDocument("items", itemId)
-            
-            // Actualización atómica de estadísticas
             dataSource.updateStats(workspaceId, "totalItems", -1L)
-
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar ítem: ${e.message}"))
@@ -127,7 +106,7 @@ class ItemRepositoryImpl @Inject constructor(
         try {
             val documents = dataSource.queryBusinessArrayContainsLimited(
                 collection = "items",
-                field = "searchTerms", // Asumiendo que guardamos términos de búsqueda
+                field = "searchTerms",
                 value = query.lowercase(),
                 limit = 100
             )

@@ -123,10 +123,16 @@ fun AddItemScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
                     value = uiState.codigo,
-                    onValueChange = viewModel::onCodigoChange,
+                    onValueChange = {},
+                    readOnly = true,
                     label = { Text("Código/SKU") },
+                    trailingIcon = {
+                        IconButton(onClick = { viewModel.onCodigoChange(com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem()) }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Generar otro", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1.2f)
                         .testTag("item_codigo_input"),
                     shape = MaterialTheme.shapes.large
                 )

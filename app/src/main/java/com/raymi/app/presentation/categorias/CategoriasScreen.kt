@@ -14,14 +14,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.domain.model.Categoria
 import com.raymi.app.presentation.components.RaymiEmptyState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
-import androidx.compose.ui.platform.testTag
 
-/**
- * Gestión de Categorías Premium.
- * Permite al usuario organizar su inventario según su propio criterio (SaaS Flexibility).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoriasScreen(
@@ -30,19 +26,16 @@ fun CategoriasScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    
     var showAddDialog by remember { mutableStateOf(false) }
-    var nuevaCatNombre by remember { mutableStateOf("") }
+    var categoriaAEditar by remember { mutableStateOf<Categoria?>(null) }
+    var categoriaAEliminar by remember { mutableStateOf<Categoria?>(null) }
+    
+    var tempNombre by remember { mutableStateOf("") }
 
-    // Observar mensajes (QA Fix: Feedback de éxito)
     LaunchedEffect(uiState.error, uiState.successMessage) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
-        uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
+        uiState.error?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        uiState.successMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
     }
 
     Scaffold(
@@ -58,22 +51,19 @@ fun CategoriasScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                modifier = Modifier.testTag("fab_add_categoria")
-            ) {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Nueva Categoría")
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                uiState.isLoading -> RaymiLoadingIndicator(message = "Organizando carpetas...")
+                uiState.isLoading -> RaymiLoadingIndicator(message = "Sincronizando...")
                 uiState.categorias.isEmpty() -> {
                     RaymiEmptyState(
                         icon = Icons.Default.Category,
                         title = "Sin Categorías",
-                        description = "Crea categorías como 'Ropa', 'Cámaras' o 'Servicios' para ordenar tu negocio.",
+                        description = "Organiza tu inventario creando categorías.",
                         actionText = "Crear Categoría",
                         onActionClick = { showAddDialog = true }
                     )
@@ -84,8 +74,15 @@ fun CategoriasScreen(
                         contentPadding = PaddingValues(24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(uiState.categorias) { categoria ->
-                            CategoryCard(categoria.nombre)
+                        items(uiState.categorias, key = { it.id }) { categoria ->
+                            CategoryCard(
+                                categoria = categoria,
+                                onEdit = { 
+                                    categoriaAEditar = categoria
+                                    tempNombre = categoria.nombre
+                                },
+                                onDelete = { categoriaAEliminar = categoria }
+                            )
                         }
                     }
                 }
@@ -93,35 +90,62 @@ fun CategoriasScreen(
         }
     }
 
+    // Diálogo Añadir
     if (showAddDialog) {
+        CategoryDialog(
+            title = "Nueva Categoría",
+            nombre = tempNombre,
+            onNombreChange = { tempNombre = it },
+            onDismiss = { showAddDialog = false; tempNombre = "" },
+            onConfirm = {
+                viewModel.agregarCategoria(tempNombre)
+                showAddDialog = false
+                tempNombre = ""
+            }
+        )
+    }
+
+    // Diálogo Editar
+    if (categoriaAEditar != null) {
+        CategoryDialog(
+            title = "Editar Categoría",
+            nombre = tempNombre,
+            onNombreChange = { tempNombre = it },
+            onDismiss = { categoriaAEditar = null; tempNombre = "" },
+            onConfirm = {
+                viewModel.editarCategoria(categoriaAEditar!!, tempNombre)
+                categoriaAEditar = null
+                tempNombre = ""
+            }
+        )
+    }
+
+    // Diálogo Eliminar
+    if (categoriaAEliminar != null) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("Nueva Categoría") },
-            text = {
-                OutlinedTextField(
-                    value = nuevaCatNombre,
-                    onValueChange = { nuevaCatNombre = it },
-                    label = { Text("Nombre de la categoría") },
-                    modifier = Modifier.fillMaxWidth().testTag("categoria_nombre_input")
-                )
-            },
+            onDismissRequest = { categoriaAEliminar = null },
+            title = { Text("¿Eliminar categoría?") },
+            text = { Text("Se eliminará '${categoriaAEliminar?.nombre}'. Los ítems en esta categoría no se borrarán, pero quedarán sin clasificación.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.agregarCategoria(nuevaCatNombre)
-                        nuevaCatNombre = ""
-                        showAddDialog = false
+                        viewModel.eliminarCategoria(categoriaAEliminar!!)
+                        categoriaAEliminar = null
                     },
-                    modifier = Modifier.testTag("categoria_guardar_button")
-                ) { Text("Guardar") }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Eliminar") }
             },
-            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancelar") } }
+            dismissButton = { TextButton(onClick = { categoriaAEliminar = null }) { Text("Cancelar") } }
         )
     }
 }
 
 @Composable
-fun CategoryCard(nombre: String) {
+fun CategoryCard(
+    categoria: Categoria,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -130,13 +154,46 @@ fun CategoryCard(nombre: String) {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text(nombre, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(16.dp))
+            Text(categoria.nombre, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(20.dp))
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+            }
         }
     }
+}
+
+@Composable
+fun CategoryDialog(
+    title: String,
+    nombre: String,
+    onNombreChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = nombre,
+                onValueChange = onNombreChange,
+                label = { Text("Nombre") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm, enabled = nombre.isNotBlank()) { Text("Guardar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
 }

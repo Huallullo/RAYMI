@@ -91,7 +91,12 @@ class ClienteRepositoryImpl @Inject constructor(
             )
             emit(Resource.Success(documentId))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al agregar cliente: ${e.message}"))
+            val msg = if (e.message?.contains("Ya existe") == true) {
+                "El DNI ${cliente.dni} ya está registrado en tu negocio."
+            } else {
+                "Error al registrar cliente: ${e.message}"
+            }
+            emit(Resource.Error(msg))
         }
     }
 

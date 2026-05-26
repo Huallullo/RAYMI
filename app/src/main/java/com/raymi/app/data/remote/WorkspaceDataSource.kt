@@ -14,6 +14,9 @@ import javax.inject.Singleton
 class WorkspaceDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+    /**
+     * Crea un negocio y sus metadatos de forma atómica (Transacción).
+     */
     suspend fun createWorkspaceAtomic(
         workspaceData: Map<String, Any>,
         statsData: Map<String, Any>,

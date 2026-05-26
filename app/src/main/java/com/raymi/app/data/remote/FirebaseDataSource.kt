@@ -109,12 +109,36 @@ class FirebaseDataSource @Inject constructor(
     suspend fun ensureBusinessProfileForUser(user: FirebaseUser): String {
         val uid = user.uid
         val usuarioRef = firestore.collection(COLLECTION_USUARIOS).document(uid)
-        val snapshot = usuarioRef.get().await()
-        val negocioId = snapshot.getString("negocioId")
-        return if (snapshot.exists() && !negocioId.isNullOrBlank()) {
-            negocioId
-        } else {
-            createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+        
+        return try {
+            val snapshot = usuarioRef.get().await()
+            val negocioId = snapshot.getString("negocioId")
+            
+            if (snapshot.exists() && !negocioId.isNullOrBlank()) {
+                // QA Check: Verificar que el usuario tenga acceso a este negocio
+                val miembroSnap = firestore.collection(COLLECTION_NEGOCIOS)
+                    .document(negocioId)
+                    .collection("miembros")
+                    .document(uid)
+                    .get()
+                    .await()
+                
+                if (miembroSnap.exists()) {
+                    negocioId
+                } else {
+                    // Si el perfil existe pero no es miembro (datos corruptos), lo re-registramos
+                    createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+                }
+            } else {
+                createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+            }
+        } catch (e: Exception) {
+            // Si hay error de permisos al leer el perfil, intentamos crear uno nuevo
+            if (e.message?.contains("PERMISSION_DENIED") == true) {
+                createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
+            } else {
+                throw e
+            }
         }
     }
 

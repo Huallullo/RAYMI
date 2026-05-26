@@ -5,8 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.Categoria
 import com.raymi.app.domain.model.Resource
-import com.raymi.app.domain.usecase.categoria.AddCategoriaUseCase
-import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
+import com.raymi.app.domain.usecase.categoria.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,6 +15,8 @@ import javax.inject.Inject
 class CategoriasViewModel @Inject constructor(
     private val getCategoriasUseCase: GetCategoriasUseCase,
     private val addCategoriaUseCase: AddCategoriaUseCase,
+    private val updateCategoriaUseCase: UpdateCategoriaUseCase,
+    private val deleteCategoriaUseCase: DeleteCategoriaUseCase,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -54,6 +55,12 @@ class CategoriasViewModel @Inject constructor(
             _uiState.update { it.copy(error = "El nombre es obligatorio") }
             return
         }
+
+        // Validación de unicidad local (QA Fix)
+        if (_uiState.value.categorias.any { it.nombre.equals(nombreLimpio, ignoreCase = true) }) {
+            _uiState.update { it.copy(error = "Ya existe una categoría con el nombre '$nombreLimpio'") }
+            return
+        }
         
         viewModelScope.launch {
             try {
@@ -65,15 +72,11 @@ class CategoriasViewModel @Inject constructor(
 
                 val nueva = Categoria(
                     workspaceId = workspaceId,
-                    nombre = nombreLimpio.split(" ").joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                    nombre = formanteatNombre(nombreLimpio),
                     activa = true
                 )
                 addCategoriaUseCase(nueva).collect { result ->
-                    when (result) {
-                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null, successMessage = null) }
-                        is Resource.Success -> _uiState.update { it.copy(isLoading = false, successMessage = "Categoría creada con éxito") }
-                        is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
+                    handleResourceResult(result, "Categoría creada con éxito")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
@@ -81,7 +84,47 @@ class CategoriasViewModel @Inject constructor(
         }
     }
 
-    fun clearMessages() = _uiState.update { it.copy(error = null) }
+    fun editarCategoria(categoria: Categoria, nuevoNombre: String) {
+        val nombreLimpio = nuevoNombre.trim()
+        if (nombreLimpio.isBlank() || nombreLimpio == categoria.nombre) return
+
+        if (_uiState.value.categorias.any { it.id != categoria.id && it.nombre.equals(nombreLimpio, ignoreCase = true) }) {
+            _uiState.update { it.copy(error = "Ya existe otra categoría con el nombre '$nombreLimpio'") }
+            return
+        }
+
+        viewModelScope.launch {
+            updateCategoriaUseCase(categoria.copy(nombre = formanteatNombre(nombreLimpio))).collect { result ->
+                handleResourceResult(result, "Categoría actualizada")
+            }
+        }
+    }
+
+    fun eliminarCategoria(categoria: Categoria) {
+        viewModelScope.launch {
+            deleteCategoriaUseCase(categoria.workspaceId, categoria.id).collect { result ->
+                handleResourceResult(result, "Categoría eliminada")
+            }
+        }
+    }
+
+    private fun <T> handleResourceResult(result: Resource<T>, successMsg: String) {
+        when (result) {
+            is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null, successMessage = null) }
+            is Resource.Success -> {
+                _uiState.update { it.copy(isLoading = false, successMessage = successMsg) }
+                cargarCategorias()
+            }
+            is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+        }
+    }
+
+    private fun formanteatNombre(nombre: String): String {
+        return nombre.split(" ").filter { it.isNotBlank() }
+            .joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+    }
+
+    fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 }
 
 data class CategoriasUiState(

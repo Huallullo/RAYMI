@@ -119,15 +119,20 @@ fun EditItemScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
                             value = uiState.codigo,
-                            onValueChange = viewModel::onCodigoChange,
-                            label = { Text("Código") },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Código (No editable)") },
                             modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large
+                            shape = MaterialTheme.shapes.large,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
                         )
                         OutlinedTextField(
                             value = uiState.precio,
                             onValueChange = viewModel::onPrecioChange,
-                            label = { Text("Precio") },
+                            label = { Text("Precio Alquiler") },
                             prefix = { Text("S/. ") },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

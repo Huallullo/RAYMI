@@ -22,7 +22,6 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun getWorkspacesByUser(userId: String): Flow<Resource<List<Workspace>>> = flow {
         emit(Resource.Loading())
         try {
-            // Siguiendo el plan SaaS: colección "negocios" (antes workspaces)
             val response = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
             val workspaces = response.map { (id, data) ->
                 WorkspaceDto.fromMap(id, data).toDomain()
@@ -50,6 +49,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun createWorkspace(workspace: Workspace): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
+            val user = authDataSource.getCurrentUser() ?: throw IllegalStateException("Usuario no autenticado")
             val dto = WorkspaceDto.fromDomain(workspace)
             val workspaceData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             
@@ -60,7 +60,12 @@ class WorkspaceRepositoryImpl @Inject constructor(
                 "totalClientes" to 0L
             )
 
-            val id = dataSource.createWorkspaceAtomic(workspaceData, statsData)
+            val id = workspaceDataSource.createWorkspaceAtomic(
+                workspaceData = workspaceData,
+                statsData = statsData,
+                uid = user.uid,
+                email = user.email ?: ""
+            )
             emit(Resource.Success(id))
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Error al crear workspace"))
@@ -92,9 +97,8 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun getCurrentWorkspace(userId: String): Flow<Resource<Workspace?>> = flow {
         emit(Resource.Loading())
         try {
-            // Estrategia Senior: Primero obtener el negocioId del perfil de usuario
-            // Esto evita problemas de permisos con queries en la colección negocios
-            val negocioId = dataSource.getCurrentBusinessId()
+            // QA Fix: Encontrar negocio asignado al perfil
+            val negocioId = dataSource.ensureBusinessProfileForUser(authDataSource.getCurrentUser() ?: throw Exception("No user"))
             
             if (negocioId.isNotBlank()) {
                 val data = dataSource.getDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, negocioId)
