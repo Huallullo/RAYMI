@@ -16,6 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HistorialViewModel @Inject constructor(
     private val alquilerRepository: AlquilerRepository,
+    private val itemRepository: com.raymi.app.domain.repository.ItemRepository,
+    private val generarPdfInventarioUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfInventarioUseCase,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -88,6 +90,29 @@ class HistorialViewModel @Inject constructor(
         _uiState.update { it.copy(query = query) }
         aplicarFiltro(_uiState.value.allAlquileres, query)
     }
+
+    fun exportarInventario() {
+        val workspace = workspaceManager.currentWorkspace.value ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            itemRepository.getItemsByWorkspace(workspace.id).collect { result ->
+                if (result is Resource.Success) {
+                    val items = result.data ?: emptyList()
+                    generarPdfInventarioUseCase.generarPdf(items, workspace.nombre).collect { pdfResult ->
+                        if (pdfResult is Resource.Success) {
+                            _uiState.update { it.copy(isLoading = false, successMessage = "Inventario exportado") }
+                        } else if (pdfResult is Resource.Error) {
+                            _uiState.update { it.copy(isLoading = false, error = pdfResult.message) }
+                        }
+                    }
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 }
 
 data class HistorialUiState(
@@ -96,5 +121,6 @@ data class HistorialUiState(
     val query: String = "",
     val totalRecaudado: Double = 0.0,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null
 )

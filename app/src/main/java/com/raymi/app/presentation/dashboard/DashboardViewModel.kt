@@ -19,6 +19,7 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
     private val getWorkspaceStatsUseCase: GetWorkspaceStatsUseCase,
+    private val generarPdfResumenFinancieroUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfResumenFinancieroUseCase,
     private val userPlanRepository: UserPlanRepository,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -124,7 +125,34 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun exportarResumenFinancieroPdf() {
-        _uiState.update { it.copy(successMessage = "Resumen financiero generado") }
+        val workspace = workspaceManager.currentWorkspace.value ?: return
+        val anioActual = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExportingPdf = true) }
+            getAlquileresUseCase(workspace.id).collect { result ->
+                if (result is Resource.Success) {
+                    val alquileres = result.data ?: emptyList()
+                    generarPdfResumenFinancieroUseCase.generarPdf(alquileres, anioActual).collect { pdfResult ->
+                        when (pdfResult) {
+                            is Resource.Loading -> { }
+                            is Resource.Success -> {
+                                _uiState.update { it.copy(
+                                    isExportingPdf = false,
+                                    successMessage = "Resumen financiero generado",
+                                    pdfResumenUri = pdfResult.data
+                                ) }
+                            }
+                            is Resource.Error -> {
+                                _uiState.update { it.copy(isExportingPdf = false, error = pdfResult.message) }
+                            }
+                        }
+                    }
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(isExportingPdf = false, error = result.message) }
+                }
+            }
+        }
     }
 
     fun clearMessages() {

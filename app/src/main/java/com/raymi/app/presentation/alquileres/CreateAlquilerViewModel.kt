@@ -26,6 +26,7 @@ class CreateAlquilerViewModel @Inject constructor(
     private val getCategoriasUseCase: com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase,
     private val createAlquilerUseCase: CreateAlquilerUseCase,
     private val enviarMensajeUseCase: EnviarMensajeUseCase,
+    private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val workspaceManager: WorkspaceManager,
     savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
@@ -226,6 +227,12 @@ class CreateAlquilerViewModel @Inject constructor(
                                 isSuccess = true,
                                 successMessage = "Alquiler registrado correctamente"
                             ) }
+                            
+                            val business = workspaceManager.currentWorkspace.value
+                            analytics.logEvent("alquiler_creado", android.os.Bundle().apply {
+                                putString("workspace_tipo", business?.tipoNegocio ?: "desconocido")
+                            })
+
                             enviarConfirmacionWhatsApp(nuevoAlquiler)
                         }
                         is Resource.Error -> {

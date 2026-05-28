@@ -15,7 +15,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BillingManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val analytics: com.google.firebase.analytics.FirebaseAnalytics
 ) : PurchasesUpdatedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -82,6 +83,7 @@ class BillingManager @Inject constructor(
                 ))
                 .build()
 
+            analytics.logEvent("compra_pro_iniciada", null)
             billingClient.launchBillingFlow(activity, billingFlowParams)
         }
     }
@@ -102,12 +104,29 @@ class BillingManager @Inject constructor(
                     .build()
                 billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        _isProPurchased.value = true
+                        analytics.logEvent("compra_pro_exitosa", null)
+                        savePurchaseTokenToFirestore(purchase.purchaseToken)
                     }
                 }
             } else {
-                _isProPurchased.value = true
+                savePurchaseTokenToFirestore(purchase.purchaseToken)
             }
         }
+    }
+
+    private fun savePurchaseTokenToFirestore(purchaseToken: String) {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        
+        val purchaseData = mapOf(
+            "purchaseToken" to purchaseToken,
+            "timestamp" to com.google.firebase.Timestamp.now(),
+            "status" to "PENDING"
+        )
+        
+        // TODO: Cloud Function debe validar purchaseToken con Google Play Developer API antes de activar PRO
+        db.collection("usuarios").document(uid)
+            .collection("pendingPurchases")
+            .add(purchaseData)
     }
 }

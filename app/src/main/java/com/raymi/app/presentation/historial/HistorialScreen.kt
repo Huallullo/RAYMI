@@ -34,6 +34,14 @@ fun HistorialScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -45,6 +53,9 @@ fun HistorialScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.exportarInventario() }) {
+                        Icon(Icons.Default.Inventory, contentDescription = "Exportar Inventario")
+                    }
                     IconButton(onClick = { viewModel.cargarHistorial() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
                     }

@@ -27,6 +27,7 @@ android {
         versionCode = 3
         versionName = "1.1.0"
         manifestPlaceholders["usesCleartextTraffic"] = "false"
+        manifestPlaceholders["ADMOB_APP_ID"] = project.findProperty("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -39,6 +40,7 @@ android {
         buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK") ?: ""}\"")
         buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${project.findProperty("RENIEC_API_URL_FALLBACK2") ?: ""}\"")
         buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2") ?: ""}\"")
+        buildConfigField("String", "ADMOB_APP_ID", "\"${project.findProperty("ADMOB_APP_ID") ?: ""}\"")
     }
 
     signingConfigs {

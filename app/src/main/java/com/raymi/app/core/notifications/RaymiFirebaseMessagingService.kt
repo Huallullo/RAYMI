@@ -21,7 +21,9 @@ class RaymiFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
-        // Enviar token al servidor si es necesario para notificaciones segmentadas
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("usuarios").document(uid)
+            .update("fcmToken", token)
     }
 
     private fun sendNotification(title: String, messageBody: String) {

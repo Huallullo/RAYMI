@@ -86,7 +86,19 @@ data class ItemDto(
         "atributos" to atributos,
         "imagenUrl" to imagenUrl,
         "imagenesSuplementarias" to imagenesSuplementarias,
+        "searchTerms" to generateSearchTerms(nombre, codigo),
         "createdAt" to createdAt,
         "updatedAt" to updatedAt
     )
+
+    private fun generateSearchTerms(nombre: String, codigo: String): List<String> {
+        val tokens = (nombre.lowercase() + " " + codigo.lowercase()).split(" ").filter { it.isNotBlank() }
+        val prefixes = mutableSetOf<String>()
+        tokens.forEach { token ->
+            for (i in 1..token.length) {
+                prefixes.add(token.substring(0, i))
+            }
+        }
+        return prefixes.toList()
+    }
 }

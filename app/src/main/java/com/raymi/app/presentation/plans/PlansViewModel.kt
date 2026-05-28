@@ -17,7 +17,8 @@ import javax.inject.Inject
 class PlansViewModel @Inject constructor(
     private val userPlanRepository: UserPlanRepository,
     private val authRepository: AuthRepository,
-    private val billingManager: BillingManager
+    private val billingManager: BillingManager,
+    private val analytics: com.google.firebase.analytics.FirebaseAnalytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlansUiState())
@@ -26,6 +27,7 @@ class PlansViewModel @Inject constructor(
     init {
         cargarPlanActual()
         observeBillingStatus()
+        analytics.logEvent("upgrade_screen_vista", null)
     }
 
     private fun observeBillingStatus() {

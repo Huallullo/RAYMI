@@ -12,7 +12,8 @@ import com.raymi.app.domain.model.UserPlan
  */
 object AdManager {
 
-    // IDs de prueba de Google AdMob (Cambiar por los reales en producción)
+    // IDs de prueba de Google AdMob (Se usa BuildConfig en producción)
+    val ADMOB_APP_ID = com.raymi.app.BuildConfig.ADMOB_APP_ID
     const val TEST_BANNER_ID = "ca-app-pub-3940256099942544/6300978111"
 
     /**
@@ -26,8 +27,15 @@ object AdManager {
      * Determina si se deben mostrar anuncios basado en el plan del usuario.
      */
     fun debeMostrarAnuncios(plan: UserPlan?): Boolean {
-        if (plan == null) return true // Por seguridad, si no hay plan, mostramos ads
-        return plan.plan == PlanType.FREE && plan.mostrarAnuncios
+        if (plan == null) return false
+        if (plan.plan != PlanType.FREE) return false
+        if (!plan.mostrarAnuncios) return false
+        
+        // Trial: 30 días sin ads desde la creación del plan
+        val diasDesdeCreacion = (System.currentTimeMillis() / 1000 - plan.fechaInicio.seconds) / 86400
+        if (diasDesdeCreacion < 30) return false
+        
+        return true
     }
 
     /**

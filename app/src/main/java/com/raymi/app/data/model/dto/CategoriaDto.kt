@@ -9,9 +9,10 @@ data class CategoriaDto(
     val nombre: String = "",
     val descripcion: String = "",
     val icono: String? = null,
-    val color: String = "#3F51B5",
+    val color: String = "#4F46E5",
     val activa: Boolean = true,
     val orden: Int = 0,
+    val attributeTemplates: List<String> = emptyList(),
     val createdAt: Timestamp = Timestamp.now()
 ) {
     fun toDomain(): Categoria = Categoria(
@@ -23,6 +24,7 @@ data class CategoriaDto(
         color = color,
         activa = activa,
         orden = orden,
+        attributeTemplates = attributeTemplates,
         createdAt = createdAt
     )
 
@@ -36,23 +38,27 @@ data class CategoriaDto(
             color = domain.color,
             activa = domain.activa,
             orden = domain.orden,
+            attributeTemplates = domain.attributeTemplates,
             createdAt = domain.createdAt
         )
 
+        @Suppress("UNCHECKED_CAST")
         fun fromMap(id: String, map: Map<String, Any>): CategoriaDto = CategoriaDto(
             id = id,
             workspaceId = (map["workspaceId"] as? String) ?: (map["negocioId"] as? String) ?: "",
             nombre = map["nombre"] as? String ?: "",
             descripcion = map["descripcion"] as? String ?: "",
             icono = map["icono"] as? String,
-            color = map["color"] as? String ?: "#3F51B5",
+            color = map["color"] as? String ?: "#4F46E5",
             activa = map["activa"] as? Boolean ?: true,
             orden = (map["orden"] as? Number)?.toInt() ?: 0,
+            attributeTemplates = map["attributeTemplates"] as? List<String> ?: emptyList(),
             createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now()
         )
     }
 
     fun toMap(): Map<String, Any?> = mapOf(
+        "id" to id,
         "workspaceId" to workspaceId,
         "negocioId" to workspaceId,
         "nombre" to nombre,
@@ -61,6 +67,7 @@ data class CategoriaDto(
         "color" to color,
         "activa" to activa,
         "orden" to orden,
+        "attributeTemplates" to attributeTemplates,
         "createdAt" to createdAt
     )
 }

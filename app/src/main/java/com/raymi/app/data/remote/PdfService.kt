@@ -171,4 +171,51 @@ class PdfService @Inject constructor(
 
     // Compatibilidad
     suspend fun generarPdfAlquiler(alquiler: Alquiler): Resource<Uri> = generarComprobanteAlquiler(alquiler, null)
+
+    /**
+     * Genera un listado de inventario en PDF.
+     */
+    suspend fun generarPdfInventario(items: List<com.raymi.app.domain.model.Item>, negocioNombre: String): Resource<Uri> =
+        withContext(Dispatchers.IO) {
+            try {
+                val pdfUri = crearArchivo("Inventario_${negocioNombre.replace(" ", "_")}")
+                buildInventoryPdf(pdfUri, items, negocioNombre)
+                
+                val contentValues = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                context.contentResolver.update(pdfUri, contentValues, null, null)
+                Resource.Success(pdfUri)
+            } catch (e: Exception) {
+                Resource.Error("Falla al generar PDF de Inventario")
+            }
+        }
+
+    private fun buildInventoryPdf(uri: Uri, items: List<com.raymi.app.domain.model.Item>, business: String) {
+        context.contentResolver.openOutputStream(uri)?.use { os ->
+            PdfWriter(os).use { writer ->
+                PdfDocument(writer).use { pdf ->
+                    Document(pdf).use { doc ->
+                        doc.setMargins(40f, 40f, 40f, 40f)
+                        doc.add(Paragraph(business.uppercase()).setBold().setFontSize(18f).setFontColor(primaryColor))
+                        doc.add(Paragraph("REPORTE DE INVENTARIO").setBold().setFontSize(12f))
+                        doc.add(Paragraph("Generado el: ${dateFormat.format(Date())}\n\n").setFontSize(9f))
+
+                        val table = Table(UnitValue.createPercentArray(floatArrayOf(15f, 45f, 20f, 20f))).useAllAvailableWidth()
+                        table.addHeaderCell(headerCell("Código"))
+                        table.addHeaderCell(headerCell("Nombre"))
+                        table.addHeaderCell(headerCell("Precio"))
+                        table.addHeaderCell(headerCell("Estado"))
+
+                        items.forEach { item ->
+                            table.addCell(valorCell(item.codigo))
+                            table.addCell(valorCell(item.nombre))
+                            table.addCell(valorCell("S/. ${item.precio}"))
+                            table.addCell(valorCell(item.estado))
+                        }
+                        doc.add(table)
+                        doc.add(Paragraph("\nTotal de ítems: ${items.size}").setFontSize(10f).setBold())
+                    }
+                }
+            }
+        }
+    }
 }

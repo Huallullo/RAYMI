@@ -134,6 +134,13 @@ class ClienteRepositoryImpl @Inject constructor(
                 return@flow
             }
 
+            // Limpiar índice DNI
+            val clienteData = dataSource.getBusinessDocument("clientes", clienteId)
+            val dni = clienteData?.get("dni") as? String
+            if (!dni.isNullOrBlank()) {
+                dataSource.deleteBusinessDocument("clientes_dni_index", dni)
+            }
+
             dataSource.deleteBusinessDocument(
                 collection = "clientes",
                 documentId = clienteId

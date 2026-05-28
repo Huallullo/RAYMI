@@ -23,6 +23,9 @@ import javax.inject.Inject
 class AddItemViewModel @Inject constructor(
     private val addItemUseCase: AddItemUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
+    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val authRepository: com.raymi.app.domain.repository.AuthRepository,
+    private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val storageDataSource: StorageDataSource,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -62,7 +65,16 @@ class AddItemViewModel @Inject constructor(
     fun onCodigoChange(codigo: String) = _uiState.update { it.copy(codigo = codigo) }
     fun onPrecioChange(precio: String) = _uiState.update { it.copy(precio = precio) }
     fun onCantidadChange(cantidad: Int) = _uiState.update { it.copy(cantidad = cantidad) }
-    fun onCategoriaChange(categoria: Categoria) = _uiState.update { it.copy(categoriaSeleccionada = categoria) }
+    fun onCategoriaChange(categoria: Categoria) {
+        _uiState.update { it.copy(categoriaSeleccionada = categoria) }
+        
+        // Cargar atributos predefinidos de la categoría (TAREA 11)
+        val nuevosAtributos = mutableMapOf<String, String>()
+        categoria.attributeTemplates.forEach { template ->
+            nuevosAtributos[template] = ""
+        }
+        _uiState.update { it.copy(atributos = nuevosAtributos) }
+    }
     fun onImageSelected(uri: Uri?) = _uiState.update { it.copy(selectedImageUri = uri) }
     
     fun onAtributoChange(clave: String, valor: String) {
@@ -100,8 +112,16 @@ class AddItemViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
+                val user = authRepository.getCurrentUser() ?: throw Exception("Usuario no autenticado")
                 val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Negocio no identificado")
                 
+                // Verificar límites del plan
+                val canAdd = userPlanRepository.canAddMoreItems(user.uid, workspaceId)
+                if (!canAdd) {
+                    _uiState.update { it.copy(isLoading = false, error = "Has alcanzado el límite de ítems de tu plan. Actualiza a PRO para continuar.") }
+                    return@launch
+                }
+
                 var imageUrl: String? = null
                 state.selectedImageUri?.let { uri ->
                     val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.jpg"
@@ -121,7 +141,10 @@ class AddItemViewModel @Inject constructor(
 
                 addItemUseCase(nuevoItem).collect { result ->
                     when (result) {
-                        is Resource.Success -> _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                        is Resource.Success -> {
+                            analytics.logEvent("item_creado", null)
+                            _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                        }
                         is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                         else -> {}
                     }

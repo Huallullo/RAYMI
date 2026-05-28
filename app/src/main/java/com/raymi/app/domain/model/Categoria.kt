@@ -2,38 +2,15 @@ package com.raymi.app.domain.model
 
 import com.google.firebase.Timestamp
 
-/**
- * Categoría para agrupar Items dentro de un workspace
- * 
- * Ejemplos según tipo de negocio:
- * 
- * Para VESTUARIOS:
- * - "Trajes Folklóricos"
- * - "Accesorios"
- * - "Complementos"
- * 
- * Para EQUIPOS DE CINE:
- * - "Cámaras"
- * - "Lentes"
- * - "Iluminación"
- * - "Audio"
- * 
- * Para VEHÍCULOS:
- * - "SUVs"
- * - "Sedanes"
- * - "Camionetas"
- * 
- * Cada usuario crea las categorías que necesita para su negocio
- */
 data class Categoria(
     val id: String = "",
-    val workspaceId: String = "",              // A qué workspace pertenece
-    val nombre: String = "",                   // "Trajes Folklóricos"
+    val workspaceId: String = "",
+    val nombre: String = "",
     val descripcion: String = "",
-    val icono: String? = null,                 // URL o emoji (ej: "👔", "🎬", "🚗")
-    val color: String = "#3F51B5",             // Color hexadecimal para UI
+    val icono: String? = null,
+    val color: String = "#4F46E5",
     val activa: Boolean = true,
-    val orden: Int = 0,                        // Para ordenar en UI (0 = primero)
+    val orden: Int = 0,
+    val attributeTemplates: List<String> = emptyList(), // Placa, Año, Color, etc.
     val createdAt: Timestamp = Timestamp.now()
 )
-
