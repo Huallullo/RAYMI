@@ -184,6 +184,9 @@ dependencies {
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Google Play Billing
+    implementation("com.android.billingclient:billing:7.0.0")
+
     // Tests
     testImplementation(libs.junit)
     testImplementation(libs.truth)

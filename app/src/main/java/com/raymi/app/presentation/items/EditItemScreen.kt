@@ -17,6 +17,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.raymi.app.presentation.components.RaymiErrorState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
 
@@ -36,6 +38,12 @@ fun EditItemScreen(
     var showAttrDialog by remember { mutableStateOf(false) }
     var newAttrKey by remember { mutableStateOf("") }
     var isCatDropdownExpanded by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        viewModel.onImageSelected(uri)
+    }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onNavigateBack()
@@ -66,6 +74,27 @@ fun EditItemScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
+                    // 0. Cambio de Imagen
+                    Surface(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (uiState.newImageUri != null) {
+                                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                                Text("Nueva imagen lista", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(48.dp))
+                                    Text("Cambiar Foto", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+
                     // 1. Categoría
                     Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     

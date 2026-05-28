@@ -201,7 +201,8 @@ fun RaymiSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String = "Buscar...",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = query,
@@ -212,7 +213,9 @@ fun RaymiSearchBar(
             Icon(Icons.Filled.Search, contentDescription = "Buscar")
         },
         trailingIcon = {
-            if (query.isNotEmpty()) {
+            if (trailingIcon != null) {
+                trailingIcon()
+            } else if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(Icons.Filled.Clear, contentDescription = "Limpiar")
                 }

@@ -1,5 +1,6 @@
 package com.raymi.app.presentation.items
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
@@ -8,19 +9,21 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
 import com.raymi.app.domain.usecase.item.AddItemUseCase
+import com.raymi.app.data.remote.StorageDataSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 /**
- * ViewModel para registrar nuevos ítems en el inventario.
- * Soporta atributos dinámicos y asignación de categorías según el tipo de negocio.
+ * ViewModel para registrar nuevos ítems en el inventario con soporte de imágenes.
  */
 @HiltViewModel
 class AddItemViewModel @Inject constructor(
     private val addItemUseCase: AddItemUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
+    private val storageDataSource: StorageDataSource,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -51,9 +54,7 @@ class AddItemViewModel @Inject constructor(
                         }
                     }
                 }
-            } catch (e: Exception) {
-                // Manejado por el guardado principal si falla el ID
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -62,10 +63,8 @@ class AddItemViewModel @Inject constructor(
     fun onPrecioChange(precio: String) = _uiState.update { it.copy(precio = precio) }
     fun onCantidadChange(cantidad: Int) = _uiState.update { it.copy(cantidad = cantidad) }
     fun onCategoriaChange(categoria: Categoria) = _uiState.update { it.copy(categoriaSeleccionada = categoria) }
+    fun onImageSelected(uri: Uri?) = _uiState.update { it.copy(selectedImageUri = uri) }
     
-    /**
-     * Agrega o actualiza un atributo dinámico (ej: Talla, Color, Placa).
-     */
     fun onAtributoChange(clave: String, valor: String) {
         val nuevosAtributos = _uiState.value.atributos.toMutableMap()
         nuevosAtributos[clave] = valor
@@ -74,9 +73,6 @@ class AddItemViewModel @Inject constructor(
 
     fun clearMessages() = _uiState.update { it.copy(error = null) }
 
-    /**
-     * Elimina un atributo dinámico.
-     */
     fun eliminarAtributo(clave: String) {
         val nuevosAtributos = _uiState.value.atributos.toMutableMap()
         nuevosAtributos.remove(clave)
@@ -85,8 +81,6 @@ class AddItemViewModel @Inject constructor(
 
     fun guardarItem() {
         val state = _uiState.value
-        
-        // Validaciones Senior (QA: No vacíos y limpieza)
         val nombreLimpio = state.nombre.trim()
         val codigoLimpio = state.codigo.trim().uppercase()
         
@@ -104,15 +98,15 @@ class AddItemViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
             try {
-                val workspaceId = workspaceManager.getWorkspaceId()
-                if (workspaceId == null) {
-                    _uiState.update { it.copy(isLoading = false, error = "Negocio no identificado") }
-                    return@launch
-                }
+                val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Negocio no identificado")
                 
-                // Sanitización de atributos (Trimming de valores)
-                val atributosLimpios = state.atributos.mapValues { it.value.trim() }
+                var imageUrl: String? = null
+                state.selectedImageUri?.let { uri ->
+                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.jpg"
+                    imageUrl = storageDataSource.uploadFile(path, uri)
+                }
 
                 val nuevoItem = Item(
                     workspaceId = workspaceId,
@@ -121,18 +115,19 @@ class AddItemViewModel @Inject constructor(
                     categoriaId = state.categoriaSeleccionada.id,
                     precio = state.precio.toDoubleOrNull() ?: 0.0,
                     cantidad = state.cantidad,
-                    atributos = atributosLimpios
+                    atributos = state.atributos.mapValues { it.value.trim() },
+                    imagenUrl = imageUrl
                 )
 
                 addItemUseCase(nuevoItem).collect { result ->
                     when (result) {
-                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
                         is Resource.Success -> _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                         is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                        else -> {}
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error: No se pudo identificar el negocio actual") }
+                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
             }
         }
     }
@@ -146,6 +141,7 @@ data class AddItemUiState(
     val categorias: List<Categoria> = emptyList(),
     val categoriaSeleccionada: Categoria? = null,
     val atributos: Map<String, String> = emptyMap(),
+    val selectedImageUri: Uri? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false

@@ -1,7 +1,6 @@
 package com.raymi.app.presentation.auth
 
 import com.raymi.app.core.workspace.WorkspaceManager
-import com.raymi.app.domain.usecase.business.CheckBusinessConfigUseCase
 import com.raymi.app.domain.usecase.workspace.GetCurrentWorkspaceUseCase
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +37,6 @@ class LoginViewModelValidationTest {
         val repository = FakeAuthRepositoryNoOp()
         return LoginViewModel(
             authRepository = repository,
-            checkBusinessConfigUseCase = mockk(relaxed = true),
             getCurrentWorkspaceUseCase = mockk(relaxed = true),
             workspaceManager = mockk(relaxed = true)
         )

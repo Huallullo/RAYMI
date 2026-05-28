@@ -26,6 +26,9 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.components.EstadoBadge
 import com.raymi.app.presentation.components.RaymiErrorState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,6 +144,19 @@ fun ItemDetailContent(item: Item) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // 0. Imagen del Producto
+        if (item.imagenUrl != null) {
+            AsyncImage(
+                model = item.imagenUrl,
+                contentDescription = item.nombre,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .clip(MaterialTheme.shapes.extraLarge),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         // 1. Encabezado de Estado y SKU
         Row(
             modifier = Modifier.fillMaxWidth(),

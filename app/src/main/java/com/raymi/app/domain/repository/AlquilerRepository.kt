@@ -23,17 +23,17 @@ interface AlquilerRepository {
     /**
      * Obtiene alquileres por estado
      */
-    suspend fun getAlquileresByEstado(estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>>
+    suspend fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene alquileres de un cliente específico
      */
-    suspend fun getAlquileresByCliente(clienteId: String): Flow<Resource<List<Alquiler>>>
+    suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene alquileres de un ítem específico
      */
-    suspend fun getAlquileresByItem(itemId: String): Flow<Resource<List<Alquiler>>>
+    suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Crea un nuevo alquiler

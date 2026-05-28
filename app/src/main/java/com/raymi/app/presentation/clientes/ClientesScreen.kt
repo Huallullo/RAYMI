@@ -81,8 +81,30 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                 query = uiState.searchQuery,
                 onQueryChange = { viewModel.searchClientes(it) },
                 placeholder = "Nombre o DNI del cliente...",
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                trailingIcon = {
+                    if (uiState.searchQuery.length == 1) {
+                        Text(
+                            "✍️", 
+                            modifier = Modifier.padding(end = 12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else if (uiState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.searchClientes("") }) {
+                            Icon(Icons.Filled.Clear, contentDescription = "Limpiar")
+                        }
+                    }
+                }
             )
+            
+            if (uiState.searchQuery.length == 1) {
+                Text(
+                    "Escribe al menos 2 caracteres para búsqueda rápida",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
+                )
+            }
 
             // 2. Chips de Ordenamiento (Recurso Gratis para UX)
             LazyRow(

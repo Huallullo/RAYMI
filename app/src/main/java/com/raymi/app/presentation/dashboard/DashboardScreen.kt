@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -44,26 +43,20 @@ fun DashboardScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "RAYMI",
+                            uiState.currentWorkspace?.nombre?.uppercase() ?: "RAYMI",
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 2.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            letterSpacing = 1.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium
                         )
-                        Spacer(Modifier.width(12.dp))
                         val planNombre = uiState.currentPlan?.plan?.name ?: "BÁSICO"
-                        Badge(
-                            containerColor = if (planNombre == "PRO") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                            modifier = Modifier.scale(1.1f)
-                        ) {
-                            Text(
-                                planNombre, 
-                                style = MaterialTheme.typography.labelSmall, 
-                                color = if (planNombre == "PRO") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                        }
+                        Text(
+                            "Plan $planNombre",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
             )

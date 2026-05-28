@@ -59,7 +59,7 @@ fun SplashScreen(
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        delay(4000) // Duración de 3 segundos para que se aprecie todo
+        delay(2500)
         onAnimationFinished()
     }
 

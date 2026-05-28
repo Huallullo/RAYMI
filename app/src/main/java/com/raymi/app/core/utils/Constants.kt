@@ -7,7 +7,7 @@ object Constants {
 
     // ========== COLECCIONES FIREBASE ==========
     const val COLLECTION_CLIENTES = "clientes"
-    const val COLLECTION_VESTUARIOS = "vestuarios"
+    const val COLLECTION_ITEMS = "items"
     const val COLLECTION_ALQUILERES = "alquileres"
 
     // ========== VALIDACIONES ==========
@@ -15,7 +15,7 @@ object Constants {
     const val MIN_PASSWORD_LENGTH = 6
     const val MIN_PHONE_LENGTH = 9
 
-    // ========== ESTADOS VESTUARIO ==========
+    // ========== ESTADOS ITEM ==========
     const val ESTADO_DISPONIBLE = "DISPONIBLE"
     const val ESTADO_ALQUILADO = "ALQUILADO"
     const val ESTADO_MANTENIMIENTO = "MANTENIMIENTO"

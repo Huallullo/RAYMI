@@ -88,14 +88,6 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun registrarDevolucion() {
-        val alquiler = _uiState.value.alquiler ?: return
-        
-        // Regla de Negocio Senior: No permitir devolución si hay deuda (QA Fix)
-        if (alquiler.saldo > 0) {
-            _uiState.update { it.copy(error = "No se puede devolver: El cliente tiene un saldo pendiente de S/. ${alquiler.saldo}") }
-            return
-        }
-
         viewModelScope.launch {
             registrarDevolucionUseCase(alquilerId).collect { result ->
                 when (result) {

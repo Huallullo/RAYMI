@@ -118,4 +118,21 @@ class ItemRepositoryImpl @Inject constructor(
             emit(Resource.Error("Error al buscar ítems: ${e.message}"))
         }
     }
+
+    override suspend fun getItemsByCategoria(workspaceId: String, categoriaId: String): Flow<Resource<List<Item>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val documents = dataSource.queryBusinessDocuments(
+                collection = "items",
+                field = "categoriaId",
+                value = categoriaId,
+                limit = 300,
+                negocioId = workspaceId
+            )
+            val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(items))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al filtrar por categoría: ${e.message}"))
+        }
+    }
 }

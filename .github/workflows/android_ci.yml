@@ -44,7 +44,11 @@ jobs:
       - name: Ejecutar pruebas unitarias
         run: ./gradlew test
 
-      # Paso 6: Subir los reportes de prueba como artefacto (siempre, incluso si las pruebas fallan)
+      # Paso 6: Compilar el APK de depuración para verificar errores de compilación
+      - name: Compilar APK (Debug)
+        run: ./gradlew assembleDebug
+
+      # Paso 7: Subir los reportes de prueba como artefacto (siempre, incluso si las pruebas fallan)
       - name: Subir resultados de las pruebas
         if: always()
         uses: actions/upload-artifact@v4

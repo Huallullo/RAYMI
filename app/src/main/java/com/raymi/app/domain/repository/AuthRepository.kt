@@ -45,6 +45,11 @@ interface AuthRepository {
     suspend fun logout(): Flow<Resource<Unit>>
 
     /**
+     * Actualiza el perfil del usuario (nombre y opcionalmente teléfono)
+     */
+    suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>>
+
+    /**
      * Verifica si hay un usuario autenticado (síncrono, no suspendido)
      */
     fun isUserAuthenticated(): Boolean

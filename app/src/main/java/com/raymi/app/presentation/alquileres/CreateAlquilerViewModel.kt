@@ -184,6 +184,10 @@ class CreateAlquilerViewModel @Inject constructor(
             _uiState.update { it.copy(error = "Indica la fecha de devolución") }
             return
         }
+        if (state.precioTotal <= 0) {
+            _uiState.update { it.copy(error = "El precio total debe ser mayor a 0") }
+            return
+        }
 
         viewModelScope.launch {
             try {

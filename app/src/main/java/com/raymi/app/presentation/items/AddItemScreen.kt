@@ -18,6 +18,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.testTag
 
 /**
@@ -35,6 +37,12 @@ fun AddItemScreen(
     var showAttrDialog by remember { mutableStateOf(false) }
     var newAttrKey by remember { mutableStateOf("") }
     var isCatDropdownExpanded by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        viewModel.onImageSelected(uri)
+    }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onNavigateBack()
@@ -68,6 +76,34 @@ fun AddItemScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // 0. Selección de Imagen
+            Surface(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                if (uiState.selectedImageUri != null) {
+                    // Placeholder simple para mostrar que hay algo
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("Imagen lista", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("Añadir Foto del Producto", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+
             Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             ExposedDropdownMenuBox(

@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -31,6 +32,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
     onNavigateToPlans: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToEditProfile: () -> Unit,
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -86,7 +88,7 @@ fun ProfileScreen(
                             title = "Datos Personales",
                             subtitle = "Nombre, correo y teléfono",
                             icon = Icons.Default.Badge,
-                            onClick = { /* Implementar edición de perfil */ }
+                            onClick = onNavigateToEditProfile
                         )
                         
                         AccountOptionItem(
@@ -104,7 +106,19 @@ fun ProfileScreen(
                         )
                     }
 
-                    // 4. Botón de Cerrar Sesión
+                    // 4. Soporte y Ayuda
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Soporte", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                        AccountOptionItem(
+                            title = "Centro de Ayuda",
+                            subtitle = "Guías y tutoriales de uso",
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
+                            onClick = { /* Link a web externa */ }
+                        )
+                    }
+
+                    // 5. Botón de Cerrar Sesión
                     OutlinedButton(
                         onClick = { viewModel.cerrarSesion() },
                         modifier = Modifier.fillMaxWidth().height(56.dp),

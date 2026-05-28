@@ -34,7 +34,7 @@ data class Boleta(
     val negocioTelefono: String = "",
     
     // Items alquilados
-    val items: List<BeletaItem> = emptyList(),
+    val items: List<BoletaItem> = emptyList(),
     
     // Montos
     val subtotal: Double = 0.0,
@@ -69,11 +69,11 @@ data class Boleta(
     val fechaFormatted: String
         get() = SimpleDateFormat("dd/MM/yyyy", Locale("es", "PE")).format(fechaEmision.toDate())
     
-    val bolетaCompleta: String
+    val boletaCompleta: String
         get() = "$serieNumeracion-$numeroBoleta".padEnd(7, '0')
 }
 
-data class BeletaItem(
+data class BoletaItem(
     val itemNombre: String = "",
     val itemCodigo: String = "",
     val cantidad: Int = 1,

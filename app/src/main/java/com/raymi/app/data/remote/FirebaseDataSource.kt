@@ -3,13 +3,9 @@ package com.raymi.app.data.remote
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.google.firebase.firestore.Query
 
 @Singleton
 class FirebaseDataSource @Inject constructor(
@@ -115,7 +111,6 @@ class FirebaseDataSource @Inject constructor(
             val negocioId = snapshot.getString("negocioId")
             
             if (snapshot.exists() && !negocioId.isNullOrBlank()) {
-                // QA Check: Verificar que el usuario tenga acceso a este negocio
                 val miembroSnap = firestore.collection(COLLECTION_NEGOCIOS)
                     .document(negocioId)
                     .collection("miembros")
@@ -126,14 +121,12 @@ class FirebaseDataSource @Inject constructor(
                 if (miembroSnap.exists()) {
                     negocioId
                 } else {
-                    // Si el perfil existe pero no es miembro (datos corruptos), lo re-registramos
                     createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
                 }
             } else {
                 createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
             }
         } catch (e: Exception) {
-            // Si hay error de permisos al leer el perfil, intentamos crear uno nuevo
             if (e.message?.contains("PERMISSION_DENIED") == true) {
                 createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))
             } else {
@@ -152,11 +145,9 @@ class FirebaseDataSource @Inject constructor(
         return ensureBusinessProfileForUser(user)
     }
 
-    private suspend fun businessCollection(collection: String) =
-        firestore.collection(COLLECTION_NEGOCIOS).document(getCurrentBusinessId()).collection(collection)
-
-    suspend fun getBusinessDocument(collection: String, documentId: String): Map<String, Any>? {
-        val snapshot = businessCollection(collection).document(documentId).get().await()
+    suspend fun getBusinessDocument(collection: String, documentId: String, negocioId: String? = null): Map<String, Any>? {
+        val targetId = negocioId ?: getCurrentBusinessId()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(targetId).collection(collection).document(documentId).get().await()
         return if (snapshot.exists()) snapshot.data else null
     }
 
@@ -166,8 +157,8 @@ class FirebaseDataSource @Inject constructor(
         descending: Boolean = true,
         limit: Long = DEFAULT_QUERY_LIMIT
     ): List<Pair<String, Map<String, Any>>> {
-        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
-        val snapshot = businessCollection(collection)
+        val direction = if (descending) com.google.firebase.firestore.Query.Direction.DESCENDING else com.google.firebase.firestore.Query.Direction.ASCENDING
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(getCurrentBusinessId()).collection(collection)
             .orderBy(orderByField, direction)
             .limit(limit)
             .get()
@@ -197,7 +188,7 @@ class FirebaseDataSource @Inject constructor(
         value: String,
         limit: Long = DEFAULT_QUERY_LIMIT
     ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = businessCollection(collection)
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(getCurrentBusinessId()).collection(collection)
             .whereArrayContains(field, value)
             .limit(limit)
             .get()
@@ -205,67 +196,29 @@ class FirebaseDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
-    fun observeBusinessCollectionOrderedLimited(
+    suspend fun updateBusinessDocument(
         collection: String,
-        orderByField: String,
-        descending: Boolean = true,
-        limit: Long = 200,
+        documentId: String,
+        data: Map<String, Any>,
         negocioId: String? = null
-    ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
-        val user = auth.currentUser ?: run { close(Exception("Usuario no autenticado")); return@callbackFlow }
-        val finalNegocioId = negocioId ?: try { ensureBusinessProfileForUser(user) } catch (e: Exception) { close(e); return@callbackFlow }
-        val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
-        val subscription = firestore.collection(COLLECTION_NEGOCIOS)
-            .document(finalNegocioId)
-            .collection(collection)
-            .orderBy(orderByField, direction)
-            .limit(limit)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
-                if (snapshot != null) {
-                    val documents = snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
-                    trySend(documents)
-                }
-            }
-        awaitClose { subscription.remove() }
+    ) {
+        val targetNegocioId = negocioId ?: getCurrentBusinessId()
+        firestore.collection(COLLECTION_NEGOCIOS).document(targetNegocioId)
+            .collection(collection).document(documentId).update(data).await()
     }
 
-    suspend fun updateBusinessDocument(collection: String, documentId: String, data: Map<String, Any>) {
-        businessCollection(collection).document(documentId).update(data).await()
-    }
-
-    suspend fun deleteBusinessDocument(collection: String, documentId: String) {
-        businessCollection(collection).document(documentId).delete().await()
+    suspend fun deleteBusinessDocument(
+        collection: String,
+        documentId: String,
+        negocioId: String? = null
+    ) {
+        val targetNegocioId = negocioId ?: getCurrentBusinessId()
+        firestore.collection(COLLECTION_NEGOCIOS).document(targetNegocioId)
+            .collection(collection).document(documentId).delete().await()
     }
 
     suspend fun addBusinessDocument(workspaceId: String, collection: String, data: Map<String, Any>): String {
         val docRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection(collection).add(data).await()
         return docRef.id
-    }
-
-    suspend fun queryBusinessAlquileres(
-        field: String,
-        value: Any,
-        limit: Long = DEFAULT_QUERY_LIMIT
-    ): List<Pair<String, Map<String, Any>>> = queryBusinessDocuments("alquileres", field, value, limit)
-
-    fun observeBusinessAlquileresOrderedLimited(
-        orderByField: String = "createdAt",
-        descending: Boolean = true,
-        limit: Long = 500,
-        negocioId: String? = null
-    ): Flow<List<Pair<String, Map<String, Any>>>> =
-        observeBusinessCollectionOrderedLimited("alquileres", orderByField, descending, limit, negocioId)
-
-    suspend fun updateStats(workspaceId: String, field: String, increment: Long) {
-        val statsRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("metadata").document("stats")
-        statsRef.set(mapOf(field to com.google.firebase.firestore.FieldValue.increment(increment)), com.google.firebase.firestore.SetOptions.merge()).await()
-    }
-
-    suspend fun getStats(workspaceId: String): Map<String, Any>? {
-        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("metadata").document("stats").get().await()
-        return if (snapshot.exists()) snapshot.data else null
     }
 }

@@ -21,15 +21,18 @@ class BusinessSettingsViewModel @Inject constructor(
     val uiState: StateFlow<BusinessSettingsUiState> = _uiState.asStateFlow()
 
     init {
-        // Cargamos los datos actuales del negocio desde el manager
-        workspaceManager.currentWorkspace.value?.let { workspace ->
-            _uiState.update { it.copy(
-                nombre = workspace.nombre,
-                descripcion = workspace.descripcion,
-                moneda = workspace.moneda,
-                tipoNegocio = workspace.tipoNegocio
-            ) }
-        }
+        // Observar el negocio actual para cargar datos iniciales o cambios en caliente
+        workspaceManager.currentWorkspace
+            .filterNotNull()
+            .onEach { workspace ->
+                _uiState.update { it.copy(
+                    nombre = workspace.nombre,
+                    descripcion = workspace.descripcion,
+                    moneda = workspace.moneda,
+                    tipoNegocio = workspace.tipoNegocio
+                ) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onNombreChange(v: String) = _uiState.update { it.copy(nombre = v) }

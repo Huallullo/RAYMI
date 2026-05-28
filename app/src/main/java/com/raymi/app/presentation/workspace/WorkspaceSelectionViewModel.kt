@@ -58,9 +58,12 @@ class WorkspaceSelectionViewModel @Inject constructor(
     }
 
     fun selectWorkspace(workspace: Workspace) {
-        _uiState.value = _uiState.value.copy(isLoading = true)
-        workspaceManager.setWorkspace(workspace)
-        _uiState.value = _uiState.value.copy(workspaceSelected = true, isLoading = false)
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            workspaceManager.setWorkspace(workspace)
+            kotlinx.coroutines.delay(300) // Feedback visual
+            _uiState.value = _uiState.value.copy(workspaceSelected = true, isLoading = false)
+        }
     }
 
     fun logout(onSuccess: () -> Unit) {

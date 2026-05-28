@@ -21,6 +21,7 @@ import com.raymi.app.presentation.items.ItemDetailScreen
 import com.raymi.app.presentation.items.ItemsScreen
 import com.raymi.app.presentation.plans.PlansScreen
 import com.raymi.app.presentation.profile.ProfileScreen
+import com.raymi.app.presentation.profile.edit.EditProfileScreen
 import com.raymi.app.presentation.settings.BusinessSettingsScreen
 import com.raymi.app.presentation.workspace.CreateWorkspaceScreen
 import com.raymi.app.presentation.workspace.WorkspaceSelectionScreen
@@ -327,11 +328,21 @@ fun RaymiNavGraph(
             ProfileScreen(
                 onNavigateToPlans = { navController.navigate(Screen.Plans.route) },
                 onNavigateToSettings = { navController.navigate(Screen.BusinessSettings.route) },
+                onNavigateToEditProfile = { navController.navigate(Screen.EditProfile.route) },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        /**
+         * Pantalla de Edición de Perfil
+         */
+        composable(route = Screen.EditProfile.route) {
+            EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

@@ -2,7 +2,9 @@ package com.raymi.app.data.repository
 
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.userProfileChangeRequest
 import com.raymi.app.core.utils.AppLogger
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Resource
@@ -197,6 +199,31 @@ class AuthRepositoryImpl @Inject constructor(
             throw e
         } catch (e: Exception) {
             emit(Resource.Error("Error al cerrar sesión: ${e.message}"))
+        }
+    }
+
+    override suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>> = flow {
+        try {
+            emit(Resource.Loading())
+            val user = authDataSource.getCurrentUser() ?: throw Exception("No hay usuario autenticado")
+            
+            val profileUpdates = userProfileChangeRequest {
+                displayName = name
+            }
+            
+            // Usamos tareas de Firebase directas aquí o extendemos AuthDataSource
+            com.google.android.gms.tasks.Tasks.await(user.updateProfile(profileUpdates))
+            
+            // Actualizar teléfono si es necesario en Firestore (SaaS Profile)
+            val uid = user.uid
+            dataSource.updateDocument(com.raymi.app.data.remote.FirebaseDataSource.COLLECTION_USUARIOS, uid, mapOf(
+                "nombre" to name,
+                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            ))
+            
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al actualizar perfil: ${e.message}"))
         }
     }
 

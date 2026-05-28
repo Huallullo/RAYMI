@@ -1,6 +1,8 @@
 package com.raymi.app.data.remote
 
+import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -9,7 +11,21 @@ import javax.inject.Singleton
  */
 @Singleton
 class StorageDataSource @Inject constructor(
-    @Suppress("unused") private val storage: FirebaseStorage
+    private val storage: FirebaseStorage
 ) {
-    // Funciones de subida reservadas para futura implementación de fotos de items
+    /**
+     * Sube un archivo a una ruta específica.
+     */
+    suspend fun uploadFile(path: String, uri: Uri): String {
+        val ref = storage.reference.child(path)
+        ref.putFile(uri).await()
+        return ref.downloadUrl.await().toString()
+    }
+
+    /**
+     * Elimina un archivo en una ruta específica.
+     */
+    suspend fun deleteFile(path: String) {
+        storage.reference.child(path).delete().await()
+    }
 }

@@ -10,7 +10,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.raymi.app.core.theme.RaymiTheme
 import com.raymi.app.presentation.MainScreen
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,8 +29,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Inicialización Maestro de Publicidad en segundo plano para no bloquear el Splash
-        lifecycleScope.launch(Dispatchers.IO) {
+        // Inicialización Maestro de Publicidad
+        lifecycleScope.launch {
             com.raymi.app.core.ads.AdManager.inicializar(this@MainActivity)
         }
 

@@ -74,7 +74,8 @@ class DashboardViewModel @Inject constructor(
                     totalClientes = (data["totalClientes"] as? Number)?.toInt() ?: 0,
                     totalItems = (data["totalItems"] as? Number)?.toInt() ?: 0,
                     alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt() ?: 0,
-                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
+                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0,
+                    ingresosMes = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
                 )
             }
         }
@@ -85,7 +86,6 @@ class DashboardViewModel @Inject constructor(
             is Resource.Success -> {
                 val alquileres = alquileresResult.data ?: emptyList()
                 calcularActividadSemanal(alquileres)
-                recalculateIngresos(alquileres)
                 _uiState.update { it.copy(isLoading = false) }
             }
             is Resource.Error -> {
@@ -119,17 +119,11 @@ class DashboardViewModel @Inject constructor(
         _uiState.update { it.copy(actividadSemanal = actividad) }
     }
 
-    private fun recalculateIngresos(alquileres: List<Alquiler>) {
-        val total = alquileres.sumOf { it.precioTotal }
-        updateEstadisticas { copy(ingresosMes = total) }
-    }
-
-    fun updateEstadisticas(update: Estadisticas.() -> Estadisticas) {
+    private fun updateEstadisticas(update: Estadisticas.() -> Estadisticas) {
         _uiState.update { it.copy(estadisticas = it.estadisticas.update()) }
     }
 
     fun exportarResumenFinancieroPdf() {
-        // Implementación básica del PDF
         _uiState.update { it.copy(successMessage = "Resumen financiero generado") }
     }
 

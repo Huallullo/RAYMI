@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.raymi.app.domain.model.Workspace
+import com.raymi.app.domain.repository.WorkspaceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import javax.inject.Provider
+import com.raymi.app.domain.model.Resource
 
 private val Context.dataStore by preferencesDataStore(name = "workspace_prefs")
 
@@ -22,7 +25,8 @@ private val Context.dataStore by preferencesDataStore(name = "workspace_prefs")
  */
 @Singleton
 class WorkspaceManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val workspaceRepositoryProvider: Provider<WorkspaceRepository>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val KEY_WORKSPACE_ID = stringPreferencesKey("current_workspace_id")
@@ -33,12 +37,23 @@ class WorkspaceManager @Inject constructor(
     init {
         // Restaurar workspaceID desde persistencia al iniciar
         scope.launch {
-            context.dataStore.data.map { prefs ->
+            val id = context.dataStore.data.map { prefs ->
                 prefs[KEY_WORKSPACE_ID]
-            }.collect { id ->
-                if (id != null && _currentWorkspace.value == null) {
-                    // Solo seteamos el ID básico, los repositorios cargarán el objeto completo
-                    _currentWorkspace.value = Workspace(id = id)
+            }.first()
+
+            if (id != null && _currentWorkspace.value == null) {
+                // Primero seteamos el ID básico para evitar UI vacía si es posible
+                _currentWorkspace.value = Workspace(id = id)
+                
+                // Cargar datos completos desde el repositorio
+                try {
+                    workspaceRepositoryProvider.get().getWorkspaceById(id).collect { resource ->
+                        if (resource is Resource.Success) {
+                            _currentWorkspace.value = resource.data
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Si falla la carga remota, nos quedamos con el ID parcial
                 }
             }
         }

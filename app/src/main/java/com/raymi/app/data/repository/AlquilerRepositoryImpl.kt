@@ -60,10 +60,16 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getAlquileresByEstado(estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            val documents = dataSource.queryBusinessAlquileres("estado", estado.name, 300)
+            val documents = dataSource.queryBusinessDocuments(
+                collection = "alquileres",
+                field = "estado",
+                value = estado.name,
+                limit = 300,
+                negocioId = workspaceId
+            )
             val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
@@ -71,10 +77,16 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getAlquileresByCliente(clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            val documents = dataSource.queryBusinessAlquileres("clienteId", clienteId, 300)
+            val documents = dataSource.queryBusinessDocuments(
+                collection = "alquileres",
+                field = "clienteId",
+                value = clienteId,
+                limit = 300,
+                negocioId = workspaceId
+            )
             val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
@@ -82,10 +94,16 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getAlquileresByItem(itemId: String): Flow<Resource<List<Alquiler>>> = flow {
+    override suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>> = flow {
         try {
             emit(Resource.Loading())
-            val docs = dataSource.queryBusinessAlquileres("itemId", itemId, 500)
+            val docs = dataSource.queryBusinessDocuments(
+                collection = "alquileres",
+                field = "itemId",
+                value = itemId,
+                limit = 500,
+                negocioId = workspaceId
+            )
             val alquileres = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {

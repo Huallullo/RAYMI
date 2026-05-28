@@ -33,6 +33,7 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile")
     object BusinessSettings : Screen("business_settings")
     object Plans : Screen("plans")
+    object EditProfile : Screen("edit_profile")
 
     // Detalle
     object ClienteDetalle : Screen("cliente/{clienteId}") {

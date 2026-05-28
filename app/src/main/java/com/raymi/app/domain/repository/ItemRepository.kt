@@ -38,4 +38,9 @@ interface ItemRepository {
      * Busca ítems por nombre o código dentro de un workspace
      */
     suspend fun searchItems(workspaceId: String, query: String): Flow<Resource<List<Item>>>
+
+    /**
+     * Obtiene ítems filtrados por categoría
+     */
+    suspend fun getItemsByCategoria(workspaceId: String, categoriaId: String): Flow<Resource<List<Item>>>
 }

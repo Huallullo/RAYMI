@@ -89,7 +89,8 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 data = mapOf(
                     "estado" to "VENCIDO",
                     "updatedAt" to Timestamp.now()
-                )
+                ),
+                negocioId = alquiler.workspaceId
             )
         } catch (_: Exception) { }
     }
