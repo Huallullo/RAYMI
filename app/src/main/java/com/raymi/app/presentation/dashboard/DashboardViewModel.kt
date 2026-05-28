@@ -12,6 +12,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -87,11 +89,32 @@ class DashboardViewModel @Inject constructor(
             is Resource.Success -> {
                 val alquileres = alquileresResult.data ?: emptyList()
                 calcularActividadSemanal(alquileres)
+                calcularOperacionesHoy(alquileres)
                 _uiState.update { it.copy(isLoading = false) }
             }
             is Resource.Error -> {
                 _uiState.update { it.copy(isLoading = false, error = alquileresResult.message) }
             }
+        }
+    }
+
+    private fun calcularOperacionesHoy(alquileres: List<Alquiler>) {
+        val hoy = java.util.Calendar.getInstance()
+        val hoyStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(hoy.time)
+        
+        val entregas = alquileres.count { it.fechaInicioFormatted == hoyStr && it.estado != EstadoAlquiler.CANCELADO }
+        val devoluciones = alquileres.count { it.fechaFinFormatted == hoyStr && it.estado == EstadoAlquiler.ACTIVO }
+        val pendientes = alquileres.filter { it.saldo > 0.01 && it.estado != EstadoAlquiler.CANCELADO && it.estado != EstadoAlquiler.DEVUELTO }
+        val vencidos = alquileres.count { it.estaVencido }
+
+        updateEstadisticas {
+            copy(
+                entregasHoy = entregas,
+                devolucionesHoy = devoluciones,
+                pagosPendientesCount = pendientes.size,
+                montoPendienteTotal = pendientes.sumOf { it.saldo },
+                alquileresVencidos = vencidos
+            )
         }
     }
 

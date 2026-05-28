@@ -145,10 +145,10 @@ class PdfService @Inject constructor(
                             totalAnual += subtotal
                             table.addCell(valorCell(name))
                             table.addCell(valorCell(mesAlq.size.toString()))
-                            table.addCell(valorCell(String.format("%.2f", subtotal)))
+                            table.addCell(valorCell(String.format(Locale.US, "%.2f", subtotal)))
                         }
                         doc.add(table)
-                        doc.add(Paragraph("\nTOTAL RECAUDADO EN $year: S/. ${String.format("%.2f", totalAnual)}").setBold().setFontSize(14f).setFontColor(primaryColor))
+                        doc.add(Paragraph("\nTOTAL RECAUDADO EN $year: S/. ${String.format(Locale.US, "%.2f", totalAnual)}").setBold().setFontSize(14f).setFontColor(primaryColor))
                     }
                 }
             }

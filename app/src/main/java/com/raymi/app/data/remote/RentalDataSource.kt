@@ -163,7 +163,12 @@ class RentalDataSource @Inject constructor(
         }.await()
     }
 
-    suspend fun registrarDevolucionTransactional(workspaceId: String, alquilerId: String) {
+    suspend fun registrarDevolucionTransactional(
+        workspaceId: String,
+        alquilerId: String,
+        penalidad: Double = 0.0,
+        observaciones: String = ""
+    ) {
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
         val statsRef = negocioRef.collection("metadata").document("stats")
@@ -175,9 +180,16 @@ class RentalDataSource @Inject constructor(
             val itemId = alqSnap.getString("itemId") ?: return@runTransaction
             val itemRef = negocioRef.collection("items").document(itemId)
             
-            // 1. Marcar Alquiler como DEVUELTO
+            val observacionesPrevias = alqSnap.getString("observaciones") ?: ""
+            val nuevasObservaciones = if (observaciones.isNotBlank()) {
+                "$observacionesPrevias\n[Devolución]: $observaciones"
+            } else observacionesPrevias
+
+            // 1. Marcar Alquiler como DEVUELTO y registrar penalidad
             transaction.update(alquilerRef, mapOf(
                 "estado" to "DEVUELTO",
+                "penalidad" to penalidad,
+                "observaciones" to nuevasObservaciones,
                 "fechaDevolucion" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
             ))
@@ -192,6 +204,11 @@ class RentalDataSource @Inject constructor(
 
             // 3. Actualizar Stats
             transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
+            
+            // Si hay penalidad, se suma a los ingresos totales (o podrías manejarlo como deuda pendiente)
+            if (penalidad > 0) {
+                transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad))
+            }
         }.await()
     }
 }

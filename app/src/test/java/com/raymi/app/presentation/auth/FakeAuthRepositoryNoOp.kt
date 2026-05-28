@@ -34,5 +34,9 @@ class FakeAuthRepositoryNoOp : AuthRepository {
         emit(Resource.Success(Unit))
     }
 
+    override suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>> = flow {
+        emit(Resource.Success(Unit))
+    }
+
     override fun isUserAuthenticated(): Boolean = false
 }

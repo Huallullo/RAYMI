@@ -134,16 +134,29 @@ class CreateAlquilerViewModel @Inject constructor(
         recalcularFinanzas()
     }
 
+    fun onGarantiaChange(monto: String) {
+        _uiState.update { it.copy(garantia = monto) }
+        recalcularFinanzas()
+    }
+
+    fun setEstadoInicial(estado: EstadoAlquiler) {
+        _uiState.update { it.copy(estadoInicial = estado) }
+    }
+
     private fun recalcularFinanzas() {
         _uiState.update { state ->
             val pUnit = state.precioUnitario.toDoubleOrNull() ?: 0.0
             val cant = state.cantidad.toIntOrNull() ?: 1
             val dias = state.diasAlquiler.coerceAtLeast(1)
-            val total = pUnit * cant * dias
+            val subtotal = pUnit * cant * dias
+            
             val pagado = state.adelanto.toDoubleOrNull() ?: 0.0
+            // La garantía suele ser un depósito aparte, pero aquí la manejamos como parte del flujo financiero inicial
+            val garantiaMonto = state.garantia.toDoubleOrNull() ?: 0.0
+            
             state.copy(
-                precioTotal = total,
-                saldo = (total - pagado).coerceAtLeast(0.0)
+                precioTotal = subtotal,
+                saldo = (subtotal - pagado).coerceAtLeast(0.0)
             )
         }
     }
@@ -215,6 +228,8 @@ class CreateAlquilerViewModel @Inject constructor(
                     precioTotal = state.precioTotal,
                     adelanto = state.adelanto.toDoubleOrNull() ?: 0.0,
                     saldo = state.saldo,
+                    garantia = state.garantia.toDoubleOrNull() ?: 0.0,
+                    estado = state.estadoInicial,
                     observaciones = state.observaciones.trim()
                 )
 
@@ -284,7 +299,9 @@ data class CreateAlquilerUiState(
     val precioUnitario: String = "0.0",
     val precioTotal: Double = 0.0,
     val adelanto: String = "0.0",
+    val garantia: String = "0.0",
     val saldo: Double = 0.0,
+    val estadoInicial: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
     val showClienteDialog: Boolean = false,
     val showItemDialog: Boolean = false,

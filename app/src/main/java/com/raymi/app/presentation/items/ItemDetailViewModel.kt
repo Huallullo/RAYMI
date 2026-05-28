@@ -51,7 +51,7 @@ class ItemDetailViewModel @Inject constructor(
         val item = _uiState.value.item ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            deleteItemUseCase(item.workspaceId, item.id).collect { result ->
+            deleteItemUseCase(item.workspaceId, item.id, item.codigo).collect { result ->
                 when (result) {
                     is Resource.Success -> {
                         _uiState.update { it.copy(isLoading = false) }

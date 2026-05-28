@@ -158,7 +158,7 @@ fun CreateAlquilerScreen(
                             OutlinedTextField(
                                 value = String.format(Locale.getDefault(), "%.2f", uiState.precioTotal),
                                 onValueChange = {},
-                                label = { Text("Monto Total") },
+                                label = { Text("Subtotal Alquiler") },
                                 modifier = Modifier.weight(1f),
                                 readOnly = true,
                                 prefix = { Text("S/. ") },
@@ -167,15 +167,26 @@ fun CreateAlquilerScreen(
                             )
                         }
 
-                        OutlinedTextField(
-                            value = uiState.adelanto,
-                            onValueChange = viewModel::onAdelantoChange,
-                            label = { Text("Adelanto Recibido") },
-                            modifier = Modifier.fillMaxWidth().testTag("alquiler_adelanto_input"),   // ✅ AÑADIDO
-                            prefix = { Text("S/. ") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            shape = MaterialTheme.shapes.large
-                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = uiState.adelanto,
+                                onValueChange = viewModel::onAdelantoChange,
+                                label = { Text("Adelanto Recibido") },
+                                modifier = Modifier.weight(1f).testTag("alquiler_adelanto_input"),
+                                prefix = { Text("S/. ") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                shape = MaterialTheme.shapes.large
+                            )
+                            OutlinedTextField(
+                                value = uiState.garantia,
+                                onValueChange = viewModel::onGarantiaChange,
+                                label = { Text("Garantía / Depósito") },
+                                modifier = Modifier.weight(1f),
+                                prefix = { Text("S/. ") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                shape = MaterialTheme.shapes.large
+                            )
+                        }
 
                         if (uiState.saldo > 0) {
                             Surface(
@@ -184,7 +195,7 @@ fun CreateAlquilerScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    "Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%.2f", uiState.saldo)}",
+                                    "Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.saldo)}",
                                     modifier = Modifier.padding(12.dp),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
@@ -192,6 +203,29 @@ fun CreateAlquilerScreen(
                                 )
                             }
                         }
+                    }
+                }
+            )
+
+            // 3.5 Estado Inicial (SaaS Operativo)
+            SelectionSection(
+                title = "Estado Inicial del Contrato",
+                content = {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.ACTIVO,
+                            onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.ACTIVO) },
+                            label = { Text("Activo (Ya entregado)") },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.ACTIVO) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        )
+                        FilterChip(
+                            selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.RESERVADO,
+                            onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.RESERVADO) },
+                            label = { Text("Reserva (Separado)") },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.RESERVADO) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        )
                     }
                 }
             )

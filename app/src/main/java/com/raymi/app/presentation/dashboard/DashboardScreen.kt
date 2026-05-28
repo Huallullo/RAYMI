@@ -80,6 +80,13 @@ fun DashboardScreen(
                         onExport = { viewModel.exportarResumenFinancieroPdf() }
                     )
 
+                    // Sección de "Hoy" (SaaS Operativo)
+                    TodayOperationsRow(
+                        entregas = uiState.estadisticas.entregasHoy,
+                        devoluciones = uiState.estadisticas.devolucionesHoy,
+                        pagosPendientes = uiState.estadisticas.pagosPendientesCount
+                    )
+
                     if (uiState.actividadSemanal.isNotEmpty()) {
                         Text("Actividad últimos 7 días", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         WeeklyActivityChart(uiState.actividadSemanal)
@@ -122,6 +129,58 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(40.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun TodayOperationsRow(entregas: Int, devoluciones: Int, pagosPendientes: Int) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TodayMetricChip(
+            label = "Entregas",
+            count = entregas,
+            color = Color(0xFF3B82F6), // Blue
+            modifier = Modifier.weight(1f)
+        )
+        TodayMetricChip(
+            label = "Retornos",
+            count = devoluciones,
+            color = Color(0xFF10B981), // Emerald
+            modifier = Modifier.weight(1f)
+        )
+        TodayMetricChip(
+            label = "Cobros",
+            count = pagosPendientes,
+            color = Color(0xFFEF4444), // Red
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun TodayMetricChip(label: String, count: Int, color: Color, modifier: Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = color.copy(alpha = 0.1f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = color.copy(alpha = 0.8f)
+            )
         }
     }
 }

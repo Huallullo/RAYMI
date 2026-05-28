@@ -16,24 +16,28 @@ import javax.inject.Inject
 class RegistrarDevolucionUseCase @Inject constructor(
     private val alquilerRepository: AlquilerRepository
 ) {
-    operator fun invoke(alquilerId: String): Flow<Resource<Unit>> = flow {
+    operator fun invoke(
+        alquilerId: String,
+        penalidad: Double = 0.0,
+        observaciones: String = ""
+    ): Flow<Resource<Unit>> = flow {
         if (alquilerId.isBlank()) {
             emit(Resource.Error("ID de alquiler no proporcionado"))
             return@flow
         }
         
-        // 1. Validar saldo antes de proceder
-        val alquilerResult = alquilerRepository.getAlquilerById(alquilerId).first()
+        // 1. Validar saldo antes de proceder (Excluyendo la penalidad actual que se está registrando)
+        val alquilerResult = alquilerRepository.getAlquilerById(alquilerId).first { it !is Resource.Loading }
         if (alquilerResult is Resource.Success) {
             val alquiler = alquilerResult.data
             if (alquiler != null && alquiler.saldo > 0.01) {
-                emit(Resource.Error("No se puede registrar devolución: Existe un saldo pendiente de S/. ${alquiler.saldo}"))
+                emit(Resource.Error("No se puede registrar devolución: Existe un saldo pendiente de ${alquiler.saldoFormateado}. Primero liquide la deuda."))
                 return@flow
             }
         }
 
         // 2. Ejecutar devolución
-        alquilerRepository.registrarDevolucion(alquilerId).collect { result ->
+        alquilerRepository.registrarDevolucion(alquilerId, penalidad, observaciones).collect { result ->
             emit(result)
         }
     }

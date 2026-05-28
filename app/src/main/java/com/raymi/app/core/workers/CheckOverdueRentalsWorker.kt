@@ -153,6 +153,8 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 precioTotal     = (data["precioTotal"]    as? Number)?.toDouble() ?: 0.0,
                 adelanto        = (data["adelanto"]       as? Number)?.toDouble() ?: 0.0,
                 saldo           = (data["saldo"]          as? Number)?.toDouble() ?: 0.0,
+                garantia        = (data["garantia"]       as? Number)?.toDouble() ?: 0.0,
+                penalidad       = (data["penalidad"]      as? Number)?.toDouble() ?: 0.0,
                 estado = when (data["estado"] as? String) {
                     "ACTIVO"    -> EstadoAlquiler.ACTIVO
                     "DEVUELTO"  -> EstadoAlquiler.DEVUELTO

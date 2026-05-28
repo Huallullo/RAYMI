@@ -200,8 +200,8 @@ fun AvatarWithInitials(
 fun RaymiSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    placeholder: String = "Buscar...",
     modifier: Modifier = Modifier,
+    placeholder: String = "Buscar...",
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     OutlinedTextField(

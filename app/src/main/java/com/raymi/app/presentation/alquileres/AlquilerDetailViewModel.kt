@@ -87,9 +87,9 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
-    fun registrarDevolucion() {
+    fun registrarDevolucion(penalidad: Double = 0.0, observaciones: String = "") {
         viewModelScope.launch {
-            registrarDevolucionUseCase(alquilerId).collect { result ->
+            registrarDevolucionUseCase(alquilerId, penalidad, observaciones).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
                         _uiState.update { it.copy(isProcessing = true) }

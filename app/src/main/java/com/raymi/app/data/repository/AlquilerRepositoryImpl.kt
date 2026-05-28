@@ -138,11 +138,15 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun registrarDevolucion(alquilerId: String): Flow<Resource<Unit>> = flow {
+    override suspend fun registrarDevolucion(
+        alquilerId: String,
+        penalidad: Double,
+        observaciones: String
+    ): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
-            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId)
+            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId, penalidad, observaciones)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error: ${e.message}"))

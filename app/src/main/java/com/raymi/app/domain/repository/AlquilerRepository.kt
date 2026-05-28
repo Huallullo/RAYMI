@@ -46,9 +46,13 @@ interface AlquilerRepository {
     suspend fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>>
 
     /**
-     * Registra la devolución de un alquiler
+     * Registra la devolución de un alquiler con penalidades opcionales
      */
-    suspend fun registrarDevolucion(alquilerId: String): Flow<Resource<Unit>>
+    suspend fun registrarDevolucion(
+        alquilerId: String,
+        penalidad: Double = 0.0,
+        observaciones: String = ""
+    ): Flow<Resource<Unit>>
 
     /**
      * Actualiza el estado de un alquiler

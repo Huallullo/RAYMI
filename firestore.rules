@@ -9,7 +9,8 @@ service cloud.firestore {
 
     function isBusinessMember(negocioId) {
       return isSignedIn()
-        && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
+        && (exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid))
+           || get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid);
     }
 
     function isOwner(negocioId) {
@@ -19,65 +20,56 @@ service cloud.firestore {
 
     // ========== REGLAS POR COLECCIÓN ==========
 
-    // Perfil de usuario (Seguridad: Solo el dueño puede leer/escribir su perfil)
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
-    // Negocios (SaaS Multi-Tenant)
     match /negocios/{negocioId} {
-      // Solo el dueño puede crear el negocio
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-
-      // Lectura y actualización para miembros activos o el dueño
-      allow read, update: if isSignedIn() && (isBusinessMember(negocioId) || isOwner(negocioId));
-
-      // Solo el dueño puede borrar un negocio completo
+      allow read, update: if isSignedIn() && isBusinessMember(negocioId);
       allow delete: if isSignedIn() && isOwner(negocioId);
 
-      // Subcolección de Miembros
       match /miembros/{mUid} {
         allow read: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
         allow write: if isSignedIn() && isOwner(negocioId);
       }
 
-      // Subcolección de Clientes (Validación de forma)
       match /clientes/{clienteId} {
         allow read, write: if isBusinessMember(negocioId);
-
-        // Validación Senior: DNI debe ser de 8 caracteres si se provee
-        allow write: if isBusinessMember(negocioId) &&
-          (!request.resource.data.keys().contains('dni') || request.resource.data.dni.size() == 8);
       }
 
-      // Subcolección de Items/Inventario
       match /items/{itemId} {
         allow read, write: if isBusinessMember(negocioId);
-
-        // Invariante: Precio nunca negativo
-        allow write: if isBusinessMember(negocioId) &&
-          request.resource.data.precio >= 0;
       }
 
-      // Subcolección de Alquileres
+      match /categorias/{catId} {
+        allow read, write: if isBusinessMember(negocioId);
+      }
+
       match /alquileres/{alquilerId} {
         allow read, write: if isBusinessMember(negocioId);
 
-        // Invariante Senior: Saldo no puede ser mayor al total
-        allow write: if isBusinessMember(negocioId) &&
-          request.resource.data.saldo <= request.resource.data.precioTotal;
+        match /pagos/{pagoId} {
+           allow read, write: if isBusinessMember(negocioId);
+        }
       }
 
-      // Metadata y Estadísticas
+      // Índices de unicidad (SaaS Security)
+      match /clientes_dni_index/{dni} {
+        allow read, write: if isBusinessMember(negocioId);
+      }
+
+      match /items_codigo_index/{sku} {
+        allow read, write: if isBusinessMember(negocioId);
+      }
+
       match /metadata/{docId} {
         allow read: if isBusinessMember(negocioId);
-        // Permitir creación inicial en batch y actualizaciones atómicas
-        allow write: if isSignedIn() && (isBusinessMember(negocioId) || request.method == "create");
+        allow write: if isBusinessMember(negocioId);
       }
     }
 
     // ========== BLOQUEO DE LEGACY ==========
-    // Colecciones raíz antiguas están deshabilitadas por seguridad SaaS
     match /clientes/{doc} { allow read, write: if false; }
     match /vestuarios/{doc} { allow read, write: if false; }
     match /alquileres/{doc} { allow read, write: if false; }

@@ -94,6 +94,7 @@ android {
             excludes += "META-INF/LICENSE*"
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
 }
@@ -101,7 +102,7 @@ android {
 dependencies {
     testImplementation(libs.androidx.junit)
     // Core desugaring for iText compatibility
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
@@ -173,21 +174,22 @@ dependencies {
     implementation(libs.androidx.camera.view)
     
     // Explicitly add common for ML Kit if needed
-    implementation("com.google.mlkit:vision-common:17.3.0")
-    implementation("com.google.mlkit:barcode-scanning-common:17.0.0")
+    implementation(libs.mlkit.vision.common)
+    implementation(libs.mlkit.barcode.scanning.common)
 
     // PDF - iText for Android
-    implementation("com.itextpdf:itext7-core:7.2.6") {
+    implementation(libs.itext7.core) {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15on")
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk18on")
     }
-    implementation("org.bouncycastle:bcprov-jdk18on:1.77")
+    implementation(libs.bouncycastle.bcprov)
 
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
 
     // Google Play Billing
-    implementation("com.android.billingclient:billing:7.0.0")
+    implementation(libs.billing)
 
     // Tests
     testImplementation(libs.junit)
@@ -200,10 +202,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

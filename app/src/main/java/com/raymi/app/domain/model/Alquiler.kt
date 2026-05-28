@@ -10,19 +10,19 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Representa un Alquiler Genérico (SaaS).
- * Reemplaza referencias a "Vestuario" por "Item" para soportar cualquier rubro.
+ * Soporta estados profesionales, garantias y penalidades.
  */
 data class Alquiler(
     val id: String = "",
-    val workspaceId: String = "",              // A qué negocio pertenece
+    val workspaceId: String = "",
     val clienteId: String = "",
     val clienteNombre: String = "",
-    val clienteDni: String = "",               // DNI para mercado PERÚ
-    val clienteTelefono: String = "",          // Para notificaciones WhatsApp
+    val clienteDni: String = "",
+    val clienteTelefono: String = "",
     val clienteEmail: String = "",
-    val itemId: String = "",                   // ID del producto (antes vestuarioId)
-    val itemNombre: String = "",               // Nombre del producto alquilado
-    val itemCodigo: String = "",               // SKU del producto
+    val itemId: String = "",
+    val itemNombre: String = "",
+    val itemCodigo: String = "",
     val cantidad: Int = 1,
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
@@ -31,12 +31,18 @@ data class Alquiler(
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
+    val garantia: Double = 0.0,            // Depósito de seguridad
+    val penalidad: Double = 0.0,           // Por retraso o daño
     val estado: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
-    val boletaId: String? = null,              // Referencia a facturación electrónica
+    val boletaId: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
+    val totalConPenalidad: Double get() = precioTotal + penalidad
+
+    val saldoPendienteReal: Double get() = (totalConPenalidad - adelanto).coerceAtLeast(0.0)
+
     val diasAlquilados: Int
         get() {
             val fin = fechaDevolucion ?: Timestamp.now()
@@ -44,12 +50,9 @@ data class Alquiler(
             return (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
         }
 
-    /**
-     * Calcula cuántos días quedan para la devolución.
-     */
     val diasRestantes: Int
         get() {
-            if (estado != EstadoAlquiler.ACTIVO) return 0
+            if (estado != EstadoAlquiler.ACTIVO && estado != EstadoAlquiler.RESERVADO) return 0
             val hoy = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
@@ -66,30 +69,28 @@ data class Alquiler(
         }
 
     val estaVencido: Boolean
-        get() = estado == EstadoAlquiler.ACTIVO && diasRestantes < 0
+        get() = (estado == EstadoAlquiler.ACTIVO || estado == EstadoAlquiler.RESERVADO) && diasRestantes < 0
 
-    val fechaInicioFormatted: String
-        get() = formatDate(fechaInicio.toDate())
-
-    val fechaFinFormatted: String
-        get() = formatDate(fechaFinPrevista.toDate())
-
-    val precioFormateado: String
-        get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(precioTotal)
-
-    val adelantoFormateado: String
-        get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(adelanto)
-
-    val saldoFormateado: String
-        get() = NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(saldo)
+    val fechaInicioFormatted: String get() = formatDate(fechaInicio.toDate())
+    val fechaFinFormatted: String get() = formatDate(fechaFinPrevista.toDate())
+    
+    val precioFormateado: String get() = formatCurrency(precioTotal)
+    val adelantoFormateado: String get() = formatCurrency(adelanto)
+    val saldoFormateado: String get() = formatCurrency(saldoPendienteReal)
+    val garantiaFormateada: String get() = formatCurrency(garantia)
+    val penalidadFormateada: String get() = formatCurrency(penalidad)
 
     private fun formatDate(date: Date): String =
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
+
+    private fun formatCurrency(amount: Double): String =
+        NumberFormat.getCurrencyInstance(Locale("es", "PE")).format(amount)
 }
 
 enum class EstadoAlquiler {
-    ACTIVO,
-    DEVUELTO,
-    VENCIDO,
-    CANCELADO
+    RESERVADO,   // El item está separado pero el alquiler no ha iniciado
+    ACTIVO,      // El cliente tiene el item
+    VENCIDO,     // Pasó la fecha de devolución y sigue activo
+    DEVUELTO,    // Item reintegrado al stock
+    CANCELADO    // Alquiler anulado antes o durante
 }

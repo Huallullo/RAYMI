@@ -82,9 +82,10 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             val dto = ClienteDto.fromDomain(cliente)
+            val clienteData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             val documentId = clientDataSource.addClienteTransactional(
                 workspaceId = cliente.workspaceId,
-                clienteData = dto.toMap(),
+                clienteData = clienteData,
                 dni = cliente.dni
             )
             emit(Resource.Success(documentId))
@@ -106,10 +107,11 @@ class ClienteRepositoryImpl @Inject constructor(
                 return@flow
             }
             val dto = ClienteDto.fromDomain(cliente)
+            val clienteData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             dataSource.updateBusinessDocument(
                 collection = "clientes",
                 documentId = cliente.id,
-                data = dto.toMap()
+                data = clienteData
             )
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {

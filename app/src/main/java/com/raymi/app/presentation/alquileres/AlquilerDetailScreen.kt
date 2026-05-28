@@ -102,7 +102,7 @@ fun AlquilerDetailScreen(
                         // 1. Estado y Finanzas
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
-                                Text("MONTO TOTAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Text("COSTO ALQUILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 Text(alquiler.precioFormateado, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                             }
                             EstadoBadge(
@@ -111,11 +111,29 @@ fun AlquilerDetailScreen(
                             )
                         }
 
+                        // Detalle de Garantía y Penalidad
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("GARANTÍA", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    Text(alquiler.garantiaFormateada, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            if (alquiler.penalidad > 0) {
+                                Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("PENALIDAD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                        Text(alquiler.penalidadFormateada, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+
                         // QA Fix: Resumen de Saldo y Pago
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
-                            color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f) else Color(0xFFE8F5E9)
+                            color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f) else Color(0xFFE8F5E9)
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -124,26 +142,26 @@ fun AlquilerDetailScreen(
                             ) {
                                 Column {
                                     Text(
-                                        if (alquiler.saldo > 0) "SALDO PENDIENTE" else "PAGO COMPLETADO",
+                                        if (alquiler.saldoPendienteReal > 0) "SALDO PENDIENTE TOTAL" else "LIQUIDADO",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+                                        color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
                                     )
                                     Text(
-                                        if (alquiler.saldo > 0) "S/. ${alquiler.saldo}" else "Todo pagado",
+                                        alquiler.saldoFormateado,
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Black,
-                                        color = if (alquiler.saldo > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+                                        color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
                                     )
                                 }
                                 
-                                if (alquiler.saldo > 0) {
+                                if (alquiler.saldoPendienteReal > 0) {
                                     Button(
                                         onClick = { viewModel.liquidarDeuda() },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = MaterialTheme.shapes.medium
                                     ) {
-                                        Text("Liquidar", fontWeight = FontWeight.Bold)
+                                        Text("Pagar", fontWeight = FontWeight.Bold)
                                     }
                                 } else {
                                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(32.dp))
@@ -221,15 +239,43 @@ fun AlquilerDetailScreen(
     }
 
     if (showDevolucionDialog) {
+        var penalidadStr by remember { mutableStateOf("0") }
+        var observacionesDev by remember { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { showDevolucionDialog = false },
-            title = { Text("¿Registrar Devolución?") },
-            text = { Text("El ítem volverá a estar disponible en tu inventario y el contrato se marcará como DEVUELTO.") },
+            title = { Text("Finalizar Alquiler") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Confirma la recepción del ítem. El stock se actualizará automáticamente.")
+                    
+                    OutlinedTextField(
+                        value = penalidadStr,
+                        onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) penalidadStr = it },
+                        label = { Text("Penalidad Adicional (S/.)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        prefix = { Text("S/. ") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                    )
+                    
+                    OutlinedTextField(
+                        value = observacionesDev,
+                        onValueChange = { observacionesDev = it },
+                        label = { Text("Observaciones del estado") },
+                        placeholder = { Text("Ej: Entregado con empaque dañado") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = { 
-                    viewModel.registrarDevolucion() 
+                    viewModel.registrarDevolucion(
+                        penalidad = penalidadStr.toDoubleOrNull() ?: 0.0,
+                        observaciones = observacionesDev
+                    ) 
                     showDevolucionDialog = false
-                }) { Text("Confirmar") }
+                }) { Text("Confirmar Devolución") }
             },
             dismissButton = { TextButton(onClick = { showDevolucionDialog = false }) { Text("Cancelar") } }
         )

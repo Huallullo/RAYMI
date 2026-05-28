@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.3"
+agp = "8.13.2"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -27,6 +27,12 @@ workRuntime = "2.10.0"
 splashscreen = "1.0.1"
 googleAds = "23.6.0"
 material = "1.12.0"
+desugarJdkLibs = "2.1.5"
+itext = "7.2.6"
+bouncycastle = "1.79"
+mlkitVisionCommon = "17.3.0"
+mlkitBarcodeCommon = "17.0.0"
+billing = "7.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -71,6 +77,12 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 google-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "googleAds" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
+itext7-core = { group = "com.itextpdf", name = "itext7-core", version.ref = "itext" }
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+mlkit-vision-common = { group = "com.google.mlkit", name = "vision-common", version.ref = "mlkitVisionCommon" }
+mlkit-barcode-scanning-common = { group = "com.google.mlkit", name = "barcode-scanning-common", version.ref = "mlkitBarcodeCommon" }
+billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
