@@ -21,28 +21,23 @@ class ClienteRepositoryImpl @Inject constructor(
     private val observerDataSource: ObserverDataSource
 ) : ClienteRepository {
 
-    override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
-        val workspaceId = dataSource.getCurrentBusinessId()
-        return observerDataSource.observeBusinessCollection(
-            workspaceId = workspaceId,
-            collection = "clientes",
-            orderByField = "createdAt",
-            descending = true,
-            limit = 500
-        )
-            .map { documents ->
-                val clientes = documents
-                    .map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-                Resource.Success(clientes) as Resource<List<Cliente>>
-            }
-            .onStart { emit(Resource.Loading()) }
-            .catch { e ->
-                if (e.message?.contains("Usuario no autenticado") == true) {
-                    emit(Resource.Error("Debe iniciar sesión para acceder a los datos"))
-                } else {
-                    emit(Resource.Error("Error al obtener clientes: ${e.message}"))
-                }
-            }
+    override suspend fun getClientes(): Flow<Resource<List<Cliente>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val workspaceId = dataSource.getCurrentBusinessId()
+            // Cambio Senior: Usar una sola lectura para Clientes. 
+            // Rara vez necesitas ver un cliente nuevo "aparecer" mágicamente sin recargar.
+            val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
+                collection = "clientes",
+                orderByField = "createdAt",
+                descending = true,
+                limit = 50 // Bajamos de 500 a 50 (Paginación pendiente)
+            )
+            val clientes = documents.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(clientes))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al obtener clientes"))
+        }
     }
 
     override suspend fun getClienteById(id: String): Flow<Resource<Cliente>> = flow {

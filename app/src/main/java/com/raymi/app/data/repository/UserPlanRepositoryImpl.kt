@@ -1,5 +1,7 @@
 package com.raymi.app.data.repository
 
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
+import com.raymi.app.core.utils.Constants.COLLECTION_USUARIOS
 import com.raymi.app.data.model.dto.UserPlanDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.StatsDataSource
@@ -22,7 +24,7 @@ class UserPlanRepositoryImpl @Inject constructor(
     override suspend fun getUserPlan(userId: String): Flow<Resource<UserPlan>> = flow {
         emit(Resource.Loading())
         try {
-            val data = dataSource.getDocument(FirebaseDataSource.COLLECTION_USUARIOS, userId)
+            val data = dataSource.getDocument(COLLECTION_USUARIOS, userId)
             if (data != null) {
                 val plan = UserPlanDto.fromMap(userId, data).toDomain()
                 emit(Resource.Success(plan))
@@ -39,7 +41,7 @@ class UserPlanRepositoryImpl @Inject constructor(
         try {
             val newPlan = UserPlan(userId = userId, plan = PlanType.FREE)
             val dto = UserPlanDto.fromDomain(newPlan)
-            dataSource.updateDocument(FirebaseDataSource.COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
+            dataSource.updateDocument(COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
             emit(Resource.Success(newPlan))
         } catch (_: Exception) {
             emit(Resource.Error("Error al crear plan inicial"))
@@ -57,7 +59,7 @@ class UserPlanRepositoryImpl @Inject constructor(
                 mostrarAnuncios = false
             )
             val dto = UserPlanDto.fromDomain(proPlan)
-            dataSource.updateDocument(FirebaseDataSource.COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
+            dataSource.updateDocument(COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
             emit(Resource.Success(proPlan))
         } catch (_: Exception) {
             emit(Resource.Error("Error al subir a PRO"))
@@ -88,7 +90,7 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val plan = planResult.data ?: return false
                 if (plan.plan == PlanType.PRO) return true
                 
-                val ownedWorkspaces = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
+                val ownedWorkspaces = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
                 ownedWorkspaces.size < plan.workspacesLimit
             } else false
         } catch (_: Exception) {

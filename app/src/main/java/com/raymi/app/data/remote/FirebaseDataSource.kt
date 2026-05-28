@@ -3,6 +3,8 @@ package com.raymi.app.data.remote
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
+import com.raymi.app.core.utils.Constants.COLLECTION_USUARIOS
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,9 +16,6 @@ class FirebaseDataSource @Inject constructor(
 ) {
 
     companion object {
-        const val COLLECTION_CLIENTES = "clientes"
-        const val COLLECTION_USUARIOS = "usuarios"
-        const val COLLECTION_NEGOCIOS = "negocios"
         const val DEFAULT_QUERY_LIMIT = 500L
     }
 

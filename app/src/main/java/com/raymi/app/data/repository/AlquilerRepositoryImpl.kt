@@ -30,12 +30,13 @@ class AlquilerRepositoryImpl @Inject constructor(
 ) : AlquilerRepository {
 
     override suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
+        // Mantenemos stream en tiempo real solo para la lista principal (UI reactiva)
         return observerDataSource.observeBusinessCollection(
             workspaceId = workspaceId,
             collection = "alquileres",
             orderByField = "createdAt",
             descending = true,
-            limit = 500
+            limit = 100 // Reducimos de 500 a 100 para optimizar carga inicial
         )
             .map { documents ->
                 val alquileres = documents

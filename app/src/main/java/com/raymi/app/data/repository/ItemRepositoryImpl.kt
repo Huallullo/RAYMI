@@ -24,24 +24,21 @@ class ItemRepositoryImpl @Inject constructor(
     private val statsDataSource: StatsDataSource
 ) : ItemRepository {
 
-    override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> {
-        return observerDataSource.observeBusinessCollection(
-            workspaceId = workspaceId,
-            collection = "items",
-            orderByField = "nombre",
-            descending = false,
-            limit = 500
-        )
-            .map { documents ->
-                val items = documents.map { (id, data) ->
-                    ItemDto.fromMap(id, data).toDomain()
-                }
-                Resource.Success(items) as Resource<List<Item>>
-            }
-            .onStart { emit(Resource.Loading()) }
-            .catch { e ->
-                emit(Resource.Error("Error al obtener ítems: ${e.message}"))
-            }
+    override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> = flow {
+        emit(Resource.Loading())
+        try {
+            // Optimización de costos: Una sola lectura para Inventario.
+            val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
+                collection = "items",
+                orderByField = "nombre",
+                descending = false,
+                limit = 100
+            )
+            val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(items))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al obtener ítems: ${e.message}"))
+        }
     }
 
     override suspend fun getItemById(workspaceId: String, itemId: String): Flow<Resource<Item>> = flow {

@@ -5,6 +5,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.Timestamp
+import com.raymi.app.core.utils.Constants.COLLECTION_CLIENTES
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
@@ -55,7 +57,7 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
         
         try {
             // Obtenemos todos los negocios para procesarlos uno por uno (SaaS Architecture)
-            val negocios = firebaseDataSource.getAllDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS)
+            val negocios = firebaseDataSource.getAllDocuments(COLLECTION_NEGOCIOS)
             
             negocios.forEach { (negocioId, _) ->
                 val alquileresNegocio = firebaseDataSource.queryBusinessDocuments(
@@ -123,7 +125,7 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
         if (clienteId.isBlank()) return ""
         return try {
             val data = firebaseDataSource.getDocument(
-                FirebaseDataSource.COLLECTION_CLIENTES,
+                COLLECTION_CLIENTES,
                 clienteId
             )
             data?.get("telefono") as? String ?: ""

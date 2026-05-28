@@ -24,5 +24,8 @@ keystore.properties
 # Local IDE assistant/cache files
 .idea/firebender/
 
+# Google Services (Sensitive)
+app/google-services.json
+
 # Kotlin compiler local error reports
 .kotlin/errors/

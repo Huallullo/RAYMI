@@ -2,6 +2,7 @@ package com.raymi.app.presentation.plans
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raymi.app.core.billing.BillingManager
 import com.raymi.app.domain.model.PlanType
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.UserPlan
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlansViewModel @Inject constructor(
     private val userPlanRepository: UserPlanRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val billingManager: BillingManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlansUiState())
@@ -23,6 +25,18 @@ class PlansViewModel @Inject constructor(
 
     init {
         cargarPlanActual()
+        observeBillingStatus()
+    }
+
+    private fun observeBillingStatus() {
+        billingManager.isProPurchased
+            .onEach { purchased ->
+                if (purchased && _uiState.value.currentPlan?.plan != PlanType.PRO) {
+                    // Solo actualizamos si el usuario compró y aún no es PRO en Firestore
+                    upgradeToProAfterValidation()
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun cargarPlanActual() {
@@ -36,9 +50,14 @@ class PlansViewModel @Inject constructor(
         }
     }
 
-    fun upgradeToPro() {
+    fun startBillingFlow(activity: android.app.Activity) {
+        billingManager.launchBillingFlow(activity, "raymi_pro_subscription")
+    }
+
+    private fun upgradeToProAfterValidation() {
         viewModelScope.launch {
             val user = authRepository.getCurrentUser() ?: return@launch
+            // TODO: Integrar Cloud Function para validar PurchaseToken en el backend
             userPlanRepository.upgradeToPro(user.uid).collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }

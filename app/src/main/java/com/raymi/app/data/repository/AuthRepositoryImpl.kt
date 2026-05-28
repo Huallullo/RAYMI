@@ -4,7 +4,7 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.userProfileChangeRequest
 import com.raymi.app.core.utils.AppLogger
-import com.google.firebase.auth.UserProfileChangeRequest
+import com.raymi.app.core.utils.Constants.COLLECTION_USUARIOS
 import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Resource
@@ -216,7 +216,7 @@ class AuthRepositoryImpl @Inject constructor(
             
             // Actualizar teléfono si es necesario en Firestore (SaaS Profile)
             val uid = user.uid
-            dataSource.updateDocument(com.raymi.app.data.remote.FirebaseDataSource.COLLECTION_USUARIOS, uid, mapOf(
+            dataSource.updateDocument(COLLECTION_USUARIOS, uid, mapOf(
                 "nombre" to name,
                 "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
             ))

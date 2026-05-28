@@ -9,6 +9,8 @@ object Constants {
     const val COLLECTION_CLIENTES = "clientes"
     const val COLLECTION_ITEMS = "items"
     const val COLLECTION_ALQUILERES = "alquileres"
+    const val COLLECTION_NEGOCIOS = "negocios"
+    const val COLLECTION_USUARIOS = "usuarios"
 
     // ========== VALIDACIONES ==========
     const val DNI_LENGTH = 8

@@ -2,7 +2,7 @@ package com.raymi.app.data.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.raymi.app.data.remote.FirebaseDataSource.Companion.COLLECTION_NEGOCIOS
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -24,7 +24,7 @@ class ObserverDataSource @Inject constructor(
         collection: String,
         orderByField: String,
         descending: Boolean = true,
-        limit: Long = 200
+        limit: Long = 50
     ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
         val subscription = firestore.collection(COLLECTION_NEGOCIOS)

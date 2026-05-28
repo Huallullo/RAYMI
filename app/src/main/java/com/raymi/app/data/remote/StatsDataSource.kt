@@ -2,7 +2,7 @@ package com.raymi.app.data.remote
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.raymi.app.data.remote.FirebaseDataSource.Companion.COLLECTION_NEGOCIOS
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton

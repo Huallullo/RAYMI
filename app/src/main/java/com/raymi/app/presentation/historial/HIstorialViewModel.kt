@@ -2,31 +2,28 @@ package com.raymi.app.presentation.historial
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raymi.app.core.cache.SmartCache
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Resource
-import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
+import com.raymi.app.domain.repository.AlquilerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel para el Historial de Movimientos.
- * Diseño Senior: Filtros avanzados y cálculo de métricas históricas.
- */
 @HiltViewModel
 class HistorialViewModel @Inject constructor(
-    private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val alquilerRepository: AlquilerRepository,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistorialUiState())
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
+
+    // Cache en memoria para esta sesión — historial no cambia mientras usas la app
+    private val historialCache = SmartCache<List<Alquiler>>()
 
     init {
         cargarHistorial()
@@ -34,41 +31,62 @@ class HistorialViewModel @Inject constructor(
 
     fun cargarHistorial() {
         viewModelScope.launch {
+            // Si el caché es válido, úsalo sin tocar Firestore
+            val cached = historialCache.get()
+            if (cached != null) {
+                aplicarFiltro(cached, _uiState.value.query)
+                return@launch
+            }
+
+            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+            _uiState.update { it.copy(isLoading = true) }
+
             try {
-                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-                getAlquileresUseCase(workspaceId).collect { result ->
-                    when (result) {
-                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
-                        is Resource.Success -> {
-                            val todos = result.data ?: emptyList()
-                            val concluidos = todos.filter { 
-                                it.estado == EstadoAlquiler.DEVUELTO || it.estado == EstadoAlquiler.CANCELADO 
-                            }.sortedByDescending { it.updatedAt }
-                            
-                            _uiState.update { it.copy(
-                                allAlquileres = concluidos,
-                                filteredAlquileres = concluidos,
-                                totalRecaudado = concluidos.sumOf { it.adelanto },
-                                isLoading = false 
-                            ) }
+                // get() puntual — NO listener
+                alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.DEVUELTO)
+                    .first { it !is Resource.Loading }
+                    .let { result ->
+                        if (result is Resource.Success) {
+                            val devueltos = result.data ?: emptyList()
+                            // También busca cancelados
+                            alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.CANCELADO)
+                                .first { it !is Resource.Loading }
+                                .let { cancelResult ->
+                                    val cancelados = (cancelResult as? Resource.Success)?.data ?: emptyList()
+                                    val todos = (devueltos + cancelados).sortedByDescending { it.updatedAt }
+                                    historialCache.set(todos, ttlMs = 10 * 60 * 1000) // 10 min
+                                    aplicarFiltro(todos, _uiState.value.query)
+                                }
+                        } else {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
                         }
-                        is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
-                }
-            } catch (_: Exception) {
-                _uiState.update { it.copy(error = "No se pudo cargar el historial del negocio") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }
             }
         }
     }
 
-    fun filtrar(query: String) {
-        _uiState.update { state ->
-            val filtrados = state.allAlquileres.filter { 
-                it.clienteNombre.contains(query, ignoreCase = true) || 
+    private fun aplicarFiltro(todos: List<Alquiler>, query: String) {
+        val filtrados = if (query.isBlank()) todos else {
+            todos.filter {
+                it.clienteNombre.contains(query, ignoreCase = true) ||
                 it.itemNombre.contains(query, ignoreCase = true)
             }
-            state.copy(query = query, filteredAlquileres = filtrados)
         }
+        _uiState.update {
+            it.copy(
+                allAlquileres = todos,
+                filteredAlquileres = filtrados,
+                totalRecaudado = todos.sumOf { a -> a.adelanto },
+                isLoading = false
+            )
+        }
+    }
+
+    fun filtrar(query: String) {
+        _uiState.update { it.copy(query = query) }
+        aplicarFiltro(_uiState.value.allAlquileres, query)
     }
 }
 

@@ -19,9 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.PlanType
+import android.app.Activity
 
 /**
  * Pantalla de Selección de Planes SaaS.
@@ -35,6 +37,7 @@ fun PlansScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -93,7 +96,7 @@ fun PlansScreen(
                 isSelected = uiState.currentPlan?.plan == PlanType.PRO,
                 isPremium = true,
                 buttonText = if (uiState.currentPlan?.plan == PlanType.PRO) "Plan Actual" else "Subir a PRO",
-                onAction = { viewModel.upgradeToPro() },
+                onAction = { viewModel.startBillingFlow(context as Activity) },
                 isLoading = uiState.isLoading
             )
 

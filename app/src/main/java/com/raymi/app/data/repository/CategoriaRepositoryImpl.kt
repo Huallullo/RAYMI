@@ -1,5 +1,6 @@
 package com.raymi.app.data.repository
 
+import com.raymi.app.core.cache.SmartCache
 import com.raymi.app.data.model.dto.CategoriaDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Categoria
@@ -15,6 +16,12 @@ class CategoriaRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : CategoriaRepository {
 
+    // Cache de 30 minutos — categorías no cambian frecuentemente
+    private val cacheByWorkspace = mutableMapOf<String, SmartCache<List<Categoria>>>()
+
+    private fun getCacheFor(workspaceId: String) =
+        cacheByWorkspace.getOrPut(workspaceId) { SmartCache() }
+
     override suspend fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
         emit(Resource.Loading())
         try {
@@ -22,16 +29,27 @@ class CategoriaRepositoryImpl @Inject constructor(
                 emit(Resource.Error("ID de negocio no válido"))
                 return@flow
             }
-            
+
+            // Primero intenta el caché (30 min TTL)
+            val cache = getCacheFor(workspaceId)
+            val cached = cache.get()
+            if (cached != null) {
+                emit(Resource.Success(cached))
+                return@flow
+            }
+
+            // Solo llama a Firestore si el caché expiró
             val response = dataSource.queryBusinessDocuments(
                 collection = "categorias",
                 field = "activa",
                 value = true,
                 negocioId = workspaceId
             )
-            val categorias = response.map { (id, data) ->
-                CategoriaDto.fromMap(id, data).toDomain()
-            }.sortedBy { it.orden }
+            val categorias = response
+                .map { (id, data) -> CategoriaDto.fromMap(id, data).toDomain() }
+                .sortedBy { it.orden }
+
+            cache.set(categorias, ttlMs = 30 * 60 * 1000) // 30 minutos
             emit(Resource.Success(categorias))
         } catch (e: Exception) {
             val errorMsg = if (e.message?.contains("PERMISSION_DENIED") == true) {
@@ -52,6 +70,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 collection = "categorias",
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
+            getCacheFor(categoria.workspaceId).invalidate() // invalida al crear
             emit(Resource.Success(id))
         } catch (e: Exception) {
             emit(Resource.Error("Error al crear categoría: ${e.message}"))
@@ -67,6 +86,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 documentId = categoria.id,
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
+            getCacheFor(categoria.workspaceId).invalidate() // invalida al editar
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar: ${e.message}"))
@@ -76,12 +96,11 @@ class CategoriaRepositoryImpl @Inject constructor(
     override suspend fun deleteCategoria(workspaceId: String, categoriaId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            // Nota: En un sistema SaaS real, quizás prefieras un "borrado lógico" (activa = false)
-            // pero aquí implementamos el borrado físico solicitado.
             dataSource.deleteBusinessDocument(
                 collection = "categorias",
                 documentId = categoriaId
             )
+            getCacheFor(workspaceId).invalidate() // invalida al borrar
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar: ${e.message}"))

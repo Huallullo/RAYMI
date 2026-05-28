@@ -110,6 +110,11 @@ class AlquileresViewModel @Inject constructor(
     fun clearMessages() {
         _uiState.update { it.copy(error = null, successMessage = null) }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        observeJob?.cancel()
+    }
 }
 
 data class AlquileresUiState(

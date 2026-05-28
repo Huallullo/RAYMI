@@ -1,5 +1,6 @@
 package com.raymi.app.data.repository
 
+import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.data.model.dto.WorkspaceDto
 import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
@@ -22,7 +23,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun getWorkspacesByUser(userId: String): Flow<Resource<List<Workspace>>> = flow {
         emit(Resource.Loading())
         try {
-            val response = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
+            val response = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
             val workspaces = response.map { (id, data) ->
                 WorkspaceDto.fromMap(id, data).toDomain()
             }
@@ -35,7 +36,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun getWorkspaceById(workspaceId: String): Flow<Resource<Workspace>> = flow {
         emit(Resource.Loading())
         try {
-            val data = dataSource.getDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, workspaceId)
+            val data = dataSource.getDocument(COLLECTION_NEGOCIOS, workspaceId)
             if (data != null) {
                 emit(Resource.Success(WorkspaceDto.fromMap(workspaceId, data).toDomain()))
             } else {
@@ -77,7 +78,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
         try {
             val dto = WorkspaceDto.fromDomain(workspace)
             val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            dataSource.updateDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, workspace.id, dataMap)
+            dataSource.updateDocument(COLLECTION_NEGOCIOS, workspace.id, dataMap)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Error al actualizar negocio"))
@@ -87,7 +88,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun deleteWorkspace(workspaceId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            dataSource.deleteDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, workspaceId)
+            dataSource.deleteDocument(COLLECTION_NEGOCIOS, workspaceId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Error al eliminar negocio"))
@@ -101,7 +102,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
             val negocioId = dataSource.ensureBusinessProfileForUser(authDataSource.getCurrentUser() ?: throw Exception("No user"))
             
             if (negocioId.isNotBlank()) {
-                val data = dataSource.getDocument(FirebaseDataSource.COLLECTION_NEGOCIOS, negocioId)
+                val data = dataSource.getDocument(COLLECTION_NEGOCIOS, negocioId)
                 if (data != null) {
                     emit(Resource.Success(WorkspaceDto.fromMap(negocioId, data).toDomain()))
                 } else {
