@@ -53,7 +53,6 @@ class FirebaseDataSource @Inject constructor(
         val email = user.email.orEmpty().trim()
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document()
         val usuarioRef = firestore.collection(COLLECTION_USUARIOS).document(uid)
-        val miembroRef = negocioRef.collection("miembros").document(uid)
         val statsRef = negocioRef.collection("metadata").document("stats")
         val now = com.google.firebase.firestore.FieldValue.serverTimestamp()
         val negocioNombre = businessName.trim().ifBlank { defaultBusinessName(email) }
@@ -84,19 +83,10 @@ class FirebaseDataSource @Inject constructor(
                 "emailLowercase" to email.lowercase(),
                 "nombre" to (user.displayName ?: ""), 
                 "negocioId" to negocioRef.id,
-                "rol" to "owner", 
                 "idioma" to "es", 
                 "createdAt" to now, 
                 "updatedAt" to now
             ), com.google.firebase.firestore.SetOptions.merge())
-            batch.set(miembroRef, mapOf(
-                "uid" to uid, 
-                "email" to email, 
-                "rol" to "owner", 
-                "estado" to "ACTIVO", 
-                "createdAt" to now, 
-                "updatedAt" to now
-            ))
         }.await()
         return negocioRef.id
     }
@@ -110,14 +100,12 @@ class FirebaseDataSource @Inject constructor(
             val negocioId = snapshot.getString("negocioId")
             
             if (snapshot.exists() && !negocioId.isNullOrBlank()) {
-                val miembroSnap = firestore.collection(COLLECTION_NEGOCIOS)
+                val negocioSnap = firestore.collection(COLLECTION_NEGOCIOS)
                     .document(negocioId)
-                    .collection("miembros")
-                    .document(uid)
                     .get()
                     .await()
                 
-                if (miembroSnap.exists()) {
+                if (negocioSnap.exists() && negocioSnap.getString("ownerUid") == uid) {
                     negocioId
                 } else {
                     createBusinessProfileForUser(user, defaultBusinessName(user.email.orEmpty()))

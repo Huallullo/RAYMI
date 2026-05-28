@@ -91,10 +91,17 @@ class GenerateComprobanteViewModel @Inject constructor(
         val workspace = workspaceManager.currentWorkspace.value ?: return
 
         // Validaciones
-        if (state.tipo == TipoComprobante.BOLETA && state.clienteDocumento.length != 8) {
-            _uiState.update { it.copy(error = "DNI de 8 dígitos requerido para Boleta") }
-            return
+        if (state.tipo == TipoComprobante.BOLETA) {
+            if (state.clienteDocumento.length != 8) {
+                _uiState.update { it.copy(error = "DNI de 8 dígitos requerido para Boleta") }
+                return
+            }
+            if (state.clienteNombre.isBlank()) {
+                _uiState.update { it.copy(error = "Nombre del cliente es requerido para Boleta") }
+                return
+            }
         }
+        
         if (state.tipo == TipoComprobante.FACTURA) {
              if (state.clienteDocumento.length != 11) {
                  _uiState.update { it.copy(error = "RUC de 11 dígitos requerido para Factura") }
@@ -104,6 +111,15 @@ class GenerateComprobanteViewModel @Inject constructor(
                  _uiState.update { it.copy(error = "Razón Social requerida para Factura") }
                  return
              }
+             if (workspace.ruc.isBlank() || workspace.direccion.isBlank()) {
+                 _uiState.update { it.copy(error = "Completa los datos del negocio en Configuración antes de generar factura.") }
+                 return
+             }
+        }
+
+        if (alquiler.precioTotal < 0) {
+            _uiState.update { it.copy(error = "El total del alquiler no puede ser negativo") }
+            return
         }
 
         viewModelScope.launch {
@@ -139,7 +155,14 @@ class GenerateComprobanteViewModel @Inject constructor(
             generateComprobanteUseCase(comprobante, alquiler, workspace).collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isSaving = true) }
-                    is Resource.Success -> _uiState.update { it.copy(isSaving = false, isSuccess = true, generatedPdfUri = Uri.parse(comprobante.pdfUrl ?: "")) }
+                    is Resource.Success -> {
+                        val data = result.data!!
+                        _uiState.update { it.copy(
+                            isSaving = false, 
+                            isSuccess = true, 
+                            generatedPdfUri = data.pdfUri
+                        ) }
+                    }
                     is Resource.Error -> _uiState.update { it.copy(isSaving = false, error = result.message) }
                 }
             }

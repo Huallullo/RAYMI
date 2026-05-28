@@ -233,26 +233,51 @@ fun AlquilerDetailScreen(
                         }
 
                         // 5. Comprobantes (NUEVO)
-                        Text("Comprobantes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Comprobantes Generados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.comprobantes.isEmpty()) {
                             Text("No se han generado comprobantes para este alquiler.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         } else {
-                            uiState.comprobantes.forEach { comprobante ->
-                                ComprobanteListItem(
-                                    comprobante = comprobante,
-                                    onShare = { viewModel.compartirPdf(android.net.Uri.parse(comprobante.pdfUrl ?: "")) }
-                                )
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                uiState.comprobantes.forEach { comprobante ->
+                                    ComprobanteListItem(
+                                        comprobante = comprobante,
+                                        onShare = { viewModel.compartirPdf(android.net.Uri.parse(comprobante.pdfUrl ?: "")) }
+                                    )
+                                }
                             }
                         }
                         
+                        var showDuplicateWarning by remember { mutableStateOf(false) }
+
                         OutlinedButton(
-                            onClick = { onGenerateComprobante(alquiler.id) },
+                            onClick = { 
+                                if (uiState.comprobantes.isNotEmpty()) {
+                                    showDuplicateWarning = true
+                                } else {
+                                    onGenerateComprobante(alquiler.id) 
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Generar Ticket / Boleta / Factura")
+                            Text("Generar Nuevo Comprobante")
+                        }
+
+                        if (showDuplicateWarning) {
+                            AlertDialog(
+                                onDismissRequest = { showDuplicateWarning = false },
+                                title = { Text("Aviso") },
+                                text = { Text("Este alquiler ya tiene comprobantes generados. ¿Deseas generar uno nuevo de todos modos?") },
+                                confirmButton = {
+                                    Button(onClick = { 
+                                        showDuplicateWarning = false
+                                        onGenerateComprobante(alquiler.id) 
+                                    }) { Text("Continuar") }
+                                },
+                                dismissButton = { TextButton(onClick = { showDuplicateWarning = false }) { Text("Cancelar") } }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(80.dp))
@@ -337,22 +362,36 @@ fun ComprobanteListItem(
             Icon(
                 imageVector = Icons.Default.Description,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${comprobante.tipo.name}: ${comprobante.correlativoCompleto}",
+                    text = "${comprobante.tipo}: ${comprobante.correlativoCompleto}",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    text = "Total: S/. ${comprobante.total}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Total: S/. ${comprobante.total}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    EstadoBadge(
+                        texto = comprobante.estado.name,
+                        color = when(comprobante.estado) {
+                            com.raymi.app.domain.model.EstadoComprobante.GENERADO -> Color(0xFF4CAF50)
+                            com.raymi.app.domain.model.EstadoComprobante.COMPARTIDO -> Color(0xFF2196F3)
+                            com.raymi.app.domain.model.EstadoComprobante.ANULADO -> Color(0xFFF44336)
+                            else -> MaterialTheme.colorScheme.outline
+                        }
+                    )
+                }
             }
-            IconButton(onClick = onShare) {
-                Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.primary)
+            if (comprobante.estado != com.raymi.app.domain.model.EstadoComprobante.ANULADO) {
+                IconButton(onClick = onShare) {
+                    Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
     }

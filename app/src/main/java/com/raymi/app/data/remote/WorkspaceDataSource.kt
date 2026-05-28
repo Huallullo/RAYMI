@@ -9,13 +9,14 @@ import javax.inject.Singleton
 
 /**
  * Fuente de datos para la gestión de Espacios de Trabajo (Multi-tenancy).
+ * Orientado a un único ADMIN (Owner).
  */
 @Singleton
 class WorkspaceDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
     /**
-     * Crea un negocio y sus metadatos de forma atómica (Transacción).
+     * Crea un negocio y sus metadatos de forma atómica.
      */
     suspend fun createWorkspaceAtomic(
         workspaceData: Map<String, Any>,
@@ -27,7 +28,7 @@ class WorkspaceDataSource @Inject constructor(
         val now = FieldValue.serverTimestamp()
 
         firestore.runBatch { batch ->
-            // El ADMIN es el ownerUid
+            // El ADMIN es el dueño (ownerUid)
             batch.set(workspaceRef, workspaceData + mapOf(
                 "id" to workspaceRef.id, 
                 "ownerUid" to uid,

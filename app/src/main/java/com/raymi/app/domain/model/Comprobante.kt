@@ -9,9 +9,11 @@ enum class TipoComprobante {
 }
 
 enum class EstadoComprobante {
+    GENERANDO,
     GENERADO,
     COMPARTIDO,
-    ANULADO
+    ANULADO,
+    ERROR_GENERACION
 }
 
 enum class TipoDocumentoCliente {

@@ -309,10 +309,8 @@ fun RaymiNavGraph(
         composable(
             route = Screen.GenerateComprobante.route,
             arguments = listOf(navArgument("alquilerId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val alquilerId = backStackEntry.arguments?.getString("alquilerId") ?: ""
+        ) {
             GenerateComprobanteScreen(
-                alquilerId = alquilerId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

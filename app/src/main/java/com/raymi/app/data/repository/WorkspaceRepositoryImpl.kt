@@ -23,6 +23,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun getWorkspacesByUser(userId: String): Flow<Resource<List<Workspace>>> = flow {
         emit(Resource.Loading())
         try {
+            // Un usuario ADMIN solo accede a negocios donde es dueño (ownerUid)
             val response = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
             val workspaces = response.map { (id, data) ->
                 WorkspaceDto.fromMap(id, data).toDomain()

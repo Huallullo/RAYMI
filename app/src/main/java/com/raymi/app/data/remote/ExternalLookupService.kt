@@ -15,7 +15,10 @@ import javax.inject.Singleton
 
 @Singleton
 class ExternalLookupService @Inject constructor(
-    private val reniecService: ReniecService
+    private val reniecService: ReniecService,
+    private val apiPeruProvider: ApiPeruRucProvider,
+    private val decolectaProvider: DecolectaRucProvider,
+    private val consultaPeruProvider: ConsultaPeruRucProvider
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -38,34 +41,21 @@ class ExternalLookupService @Inject constructor(
     }
 
     suspend fun buscarRuc(ruc: String): Resource<EmpresaData> = withContext(Dispatchers.IO) {
-        if (ruc.length != 11) return@withContext Resource.Error("RUC inválido")
+        if (ruc.length != 11) return@withContext Resource.Error("RUC debe tener 11 dígitos")
         
-        // Simulación de Fallback para RUC (Similar a DNI)
-        // Intentar Provider 1: apisperu.com
-        val token = BuildConfig.RENIEC_API_TOKEN // Reutilizando el mismo token si el proveedor es el mismo
-        if (token.isNotBlank()) {
-             try {
-                 val url = "${BuildConfig.RENIEC_API_URL}/ruc/$ruc?token=$token"
-                 val conn = URL(url).openConnection() as HttpURLConnection
-                 if (conn.responseCode == 200) {
-                     val body = conn.inputStream.bufferedReader().use { it.readText() }
-                     val resp: RucApiResponse = json.decodeFromString(body)
-                     return@withContext Resource.Success(EmpresaData(
-                         ruc = ruc,
-                         razonSocial = resp.razonSocial ?: resp.nombre ?: "",
-                         direccion = resp.direccion,
-                         departamento = resp.departamento,
-                         provincia = resp.provincia,
-                         distrito = resp.distrito
-                     ))
-                 }
-             } catch (_: Exception) {}
+        val providers = listOf(apiPeruProvider, decolectaProvider, consultaPeruProvider)
+        var lastError = "No se pudo encontrar el RUC"
+
+        for (provider in providers) {
+            val res = provider.buscar(ruc)
+            if (res is Resource.Success) return@withContext res
+            if (res is Resource.Error) lastError = res.message ?: lastError
         }
 
-        // Mock para desarrollo
+        // Mock como último recurso para desarrollo si no hay tokens
         val mock = MOCK_RUC[ruc]
         if (mock != null) Resource.Success(mock)
-        else Resource.Error("No se pudo encontrar el RUC en los servidores")
+        else Resource.Error(lastError)
     }
 
     private val MOCK_RUC = mapOf(

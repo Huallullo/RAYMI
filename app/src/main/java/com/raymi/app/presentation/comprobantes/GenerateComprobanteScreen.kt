@@ -23,7 +23,6 @@ import com.raymi.app.presentation.components.RaymiLoadingIndicator
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenerateComprobanteScreen(
-    alquilerId: String,
     viewModel: GenerateComprobanteViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {

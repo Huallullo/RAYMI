@@ -1,6 +1,6 @@
 package com.raymi.app.data.remote
 
-import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
@@ -33,7 +33,6 @@ class RentalDataSourceTest {
         val statsRef = mockk<DocumentReference>(relaxed = true)
         val alquilerSnap = mockk<DocumentSnapshot>(relaxed = true)
         val itemSnap = mockk<DocumentSnapshot>(relaxed = true)
-        val mockTask = mockk<Task<Unit>>(relaxed = true)
 
         every { firestore.collection("negocios").document(workspaceId).collection("alquileres").document(alquilerId) } returns alquilerRef
         every { firestore.collection("negocios").document(workspaceId).collection("items").document(itemId) } returns itemRef
@@ -47,10 +46,10 @@ class RentalDataSourceTest {
         every { itemSnap.get("unidadesAlquiladas") } returns 1L
         every { alquilerSnap.getString("observaciones") } returns "Nota previa"
 
-        val transactionSlot = slot<Transaction.Function<Unit>>()
-        every { firestore.runTransaction<Unit>(capture(transactionSlot)) } answers {
-            transactionSlot.captured.apply(transaction)
-            mockTask
+        val transactionSlot = slot<Transaction.Function<Any>>()
+        every { firestore.runTransaction<Any>(capture(transactionSlot)) } answers {
+            val result = transactionSlot.captured.apply(transaction)
+            Tasks.forResult(result)
         }
 
         // Act
