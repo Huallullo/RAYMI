@@ -35,4 +35,27 @@ class ItemDataSource @Inject constructor(
             itemRef.id
         }.await()
     }
+
+    /**
+     * Elimina un ítem de forma transaccional limpiando su índice de código y actualizando estadísticas.
+     */
+    suspend fun deleteItemTransactional(
+        workspaceId: String,
+        itemId: String,
+        codigo: String
+    ) {
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+        val itemRef = negocioRef.collection("items").document(itemId)
+        val codeIndexRef = negocioRef.collection("items_codigo_index").document(codigo)
+        val statsRef = negocioRef.collection("metadata").document("stats")
+
+        firestore.runTransaction { transaction ->
+            // 1. Eliminar el documento del ítem
+            transaction.delete(itemRef)
+            // 2. Eliminar la entrada del índice de unicidad
+            transaction.delete(codeIndexRef)
+            // 3. Decrementar contador global
+            transaction.update(statsRef, "totalItems", FieldValue.increment(-1))
+        }.await()
+    }
 }

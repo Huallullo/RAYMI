@@ -121,9 +121,46 @@ class RentalDataSource @Inject constructor(
             .collection("alquileres").document(alquilerId).update(data).await()
     }
 
-    suspend fun deleteAlquiler(workspaceId: String, alquilerId: String) {
-        firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("alquileres").document(alquilerId).delete().await()
+    /**
+     * Elimina un alquiler de forma transaccional, liberando el stock del ítem asociado
+     * y actualizando los contadores globales del negocio.
+     */
+    suspend fun deleteAlquilerTransactional(workspaceId: String, alquilerId: String) {
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+        val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
+        val statsRef = negocioRef.collection("metadata").document("stats")
+
+        firestore.runTransaction { transaction ->
+            val alqSnap = transaction.get(alquilerRef)
+            if (!alqSnap.exists()) return@runTransaction
+
+            val itemId = alqSnap.getString("itemId")
+            val estado = alqSnap.getString("estado") ?: "ACTIVO"
+            
+            // 1. Si estaba ACTIVO o VENCIDO, debemos devolver el stock al Item
+            if (estado == "ACTIVO" || estado == "VENCIDO") {
+                itemId?.let { id ->
+                    val itemRef = negocioRef.collection("items").document(id)
+                    val itemSnap = transaction.get(itemRef)
+                    if (itemSnap.exists()) {
+                        val alquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 1
+                        transaction.update(itemRef, mapOf(
+                            "unidadesAlquiladas" to (alquiladas - 1).coerceAtLeast(0),
+                            "estado" to "DISPONIBLE"
+                        ))
+                    }
+                }
+                // Decrementar alquileres activos en stats
+                transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
+            }
+
+            // 2. Eliminar el documento principal
+            transaction.delete(alquilerRef)
+            
+            // 3. Nota: Los pagos (subcolección) se deben borrar vía Cloud Function o borrado recursivo 
+            // desde el cliente si es necesario, pero para integridad SaaS, el registro de ingresos 
+            // ya está consolidado en el totalIngresos de stats.
+        }.await()
     }
 
     suspend fun registrarDevolucionTransactional(workspaceId: String, alquilerId: String) {

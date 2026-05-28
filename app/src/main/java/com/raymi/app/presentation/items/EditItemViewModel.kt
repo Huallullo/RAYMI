@@ -11,6 +11,7 @@ import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
 import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
 import com.raymi.app.data.remote.StorageDataSource
+import com.raymi.app.domain.usecase.item.DeleteItemUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -23,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EditItemViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
+    private val deleteItemUseCase: DeleteItemUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
     private val storageDataSource: StorageDataSource,
     private val workspaceManager: WorkspaceManager,

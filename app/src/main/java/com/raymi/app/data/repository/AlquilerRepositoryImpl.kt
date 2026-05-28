@@ -164,7 +164,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
-            rentalDataSource.deleteAlquiler(workspaceId, alquilerId)
+            rentalDataSource.deleteAlquilerTransactional(workspaceId, alquilerId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error: ${e.message}"))

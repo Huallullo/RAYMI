@@ -20,8 +20,7 @@ import javax.inject.Singleton
 class ItemRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val itemDataSource: ItemDataSource,
-    private val observerDataSource: ObserverDataSource,
-    private val statsDataSource: StatsDataSource
+    private val observerDataSource: ObserverDataSource
 ) : ItemRepository {
 
     override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> = flow {
@@ -91,11 +90,10 @@ class ItemRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteItem(workspaceId: String, itemId: String): Flow<Resource<Unit>> = flow {
+    override suspend fun deleteItem(workspaceId: String, itemId: String, codigo: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            dataSource.deleteBusinessDocument("items", itemId, workspaceId)
-            statsDataSource.updateStats(workspaceId, "totalItems", -1L)
+            itemDataSource.deleteItemTransactional(workspaceId, itemId, codigo)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar ítem: ${e.message}"))

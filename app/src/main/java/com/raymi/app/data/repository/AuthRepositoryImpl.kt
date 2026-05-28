@@ -211,15 +211,18 @@ class AuthRepositoryImpl @Inject constructor(
                 displayName = name
             }
             
-            // Usamos tareas de Firebase directas aquí o extendemos AuthDataSource
+            // 1. Actualizar perfil en Firebase Auth (DisplayName)
             com.google.android.gms.tasks.Tasks.await(user.updateProfile(profileUpdates))
             
-            // Actualizar teléfono si es necesario en Firestore (SaaS Profile)
+            // 2. Actualizar datos extendidos en Firestore (Nombre y Teléfono)
             val uid = user.uid
-            dataSource.updateDocument(COLLECTION_USUARIOS, uid, mapOf(
+            val data = mutableMapOf<String, Any>(
                 "nombre" to name,
                 "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-            ))
+            )
+            phone?.let { data["telefono"] = it }
+
+            dataSource.updateDocument(COLLECTION_USUARIOS, uid, data)
             
             emit(Resource.Success(Unit))
         } catch (e: Exception) {

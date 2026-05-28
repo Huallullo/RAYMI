@@ -30,9 +30,9 @@ interface ItemRepository {
     suspend fun updateItem(item: Item): Flow<Resource<Unit>>
     
     /**
-     * Elimina un ítem del workspace
+     * Elimina un ítem del workspace limpiando sus índices
      */
-    suspend fun deleteItem(workspaceId: String, itemId: String): Flow<Resource<Unit>>
+    suspend fun deleteItem(workspaceId: String, itemId: String, codigo: String): Flow<Resource<Unit>>
     
     /**
      * Busca ítems por nombre o código dentro de un workspace
