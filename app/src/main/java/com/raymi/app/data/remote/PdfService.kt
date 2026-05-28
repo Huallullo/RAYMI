@@ -189,6 +189,130 @@ class PdfService @Inject constructor(
             }
         }
 
+    /**
+     * Genera un comprobante oficial (Ticket, Boleta o Factura).
+     */
+    suspend fun generarPdfComprobante(
+        comprobante: com.raymi.app.domain.model.Comprobante,
+        alquiler: Alquiler,
+        workspace: Workspace?
+    ): Resource<Uri> = withContext(Dispatchers.IO) {
+        try {
+            val prefijo = when (comprobante.tipo) {
+                com.raymi.app.domain.model.TipoComprobante.TICKET -> "Ticket"
+                com.raymi.app.domain.model.TipoComprobante.BOLETA -> "Boleta"
+                com.raymi.app.domain.model.TipoComprobante.FACTURA -> "Factura"
+            }
+            val pdfUri = crearArchivo("${prefijo}_${comprobante.correlativoCompleto}")
+            buildComprobantePdf(pdfUri, comprobante, alquiler, workspace)
+
+            val contentValues = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+            context.contentResolver.update(pdfUri, contentValues, null, null)
+            Resource.Success(pdfUri)
+        } catch (e: Exception) {
+            Resource.Error("Falla al generar PDF del comprobante: ${e.message}")
+        }
+    }
+
+    private fun buildComprobantePdf(
+        uri: Uri,
+        comprobante: com.raymi.app.domain.model.Comprobante,
+        alquiler: Alquiler,
+        workspace: Workspace?
+    ) {
+        context.contentResolver.openOutputStream(uri)?.use { os ->
+            PdfWriter(os).use { writer ->
+                PdfDocument(writer).use { pdf ->
+                    Document(pdf).use { doc ->
+                        doc.setMargins(40f, 40f, 40f, 40f)
+
+                        // 1. Cabecera del Negocio
+                        val businessName = workspace?.nombre ?: "RAYMI GESTIÓN"
+                        doc.add(Paragraph(businessName.uppercase()).setBold().setFontSize(18f).setFontColor(primaryColor))
+                        
+                        workspace?.let {
+                             val infoNegocio = StringBuilder()
+                             if (it.ruc.isNotBlank()) infoNegocio.append("RUC: ${it.ruc}\n")
+                             if (it.direccion.isNotBlank()) infoNegocio.append("${it.direccion}\n")
+                             if (it.telefono.isNotBlank()) infoNegocio.append("Telf: ${it.telefono}")
+                             if (infoNegocio.isNotEmpty()) {
+                                 doc.add(Paragraph(infoNegocio.toString()).setFontSize(9f).setFontColor(ColorConstants.DARK_GRAY))
+                             }
+                        }
+                        doc.add(Paragraph("\n"))
+
+                        // 2. Título y Numeración
+                        val title = when (comprobante.tipo) {
+                            com.raymi.app.domain.model.TipoComprobante.TICKET -> "COMPROBANTE INTERNO (TICKET)"
+                            com.raymi.app.domain.model.TipoComprobante.BOLETA -> "BOLETA DE VENTA REFERENCIAL"
+                            com.raymi.app.domain.model.TipoComprobante.FACTURA -> "FACTURA REFERENCIAL"
+                        }
+                        
+                        val headerTable = Table(UnitValue.createPercentArray(floatArrayOf(60f, 40f))).useAllAvailableWidth()
+                        headerTable.addCell(Cell().add(Paragraph(title).setBold().setFontSize(12f)).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        headerTable.addCell(Cell().add(Paragraph(comprobante.correlativoCompleto).setBold().setFontSize(14f).setTextAlignment(TextAlignment.RIGHT)).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        doc.add(headerTable)
+                        doc.add(Paragraph("\n"))
+
+                        // 3. Datos del Cliente
+                        val clientTable = Table(UnitValue.createPercentArray(floatArrayOf(50f, 50f))).useAllAvailableWidth()
+                        val clientInfo = StringBuilder()
+                        clientInfo.append("CLIENTE: ${comprobante.clienteNombre}\n")
+                        if (comprobante.clienteDocumento.isNotBlank()) {
+                            val tipoDoc = when (comprobante.clienteTipoDocumento) {
+                                com.raymi.app.domain.model.TipoDocumentoCliente.DNI -> "DNI"
+                                com.raymi.app.domain.model.TipoDocumentoCliente.RUC -> "RUC"
+                                else -> "DOC"
+                            }
+                            clientInfo.append("$tipoDoc: ${comprobante.clienteDocumento}\n")
+                        }
+                        if (!comprobante.razonSocial.isNullOrBlank()) clientInfo.append("R. SOCIAL: ${comprobante.razonSocial}\n")
+                        if (!comprobante.direccionFiscal.isNullOrBlank()) clientInfo.append("DIR: ${comprobante.direccionFiscal}")
+                        
+                        clientTable.addCell(Cell().add(Paragraph(clientInfo.toString()).setFontSize(9f)).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        clientTable.addCell(Cell().add(Paragraph("FECHA EMISIÓN: ${dateFormat.format(comprobante.createdAt.toDate())}\nMETODO PAGO: ${comprobante.metodoPago}").setFontSize(9f).setTextAlignment(TextAlignment.RIGHT)).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        doc.add(clientTable)
+                        doc.add(Paragraph("\n"))
+
+                        // 4. Detalle de Items
+                        val itemsTable = Table(UnitValue.createPercentArray(floatArrayOf(15f, 55f, 15f, 15f))).useAllAvailableWidth()
+                        itemsTable.addHeaderCell(headerCell("CANT"))
+                        itemsTable.addHeaderCell(headerCell("DESCRIPCIÓN"))
+                        itemsTable.addHeaderCell(headerCell("P. UNIT").setTextAlignment(TextAlignment.RIGHT))
+                        itemsTable.addHeaderCell(headerCell("TOTAL").setTextAlignment(TextAlignment.RIGHT))
+
+                        itemsTable.addCell(valorCell(alquiler.cantidad.toString()))
+                        itemsTable.addCell(valorCell("${alquiler.itemNombre} (${alquiler.itemCodigo})"))
+                        itemsTable.addCell(valorCell(String.format(Locale.US, "%.2f", alquiler.precioUnitario)).setTextAlignment(TextAlignment.RIGHT))
+                        itemsTable.addCell(valorCell(String.format(Locale.US, "%.2f", alquiler.precioTotal)).setTextAlignment(TextAlignment.RIGHT))
+                        doc.add(itemsTable)
+
+                        // 5. Totales
+                        val totalsTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
+                        totalsTable.addCell(Cell().setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        
+                        val totalsCol = Cell().setBorder(com.itextpdf.layout.borders.Border.NO_BORDER)
+                        if (comprobante.tipo == com.raymi.app.domain.model.TipoComprobante.FACTURA) {
+                            totalsCol.add(Paragraph("SUBTOTAL: S/. ${String.format(Locale.US, "%.2f", comprobante.subtotal)}").setFontSize(9f).setTextAlignment(TextAlignment.RIGHT))
+                            totalsCol.add(Paragraph("IGV (18%): S/. ${String.format(Locale.US, "%.2f", comprobante.igv)}").setFontSize(9f).setTextAlignment(TextAlignment.RIGHT))
+                        }
+                        totalsCol.add(Paragraph("TOTAL: S/. ${String.format(Locale.US, "%.2f", comprobante.total)}").setBold().setFontSize(11f).setTextAlignment(TextAlignment.RIGHT))
+                        totalsCol.add(Paragraph("PAGADO: S/. ${String.format(Locale.US, "%.2f", comprobante.pagado)}").setFontSize(9f).setTextAlignment(TextAlignment.RIGHT))
+                        if (comprobante.saldo > 0) {
+                            totalsCol.add(Paragraph("SALDO: S/. ${String.format(Locale.US, "%.2f", comprobante.saldo)}").setFontColor(com.itextpdf.kernel.colors.ColorConstants.RED).setFontSize(9f).setTextAlignment(TextAlignment.RIGHT))
+                        }
+                        
+                        totalsTable.addCell(totalsCol)
+                        doc.add(totalsTable)
+
+                        doc.add(Paragraph("\n\nDOCUMENTO GENERADO POR RAYMI").setFontSize(8f).setItalic().setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Este no es un comprobante electrónico válido ante SUNAT.").setFontSize(7f).setTextAlignment(TextAlignment.CENTER))
+                    }
+                }
+            }
+        }
+    }
+
     private fun buildInventoryPdf(uri: Uri, items: List<com.raymi.app.domain.model.Item>, business: String) {
         context.contentResolver.openOutputStream(uri)?.use { os ->
             PdfWriter(os).use { writer ->

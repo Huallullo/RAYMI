@@ -15,10 +15,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-/**
- * Configuración del Negocio Premium.
- * Permite al usuario personalizar su "Workspace" para adaptarlo a su rubro.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusinessSettingsScreen(
@@ -53,14 +49,49 @@ fun BusinessSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // 1. Identidad del Negocio
-            SettingsSection(title = "Identidad") {
+            SettingsSection(title = "Identidad y Datos Fiscales") {
                 OutlinedTextField(
                     value = uiState.nombre,
                     onValueChange = viewModel::onNombreChange,
-                    label = { Text("Nombre Comercial") },
+                    label = { Text("Nombre del Negocio (Interno)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                )
+                
+                OutlinedTextField(
+                    value = uiState.nombreComercial,
+                    onValueChange = viewModel::onNombreComercialChange,
+                    label = { Text("Nombre Comercial (Para Comprobantes)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Store, contentDescription = null) }
+                )
+
+                OutlinedTextField(
+                    value = uiState.ruc,
+                    onValueChange = viewModel::onRucChange,
+                    label = { Text("RUC del Negocio") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) }
+                )
+
+                OutlinedTextField(
+                    value = uiState.direccion,
+                    onValueChange = viewModel::onDireccionChange,
+                    label = { Text("Dirección Fiscal") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) }
+                )
+
+                OutlinedTextField(
+                    value = uiState.telefono,
+                    onValueChange = viewModel::onTelefonoChange,
+                    label = { Text("Teléfono de Contacto") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }
                 )
                 
                 OutlinedTextField(
@@ -73,7 +104,34 @@ fun BusinessSettingsScreen(
                 )
             }
 
-            // 2. Regionalización y Finanzas
+            // 2. Comprobantes
+            SettingsSection(title = "Configuración de Comprobantes") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = uiState.serieTicket,
+                        onValueChange = viewModel::onSerieTicketChange,
+                        label = { Text("Serie Ticket") },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.large
+                    )
+                    OutlinedTextField(
+                        value = uiState.serieBoleta,
+                        onValueChange = viewModel::onSerieBoletaChange,
+                        label = { Text("Serie Boleta") },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.large
+                    )
+                    OutlinedTextField(
+                        value = uiState.serieFactura,
+                        onValueChange = viewModel::onSerieFacturaChange,
+                        label = { Text("Serie Factura") },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.large
+                    )
+                }
+            }
+
+            // 3. Regionalización y Finanzas
             SettingsSection(title = "Finanzas y Región") {
                 OutlinedTextField(
                     value = uiState.moneda,
@@ -84,25 +142,29 @@ fun BusinessSettingsScreen(
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Paid, contentDescription = null) }
                 )
-                
-                // Muestra el rubro actual (bloqueado para esta fase)
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text("Rubro del Negocio", style = MaterialTheme.typography.labelSmall)
-                            Text(uiState.tipoNegocio, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            // 4. Términos y Condiciones
+            SettingsSection(title = "Legal y Políticas") {
+                 OutlinedTextField(
+                    value = uiState.terminosCondiciones,
+                    onValueChange = viewModel::onTerminosChange,
+                    label = { Text("Términos y Condiciones") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    minLines = 3
+                )
+                OutlinedTextField(
+                    value = uiState.politicaPenalidades,
+                    onValueChange = viewModel::onPoliticaChange,
+                    label = { Text("Política de Penalidades") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    minLines = 3
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Botón de Guardado
             Button(
@@ -123,6 +185,8 @@ fun BusinessSettingsScreen(
             if (uiState.error != null) {
                 Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

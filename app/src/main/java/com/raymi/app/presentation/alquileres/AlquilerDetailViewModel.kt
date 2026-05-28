@@ -6,12 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.*
-import com.raymi.app.domain.usecase.alquiler.AddPagoUseCase
-import com.raymi.app.domain.usecase.alquiler.GetAlquilerByIdUseCase
-import com.raymi.app.domain.usecase.alquiler.GetPagosUseCase
-import com.raymi.app.domain.usecase.alquiler.RegistrarDevolucionUseCase
-import com.raymi.app.domain.usecase.alquiler.UpdateAlquilerUseCase
+import com.raymi.app.domain.usecase.alquiler.*
 import com.raymi.app.domain.usecase.pdf.GenerarPdfAlquilerUseCase
+import com.raymi.app.domain.usecase.pdf.SharePdfUseCase
+import com.raymi.app.domain.repository.ComprobanteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -25,6 +23,8 @@ class AlquilerDetailViewModel @Inject constructor(
     private val addPagoUseCase: AddPagoUseCase,
     private val getPagosUseCase: GetPagosUseCase,
     private val generarPdfAlquilerUseCase: GenerarPdfAlquilerUseCase,
+    private val sharePdfUseCase: SharePdfUseCase,
+    private val comprobanteRepository: ComprobanteRepository,
     private val workspaceManager: WorkspaceManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -60,15 +60,19 @@ class AlquilerDetailViewModel @Inject constructor(
                             }
                         }
                     }
+                    // Cargar Comprobantes
+                    launch {
+                        comprobanteRepository.getComprobantesByAlquiler(workspace.id, alquilerId).collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(comprobantes = result.data ?: emptyList()) }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Reservado para diálogo de abonos futuros
-     */
-    @Suppress("UNUSED_PARAMETER")
     fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String) {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
         val pago = Pago(alquilerId = alquilerId, monto = monto, metodoPago = metodo, referencia = referencia)
@@ -116,16 +120,13 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Permite al usuario liquidar la deuda desde el detalle (QA Bonus)
-     */
     fun liquidarDeuda() {
         val alquiler = _uiState.value.alquiler ?: return
-        if (alquiler.saldo <= 0) return
+        if (alquiler.saldoPendienteReal <= 0) return
 
         viewModelScope.launch {
             val alquilerActualizado = alquiler.copy(
-                adelanto = alquiler.precioTotal,
+                adelanto = alquiler.precioTotal + alquiler.penalidad,
                 saldo = 0.0,
                 updatedAt = com.google.firebase.Timestamp.now()
             )
@@ -148,24 +149,28 @@ class AlquilerDetailViewModel @Inject constructor(
             generarPdfAlquilerUseCase.generarPdf(alquiler, workspace).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isProcessing = true)
+                        _uiState.update { it.copy(isProcessing = true) }
                     }
                     is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
+                        _uiState.update { it.copy(
                             isProcessing = false,
                             successMessage = "¡Recibo generado! Ya puedes compartirlo.",
                             pdfUri = result.data
-                        )
+                        ) }
                     }
                     is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
+                        _uiState.update { it.copy(
                             isProcessing = false,
                             error = result.message
-                        )
+                        ) }
                     }
                 }
             }
         }
+    }
+
+    fun compartirPdf(uri: Uri) {
+        sharePdfUseCase(uri)
     }
 
     fun updateAlquiler(alquiler: Alquiler) {
@@ -192,16 +197,17 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun clearMessages() {
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             error = null,
             successMessage = null
-        )
+        ) }
     }
 }
 
 data class AlquilerDetailUiState(
     val alquiler: Alquiler? = null,
     val pagos: List<Pago> = emptyList(),
+    val comprobantes: List<Comprobante> = emptyList(),
     val isLoading: Boolean = false,
     val isProcessing: Boolean = false,
     val error: String? = null,

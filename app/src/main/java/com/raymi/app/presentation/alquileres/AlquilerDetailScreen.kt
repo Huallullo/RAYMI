@@ -29,7 +29,8 @@ import com.raymi.app.presentation.components.*
 fun AlquilerDetailScreen(
     alquilerId: String,
     viewModel: AlquilerDetailViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onGenerateComprobante: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
@@ -231,6 +232,29 @@ fun AlquilerDetailScreen(
                             }
                         }
 
+                        // 5. Comprobantes (NUEVO)
+                        Text("Comprobantes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (uiState.comprobantes.isEmpty()) {
+                            Text("No se han generado comprobantes para este alquiler.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        } else {
+                            uiState.comprobantes.forEach { comprobante ->
+                                ComprobanteListItem(
+                                    comprobante = comprobante,
+                                    onShare = { viewModel.compartirPdf(android.net.Uri.parse(comprobante.pdfUrl ?: "")) }
+                                )
+                            }
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { onGenerateComprobante(alquiler.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Generar Ticket / Boleta / Factura")
+                        }
+
                         Spacer(modifier = Modifier.height(80.dp))
                     }
                 }
@@ -291,5 +315,45 @@ fun AlquilerDetailScreen(
             },
             isLoading = uiState.isProcessing
         )
+    }
+}
+
+@Composable
+fun ComprobanteListItem(
+    comprobante: com.raymi.app.domain.model.Comprobante,
+    onShare: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${comprobante.tipo.name}: ${comprobante.correlativoCompleto}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Total: S/. ${comprobante.total}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onShare) {
+                Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
     }
 }

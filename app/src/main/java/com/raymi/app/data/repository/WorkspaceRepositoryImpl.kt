@@ -64,8 +64,7 @@ class WorkspaceRepositoryImpl @Inject constructor(
             val id = workspaceDataSource.createWorkspaceAtomic(
                 workspaceData = workspaceData,
                 statsData = statsData,
-                uid = user.uid,
-                email = user.email ?: ""
+                uid = user.uid
             )
             emit(Resource.Success(id))
         } catch (e: Exception) {

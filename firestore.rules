@@ -7,12 +7,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isBusinessMember(negocioId) {
-      return isSignedIn()
-        && (exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid))
-           || get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid);
-    }
-
     function isOwner(negocioId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
@@ -20,59 +14,75 @@ service cloud.firestore {
 
     // ========== REGLAS POR COLECCIÓN ==========
 
+    // Perfil de usuario (Seguridad: Solo el admin puede leer/escribir su perfil)
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
+    // Negocios (SaaS Individual Admin)
     match /negocios/{negocioId} {
+      // Solo el creador puede crear el negocio y debe marcarse como owner
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow read, update: if isSignedIn() && isBusinessMember(negocioId);
-      allow delete: if isSignedIn() && isOwner(negocioId);
 
-      match /miembros/{mUid} {
-        allow read: if isSignedIn() && (mUid == request.auth.uid || isBusinessMember(negocioId));
-        allow write: if isSignedIn() && isOwner(negocioId);
-      }
+      // Lectura y actualización solo para el dueño
+      allow read, update: if isOwner(negocioId);
 
+      // Solo el dueño puede borrar
+      allow delete: if isOwner(negocioId);
+
+      // Clientes
       match /clientes/{clienteId} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
 
+      // Items/Inventario
       match /items/{itemId} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
 
+      // Categorías
       match /categorias/{catId} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
 
+      // Alquileres
       match /alquileres/{alquilerId} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
 
+        // Pagos
         match /pagos/{pagoId} {
-           allow read, write: if isBusinessMember(negocioId);
+           allow read, write: if isOwner(negocioId);
         }
       }
 
-      // Índices de unicidad (SaaS Security)
+      // Comprobantes (NUEVO)
+      match /comprobantes/{comprobanteId} {
+        allow read, write: if isOwner(negocioId);
+      }
+
+      // Índices de unicidad
       match /clientes_dni_index/{dni} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
 
       match /items_codigo_index/{sku} {
-        allow read, write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
 
+      // Metadata
       match /metadata/{docId} {
-        allow read: if isBusinessMember(negocioId);
-        allow write: if isBusinessMember(negocioId);
+        allow read, write: if isOwner(negocioId);
       }
     }
 
-    // ========== BLOQUEO DE LEGACY ==========
-    match /clientes/{doc} { allow read, write: if false; }
-    match /vestuarios/{doc} { allow read, write: if false; }
-    match /alquileres/{doc} { allow read, write: if false; }
-    match /workspaces/{doc} { allow read, write: if false; }
+    // Bloqueo de colecciones raíz no autorizadas
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Permitir lectura/escritura específica si es necesario (ej: usuarios)
+    match /usuarios/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
   }
 }

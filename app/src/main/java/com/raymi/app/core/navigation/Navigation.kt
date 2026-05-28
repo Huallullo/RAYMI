@@ -48,6 +48,9 @@ sealed class Screen(val route: String) {
     object AlquilerDetalle : Screen("alquiler/{alquilerId}") {
         fun createRoute(alquilerId: String) = "alquiler/$alquilerId"
     }
+    object GenerateComprobante : Screen("generate_comprobante/{alquilerId}") {
+        fun createRoute(alquilerId: String) = "generate_comprobante/$alquilerId"
+    }
 }
 // Items del Bottom Navigation
 sealed class BottomNavItem(

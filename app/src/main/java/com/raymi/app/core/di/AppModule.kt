@@ -91,6 +91,24 @@ abstract class AppModule {
         userPlanRepositoryImpl: UserPlanRepositoryImpl
     ): UserPlanRepository
 
+    /**
+     * Proporciona la implementación del repositorio de comprobantes
+     */
+    @Binds
+    @Singleton
+    abstract fun bindComprobanteRepository(
+        comprobanteRepositoryImpl: ComprobanteRepositoryImpl
+    ): ComprobanteRepository
+
+    /**
+     * Proporciona la implementación del repositorio de consultas externas
+     */
+    @Binds
+    @Singleton
+    abstract fun bindExternalLookupRepository(
+        externalLookupRepositoryImpl: ExternalLookupRepositoryImpl
+    ): ExternalLookupRepository
+
     companion object {
         @Provides
         @Singleton

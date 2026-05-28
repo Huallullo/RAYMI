@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.raymi.app.presentation.alquileres.AlquilerDetailScreen
 import com.raymi.app.presentation.alquileres.AlquileresScreen
 import com.raymi.app.presentation.alquileres.CreateAlquilerScreen
+import com.raymi.app.presentation.comprobantes.GenerateComprobanteScreen
 import com.raymi.app.presentation.auth.LoginScreen
 import com.raymi.app.presentation.categorias.CategoriasScreen
 import com.raymi.app.presentation.clientes.ClienteDetailScreen
@@ -295,7 +296,24 @@ fun RaymiNavGraph(
                         ?.savedStateHandle
                         ?.set("refresh", true)
                     navController.popBackStack()
+                },
+                onGenerateComprobante = { id ->
+                    navController.navigate(Screen.GenerateComprobante.createRoute(id))
                 }
+            )
+        }
+
+        /**
+         * Generar Comprobante
+         */
+        composable(
+            route = Screen.GenerateComprobante.route,
+            arguments = listOf(navArgument("alquilerId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val alquilerId = backStackEntry.arguments?.getString("alquilerId") ?: ""
+            GenerateComprobanteScreen(
+                alquilerId = alquilerId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
