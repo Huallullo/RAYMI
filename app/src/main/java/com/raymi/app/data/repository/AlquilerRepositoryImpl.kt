@@ -5,6 +5,7 @@ import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.data.model.dto.AlquilerDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.RentalDataSource
+import com.raymi.app.data.remote.ObserverDataSource
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.model.Pago
@@ -24,15 +25,17 @@ import javax.inject.Inject
 class AlquilerRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val rentalDataSource: RentalDataSource,
+    private val observerDataSource: ObserverDataSource,
     private val workspaceManager: WorkspaceManager
 ) : AlquilerRepository {
 
     override suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
-        return dataSource.observeBusinessAlquileresOrderedLimited(
+        return observerDataSource.observeBusinessCollection(
+            workspaceId = workspaceId,
+            collection = "alquileres",
             orderByField = "createdAt",
             descending = true,
-            limit = 500,
-            negocioId = workspaceId
+            limit = 500
         )
             .map { documents ->
                 val alquileres = documents

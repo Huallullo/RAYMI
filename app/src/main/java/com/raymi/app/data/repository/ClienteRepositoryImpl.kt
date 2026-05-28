@@ -3,6 +3,7 @@ package com.raymi.app.data.repository
 import com.raymi.app.data.model.dto.ClienteDto
 import com.raymi.app.data.remote.ClientDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.data.remote.ObserverDataSource
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ClienteRepository
@@ -16,16 +17,18 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class ClienteRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
-    private val clientDataSource: ClientDataSource
+    private val clientDataSource: ClientDataSource,
+    private val observerDataSource: ObserverDataSource
 ) : ClienteRepository {
 
     override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
-        return dataSource.observeBusinessCollectionOrderedLimited(
+        val workspaceId = dataSource.getCurrentBusinessId()
+        return observerDataSource.observeBusinessCollection(
+            workspaceId = workspaceId,
             collection = "clientes",
             orderByField = "createdAt",
             descending = true,
             limit = 500
-            // Nota: Aquí no pasamos negocioId porque getCurrentBusinessId() ya es robusto
         )
             .map { documents ->
                 val clientes = documents
@@ -125,7 +128,6 @@ class ClienteRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
 
-            // QA Fix: Usar la colección de alquileres del negocio actual
             val alquileres = dataSource.queryBusinessDocuments(
                 collection = "alquileres",
                 field = "clienteId",
@@ -141,11 +143,6 @@ class ClienteRepositoryImpl @Inject constructor(
                 collection = "clientes",
                 documentId = clienteId
             )
-            
-            // Actualización de estadísticas atómicas
-            // NOTA: Necesitaríamos el workspaceId aquí. 
-            // Por simplicidad, asumimos que se gestiona o el usuario recarga.
-
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e
@@ -185,7 +182,6 @@ class ClienteRepositoryImpl @Inject constructor(
                     .sortedByDescending { it.createdAt }
                 emit(Resource.Success(clientes))
             } else {
-                // Búsqueda local para 1 carácter
                 val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
                     collection = "clientes",
                     orderByField = "createdAt",

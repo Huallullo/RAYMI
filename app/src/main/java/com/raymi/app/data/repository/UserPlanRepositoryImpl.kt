@@ -2,6 +2,7 @@ package com.raymi.app.data.repository
 
 import com.raymi.app.data.model.dto.UserPlanDto
 import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.PlanType
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.UserPlan
@@ -14,7 +15,8 @@ import javax.inject.Singleton
 
 @Singleton
 class UserPlanRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val dataSource: FirebaseDataSource,
+    private val statsDataSource: StatsDataSource
 ) : UserPlanRepository {
 
     override suspend fun getUserPlan(userId: String): Flow<Resource<UserPlan>> = flow {
@@ -25,7 +27,6 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val plan = UserPlanDto.fromMap(userId, data).toDomain()
                 emit(Resource.Success(plan))
             } else {
-                // Si no existe, creamos un plan FREE por defecto
                 emit(Resource.Success(UserPlan(userId = userId, plan = PlanType.FREE)))
             }
         } catch (e: Exception) {
@@ -87,7 +88,6 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val plan = planResult.data ?: return false
                 if (plan.plan == PlanType.PRO) return true
                 
-                // Contar negocios donde el usuario es dueño
                 val ownedWorkspaces = dataSource.queryDocuments(FirebaseDataSource.COLLECTION_NEGOCIOS, "ownerUid", userId)
                 ownedWorkspaces.size < plan.workspacesLimit
             } else false
@@ -103,8 +103,7 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val plan = planResult.data ?: return false
                 if (plan.plan == PlanType.PRO) return true
                 
-                // Usar estadísticas atómicas para evitar lecturas costosas
-                val stats = dataSource.getStats(workspaceId)
+                val stats = statsDataSource.getStats(workspaceId)
                 val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
                 currentItems < plan.itemsLimit
             } else false

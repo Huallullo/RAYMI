@@ -1,29 +1,29 @@
 package com.raymi.app.domain.usecase.workspace
 
-import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 
 /**
- * Caso de uso para obtener las estadísticas consolidadas de un negocio.
- * Ahorra costos al leer 1 solo documento en lugar de miles.
+ * Caso de uso para obtener estadísticas del negocio.
+ * Optimizado para leer de un único documento de metadatos.
  */
 class GetWorkspaceStatsUseCase @Inject constructor(
-    private val dataSource: FirebaseDataSource
+    private val statsDataSource: StatsDataSource
 ) {
     suspend operator fun invoke(workspaceId: String): Flow<Resource<Map<String, Any>>> = flow {
         emit(Resource.Loading())
         try {
-            val stats = dataSource.getStats(workspaceId)
+            val stats = statsDataSource.getStats(workspaceId)
             if (stats != null) {
                 emit(Resource.Success(stats))
             } else {
-                emit(Resource.Error("No se encontraron estadísticas"))
+                emit(Resource.Success<Map<String, Any>>(emptyMap()))
             }
         } catch (e: Exception) {
-            emit(Resource.Error("Falla al conectar con el servidor"))
+            emit(Resource.Error("Error al cargar estadísticas: ${e.message}"))
         }
     }
 }

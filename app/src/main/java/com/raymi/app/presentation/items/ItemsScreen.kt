@@ -143,7 +143,7 @@ fun ItemsScreen(
                         }
                     }
                     uiState.error != null -> {
-                        RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.cargarDatos() })
+                        RaymiErrorState(message = uiState.error!!, onRetry = { /* El stream se reconecta solo */ })
                     }
                     uiState.itemsFiltrados.isEmpty() -> {
                         RaymiEmptyState(

@@ -3,6 +3,8 @@ package com.raymi.app.data.repository
 import com.raymi.app.data.model.dto.ItemDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.ItemDataSource
+import com.raymi.app.data.remote.ObserverDataSource
+import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
@@ -17,16 +19,18 @@ import javax.inject.Singleton
 @Singleton
 class ItemRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
-    private val itemDataSource: ItemDataSource
+    private val itemDataSource: ItemDataSource,
+    private val observerDataSource: ObserverDataSource,
+    private val statsDataSource: StatsDataSource
 ) : ItemRepository {
 
     override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> {
-        return dataSource.observeBusinessCollectionOrderedLimited(
+        return observerDataSource.observeBusinessCollection(
+            workspaceId = workspaceId,
             collection = "items",
             orderByField = "nombre",
             descending = false,
-            limit = 500,
-            negocioId = workspaceId
+            limit = 500
         )
             .map { documents ->
                 val items = documents.map { (id, data) ->
@@ -43,7 +47,7 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun getItemById(workspaceId: String, itemId: String): Flow<Resource<Item>> = flow {
         emit(Resource.Loading())
         try {
-            val data = dataSource.getBusinessDocument("items", itemId)
+            val data = dataSource.getBusinessDocument("items", itemId, workspaceId)
             if (data != null) {
                 emit(Resource.Success(ItemDto.fromMap(itemId, data).toDomain()))
             } else {
@@ -93,8 +97,8 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun deleteItem(workspaceId: String, itemId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            dataSource.deleteBusinessDocument("items", itemId)
-            dataSource.updateStats(workspaceId, "totalItems", -1L)
+            dataSource.deleteBusinessDocument("items", itemId, workspaceId)
+            statsDataSource.updateStats(workspaceId, "totalItems", -1L)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar ítem: ${e.message}"))
