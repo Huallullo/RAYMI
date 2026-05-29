@@ -204,7 +204,12 @@ class PdfService @Inject constructor(
                 com.raymi.app.domain.model.TipoComprobante.FACTURA -> "Factura"
             }
             val pdfUri = crearArchivo("${prefijo}_${comprobante.correlativoCompleto}")
-            buildComprobantePdf(pdfUri, comprobante, alquiler, workspace)
+            
+            if (comprobante.tipo == com.raymi.app.domain.model.TipoComprobante.TICKET) {
+                buildTicketPremiumPdf(pdfUri, comprobante, alquiler, workspace)
+            } else {
+                buildComprobantePdf(pdfUri, comprobante, alquiler, workspace)
+            }
 
             val contentValues = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
             context.contentResolver.update(pdfUri, contentValues, null, null)
@@ -307,6 +312,78 @@ class PdfService @Inject constructor(
 
                         doc.add(Paragraph("\n\nDOCUMENTO GENERADO POR RAYMI").setFontSize(8f).setItalic().setTextAlignment(TextAlignment.CENTER))
                         doc.add(Paragraph("Este no es un comprobante electrónico válido ante SUNAT.").setFontSize(7f).setTextAlignment(TextAlignment.CENTER))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun buildTicketPremiumPdf(
+        uri: Uri,
+        comprobante: com.raymi.app.domain.model.Comprobante,
+        alquiler: Alquiler,
+        workspace: Workspace?
+    ) {
+        context.contentResolver.openOutputStream(uri)?.use { os ->
+            PdfWriter(os).use { writer ->
+                PdfDocument(writer).use { pdf ->
+                    Document(pdf).use { doc ->
+                        // Diseño tipo Ticket de 80mm (aprox 226 pts) o A4 compacto
+                        doc.setMargins(20f, 20f, 20f, 20f)
+                        
+                        // 1. Logo o Nombre de Negocio Centrado
+                        doc.add(Paragraph(workspace?.nombre?.uppercase() ?: "RAYMI GESTIÓN")
+                            .setBold().setFontSize(16f).setFontColor(primaryColor).setTextAlignment(TextAlignment.CENTER))
+                        
+                        workspace?.let {
+                            if (it.ruc.isNotBlank()) doc.add(Paragraph("RUC: ${it.ruc}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                            if (it.direccion.isNotBlank()) doc.add(Paragraph(it.direccion).setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                            if (it.telefono.isNotBlank()) doc.add(Paragraph("Telf: ${it.telefono}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                        }
+                        
+                        doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY).setTextAlignment(TextAlignment.CENTER))
+                        
+                        // 2. Info del Ticket
+                        doc.add(Paragraph("NOTA DE VENTA").setBold().setFontSize(10f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph(comprobante.correlativoCompleto).setBold().setFontSize(12f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Fecha: ${dateFormat.format(comprobante.createdAt.toDate())}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                        
+                        doc.add(Paragraph("\nCLIENTE: ${comprobante.clienteNombre}").setBold().setFontSize(9f))
+                        if (comprobante.clienteDocumento.isNotBlank()) doc.add(Paragraph("DNI/RUC: ${comprobante.clienteDocumento}").setFontSize(8f))
+                        
+                        doc.add(Paragraph("\nDETALLE").setBold().setFontSize(9f).setFontColor(primaryColor))
+                        doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY))
+
+                        // 3. Items
+                        val table = Table(UnitValue.createPercentArray(floatArrayOf(10f, 60f, 30f))).useAllAvailableWidth()
+                        table.addCell(Cell().add(Paragraph("Cant")).setBold().setFontSize(8f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        table.addCell(Cell().add(Paragraph("Producto")).setBold().setFontSize(8f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        table.addCell(Cell().add(Paragraph("Importe")).setBold().setFontSize(8f).setTextAlignment(TextAlignment.RIGHT).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        
+                        table.addCell(Cell().add(Paragraph(alquiler.cantidad.toString())).setFontSize(8f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        table.addCell(Cell().add(Paragraph("${alquiler.itemNombre}\n(${alquiler.itemCodigo})")).setFontSize(8f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        table.addCell(Cell().add(Paragraph("S/. ${String.format(Locale.US, "%.2f", alquiler.precioTotal)}")).setFontSize(8f).setTextAlignment(TextAlignment.RIGHT).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        
+                        doc.add(table)
+                        doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY))
+
+                        // 4. Totales
+                        val totals = Table(UnitValue.createPercentArray(floatArrayOf(60f, 40f))).useAllAvailableWidth()
+                        totals.addCell(Cell().add(Paragraph("TOTAL A PAGAR:")).setBold().setFontSize(10f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        totals.addCell(Cell().add(Paragraph("S/. ${String.format(Locale.US, "%.2f", comprobante.total)}")).setBold().setFontSize(10f).setTextAlignment(TextAlignment.RIGHT).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        
+                        totals.addCell(Cell().add(Paragraph("ADELANTO:")).setFontSize(8f).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        totals.addCell(Cell().add(Paragraph("S/. ${String.format(Locale.US, "%.2f", comprobante.pagado)}")).setFontSize(8f).setTextAlignment(TextAlignment.RIGHT).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        
+                        if (comprobante.saldo > 0) {
+                            totals.addCell(Cell().add(Paragraph("SALDO PENDIENTE:")).setFontSize(8f).setFontColor(ColorConstants.RED).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                            totals.addCell(Cell().add(Paragraph("S/. ${String.format(Locale.US, "%.2f", comprobante.saldo)}")).setFontSize(8f).setFontColor(ColorConstants.RED).setTextAlignment(TextAlignment.RIGHT).setBorder(com.itextpdf.layout.borders.Border.NO_BORDER))
+                        }
+                        doc.add(totals)
+                        
+                        doc.add(Paragraph("\n¡Gracias por su preferencia!").setItalic().setFontSize(9f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY))
+                        doc.add(Paragraph("Desarrollado por RAYMI SaaS").setFontSize(7f).setFontColor(ColorConstants.GRAY).setTextAlignment(TextAlignment.CENTER))
                     }
                 }
             }

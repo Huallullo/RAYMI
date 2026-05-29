@@ -37,4 +37,12 @@ class FallbackInvoiceService @Inject constructor(
 
         return Resource.Error("❌ Error crítico: Fallaron todos los sistemas de facturación. Último error: $lastError")
     }
+
+    suspend fun emitirSoloLocal(
+        comprobante: Comprobante,
+        alquiler: Alquiler,
+        workspace: Workspace
+    ): Resource<String> {
+        return localProvider.emitir(comprobante, alquiler, workspace)
+    }
 }

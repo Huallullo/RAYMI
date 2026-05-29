@@ -9,6 +9,7 @@ import com.raymi.app.domain.model.*
 import com.raymi.app.domain.repository.AlquilerRepository
 import com.raymi.app.domain.repository.AuthRepository
 import com.raymi.app.domain.repository.ExternalLookupRepository
+import com.raymi.app.domain.repository.UserPlanRepository
 import com.raymi.app.domain.usecase.comprobante.GenerateComprobanteUseCase
 import com.raymi.app.domain.usecase.pdf.SharePdfUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +22,7 @@ class GenerateComprobanteViewModel @Inject constructor(
     private val generateComprobanteUseCase: GenerateComprobanteUseCase,
     private val alquilerRepository: AlquilerRepository,
     private val authRepository: AuthRepository,
+    private val userPlanRepository: UserPlanRepository,
     private val lookupRepository: ExternalLookupRepository,
     private val sharePdfUseCase: SharePdfUseCase,
     private val workspaceManager: WorkspaceManager,
@@ -34,6 +36,18 @@ class GenerateComprobanteViewModel @Inject constructor(
 
     init {
         cargarDatos()
+        cargarPlan()
+    }
+
+    private fun cargarPlan() {
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser() ?: return@launch
+            userPlanRepository.getUserPlan(user.uid).collect { result ->
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(userPlan = result.data) }
+                }
+            }
+        }
     }
 
     private fun cargarDatos() {
@@ -89,6 +103,15 @@ class GenerateComprobanteViewModel @Inject constructor(
         val state = _uiState.value
         val alquiler = state.alquiler ?: return
         val workspace = workspaceManager.currentWorkspace.value ?: return
+
+        // REGLA SAAS: Solo PRO puede emitir Boletas y Facturas
+        if (state.tipo != TipoComprobante.TICKET) {
+            val plan = state.userPlan?.plan ?: PlanType.FREE
+            if (plan != PlanType.PRO) {
+                _uiState.update { it.copy(error = "🔒 La emisión de Boletas y Facturas solo está disponible en el PLAN PRO.") }
+                return
+            }
+        }
 
         // Validaciones
         if (state.tipo == TipoComprobante.BOLETA) {
@@ -187,5 +210,6 @@ data class GenerateUiState(
     val isSaving: Boolean = false,
     val isSuccess: Boolean = false,
     val error: String? = null,
-    val generatedPdfUri: Uri? = null
+    val generatedPdfUri: Uri? = null,
+    val userPlan: UserPlan? = null
 )

@@ -311,7 +311,8 @@ fun RaymiNavGraph(
             arguments = listOf(navArgument("alquilerId") { type = NavType.StringType })
         ) {
             GenerateComprobanteScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPlans = { navController.navigate(Screen.Plans.route) }
             )
         }
 

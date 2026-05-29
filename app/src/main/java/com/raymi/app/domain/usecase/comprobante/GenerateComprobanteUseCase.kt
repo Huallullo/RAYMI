@@ -39,8 +39,14 @@ class GenerateComprobanteUseCase @Inject constructor(
             }
             val comprobanteId = saveResult.data!!
 
-            // 2. Emitir vía API con Fallback (Nubefact -> Local PDF)
-            val apiResult = billingService.emitirConFallback(comprobanteConNumero, alquiler, workspace)
+            // 2. Lógica de Emisión Inteligente
+            val apiResult = if (comprobanteConNumero.tipo == TipoComprobante.TICKET) {
+                // LOS TICKETS SON GRATIS: Usamos generación local directamente
+                billingService.emitirSoloLocal(comprobanteConNumero, alquiler, workspace)
+            } else {
+                // Boletas y Facturas: Usan la cascada de APIs con Fallback (Nubefact -> ApiPeru -> MiApi)
+                billingService.emitirConFallback(comprobanteConNumero, alquiler, workspace)
+            }
             
             if (apiResult !is Resource.Success) {
                 // Si fallan todos los providers, marcamos error en DB

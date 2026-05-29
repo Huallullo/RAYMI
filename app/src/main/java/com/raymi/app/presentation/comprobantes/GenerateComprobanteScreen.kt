@@ -24,17 +24,46 @@ import com.raymi.app.presentation.components.RaymiLoadingIndicator
 @Composable
 fun GenerateComprobanteScreen(
     viewModel: GenerateComprobanteViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToPlans: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showUpgradeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
+            if (it.contains("PLAN PRO")) {
+                showUpgradeDialog = true
+            } else {
+                snackbarHostState.showSnackbar(it)
+            }
             viewModel.clearMessages()
         }
+    }
+
+    if (showUpgradeDialog) {
+        AlertDialog(
+            onDismissRequest = { showUpgradeDialog = false },
+            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Función Premium 🔒") },
+            text = { 
+                Text("La emisión de Boletas y Facturas electrónicas es parte del Plan PRO. \n\n" +
+                     "✅ Boletas/Facturas ilimitadas\n" +
+                     "✅ Sin anuncios\n" +
+                     "✅ Reportes financieros avanzados") 
+            },
+            confirmButton = {
+                Button(onClick = { 
+                    showUpgradeDialog = false
+                    onNavigateToPlans() 
+                }) { Text("Ver Planes PRO") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpgradeDialog = false }) { Text("Tal vez luego") }
+            }
+        )
     }
 
     Scaffold(
@@ -77,12 +106,16 @@ fun GenerateComprobanteScreen(
                         label = "Boleta",
                         selected = uiState.tipo == TipoComprobante.BOLETA,
                         onClick = { viewModel.onTipoChange(TipoComprobante.BOLETA) },
+                        isPro = true,
+                        hasPro = uiState.userPlan?.plan == com.raymi.app.domain.model.PlanType.PRO,
                         modifier = Modifier.weight(1f)
                     )
                     ComprobanteTypeChip(
                         label = "Factura",
                         selected = uiState.tipo == TipoComprobante.FACTURA,
                         onClick = { viewModel.onTipoChange(TipoComprobante.FACTURA) },
+                        isPro = true,
+                        hasPro = uiState.userPlan?.plan == com.raymi.app.domain.model.PlanType.PRO,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -157,15 +190,30 @@ fun GenerateComprobanteScreen(
 }
 
 @Composable
-fun ComprobanteTypeChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+fun ComprobanteTypeChip(
+    label: String, 
+    selected: Boolean, 
+    onClick: () -> Unit, 
+    modifier: Modifier,
+    isPro: Boolean = false,
+    hasPro: Boolean = false
+) {
     FilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(label, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
+        label = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                if (isPro && !hasPro) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.Lock, contentDescription = "PRO", modifier = Modifier.size(12.dp))
+                }
+            }
+        },
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedContainerColor = if (isPro && !hasPro) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
             selectedLabelColor = Color.White
         )
     )
