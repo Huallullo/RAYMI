@@ -19,4 +19,8 @@ abstract class LookupModule {
     @Binds
     @Singleton
     abstract fun bindNubefactInvoiceProvider(impl: NubefactInvoiceProvider): com.raymi.app.domain.repository.InvoiceProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindMiapiInvoiceProvider(impl: MiapiInvoiceProvider): com.raymi.app.domain.repository.InvoiceProvider
 }

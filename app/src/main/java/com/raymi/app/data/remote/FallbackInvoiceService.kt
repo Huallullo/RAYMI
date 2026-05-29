@@ -11,6 +11,8 @@ import javax.inject.Singleton
 @Singleton
 class FallbackInvoiceService @Inject constructor(
     private val nubefactProvider: NubefactInvoiceProvider,
+    private val apiperuProvider: ApiperuInvoiceProvider,
+    private val miapiProvider: MiapiInvoiceProvider,
     private val localProvider: LocalPdfInvoiceProvider
 ) {
     suspend fun emitirConFallback(
@@ -18,7 +20,7 @@ class FallbackInvoiceService @Inject constructor(
         alquiler: Alquiler,
         workspace: Workspace
     ): Resource<String> {
-        val providers = listOf(nubefactProvider, localProvider)
+        val providers = listOf(nubefactProvider, apiperuProvider, miapiProvider, localProvider)
         var lastError = "No hay proveedores disponibles"
 
         for (provider in providers) {

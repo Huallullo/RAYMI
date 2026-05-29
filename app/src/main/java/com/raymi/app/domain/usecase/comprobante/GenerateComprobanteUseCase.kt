@@ -5,6 +5,7 @@ import com.raymi.app.domain.repository.ComprobanteRepository
 import com.raymi.app.data.remote.FallbackInvoiceService
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import androidx.core.net.toUri
 
 class GenerateComprobanteUseCase @Inject constructor(
     private val repository: ComprobanteRepository,
@@ -61,7 +62,7 @@ class GenerateComprobanteUseCase @Inject constructor(
                 if (updateResult is Resource.Success) {
                     emit(Resource.Success(GeneratedComprobanteResult(
                         comprobanteId = comprobanteId,
-                        pdfUri = android.net.Uri.parse(finalPdfUriStr),
+                        pdfUri = finalPdfUriStr.toUri(),
                         correlativo = finalComprobante.correlativoCompleto
                     )))
                 } else if (updateResult is Resource.Error) {

@@ -42,7 +42,11 @@ android {
         buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2") ?: ""}\"")
         buildConfigField("String", "ADMOB_APP_ID", "\"${project.findProperty("ADMOB_APP_ID") ?: ""}\"")
         buildConfigField("String", "NUBEFACT_URL", "\"${project.findProperty("NUBEFACT_URL") ?: ""}\"")
-        buildConfigField("String", "NUBEFACT_TOKEN", "\"${project.findProperty("NUBEFACT_TOKEN") ?: ""}\"")
+        buildConfigField("String", "NUBEFACT_TOKEN", "\"${project.findProperty("NUBEFACT_TOKEN") ?: "6313dbbf2c5745f791d152579c6e3ad50d0e415693aa46cfad20a1e485fbc6bc"}\"")
+        buildConfigField("String", "APIPERU_URL", "\"${project.findProperty("APIPERU_URL") ?: "https://apiperu.dev/api/cpe"}\"")
+        buildConfigField("String", "APIPERU_TOKEN", "\"${project.findProperty("APIPERU_TOKEN") ?: "c8e569705a79f471d022671d85079d3731128154fc96cbd74bcb0c300709459c"}\"")
+        buildConfigField("String", "MIAPI_URL", "\"${project.findProperty("MIAPI_URL") ?: "https://api.miapi.cloud/api/v1/cpe"}\"")
+        buildConfigField("String", "MIAPI_TOKEN", "\"${project.findProperty("MIAPI_TOKEN") ?: "a05063ad-da54-4791-b556-6e49bcd2f93d"}\"")
     }
 
     signingConfigs {
