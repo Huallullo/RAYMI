@@ -67,6 +67,15 @@ class UserPlanRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getPlanDetails(planType: PlanType): Resource<Map<String, Any>> {
+        try {
+            val remoteConfig = dataSource.getDocument("config", "planes")
+            if (remoteConfig != null) {
+                val planData = remoteConfig[planType.name.lowercase()] as? Map<String, Any>
+                if (planData != null) return Resource.Success(planData)
+            }
+        } catch (_: Exception) { }
+
+        // Fallback local
         return when (planType) {
             PlanType.FREE -> Resource.Success(mapOf(
                 "nombre" to "Plan Gratuito",

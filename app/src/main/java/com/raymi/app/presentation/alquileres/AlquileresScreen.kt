@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
@@ -82,7 +83,7 @@ fun AlquileresScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
                 when {
                     uiState.isLoading -> RaymiLoadingIndicator(message = "Sincronizando contratos...")
                     uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadAlquileres() })
@@ -98,7 +99,7 @@ fun AlquileresScreen(
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(20.dp),
+                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 100.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(uiState.filteredAlquileres, key = { it.id }) { alquiler ->
@@ -110,6 +111,10 @@ fun AlquileresScreen(
                         }
                     }
                 }
+            }
+
+            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }
     }

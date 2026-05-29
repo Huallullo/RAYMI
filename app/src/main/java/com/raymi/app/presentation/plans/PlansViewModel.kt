@@ -26,8 +26,21 @@ class PlansViewModel @Inject constructor(
 
     init {
         cargarPlanActual()
+        cargarDetallesPlanes()
         observeBillingStatus()
         analytics.logEvent("upgrade_screen_vista", null)
+    }
+
+    private fun cargarDetallesPlanes() {
+        viewModelScope.launch {
+            val freeDetails = userPlanRepository.getPlanDetails(PlanType.FREE)
+            val proDetails = userPlanRepository.getPlanDetails(PlanType.PRO)
+            
+            _uiState.update { it.copy(
+                freePrice = (freeDetails.data?.get("precio") ?: PlanType.PRICE_FREE).toString(),
+                proPrice = (proDetails.data?.get("precio") ?: PlanType.PRICE_PRO).toString()
+            ) }
+        }
     }
 
     private fun observeBillingStatus() {
@@ -73,6 +86,8 @@ class PlansViewModel @Inject constructor(
 
 data class PlansUiState(
     val currentPlan: UserPlan? = null,
+    val freePrice: String = "0.00",
+    val proPrice: String = "29.90",
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val error: String? = null

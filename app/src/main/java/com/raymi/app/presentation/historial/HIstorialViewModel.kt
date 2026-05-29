@@ -18,6 +18,8 @@ class HistorialViewModel @Inject constructor(
     private val alquilerRepository: AlquilerRepository,
     private val itemRepository: com.raymi.app.domain.repository.ItemRepository,
     private val generarPdfInventarioUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfInventarioUseCase,
+    private val exportService: com.raymi.app.data.remote.ExportService,
+    private val sharePdfUseCase: com.raymi.app.domain.usecase.pdf.SharePdfUseCase,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -111,6 +113,25 @@ class HistorialViewModel @Inject constructor(
                 } else if (result is Resource.Error) {
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
+            }
+        }
+    }
+
+    fun exportarCSV() {
+        val alquileres = _uiState.value.filteredAlquileres
+        if (alquileres.isEmpty()) {
+            _uiState.update { it.copy(error = "No hay datos para exportar") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val uri = exportService.generarCsvAlquileres(alquileres)
+            if (uri != null) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "CSV generado") }
+                sharePdfUseCase(uri)
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Error al generar archivo") }
             }
         }
     }

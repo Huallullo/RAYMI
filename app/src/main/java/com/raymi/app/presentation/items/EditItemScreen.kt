@@ -19,13 +19,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.raymi.app.presentation.components.RaymiErrorState
-import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.presentation.components.*
 
-/**
- * Pantalla de Edición de Producto.
- * Permite al usuario modificar cualquier aspecto del ítem, incluyendo sus campos personalizados.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditItemScreen(
@@ -38,6 +33,7 @@ fun EditItemScreen(
     var showAttrDialog by remember { mutableStateOf(false) }
     var newAttrKey by remember { mutableStateOf("") }
     var isCatDropdownExpanded by remember { mutableStateOf(false) }
+    var showBarcodeScanner by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -63,18 +59,14 @@ fun EditItemScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (uiState.isLoading) {
-                RaymiLoadingIndicator(message = "Recuperando información...")
+                RaymiLoadingIndicator()
             } else if (uiState.error != null) {
-                RaymiErrorState(message = uiState.error!!, onRetry = { /* Reintentar cargar */ })
+                RaymiErrorState(message = uiState.error!!, onRetry = { })
             } else {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // 0. Cambio de Imagen
                     Surface(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         modifier = Modifier.fillMaxWidth().height(180.dp),
@@ -95,148 +87,71 @@ fun EditItemScreen(
                         }
                     }
 
-                    // 1. Categoría
                     Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    
-                    ExposedDropdownMenuBox(
-                        expanded = isCatDropdownExpanded,
-                        onExpandedChange = { isCatDropdownExpanded = it }
-                    ) {
+                    ExposedDropdownMenuBox(expanded = isCatDropdownExpanded, onExpandedChange = { isCatDropdownExpanded = it }) {
                         OutlinedTextField(
                             value = uiState.categoriaSeleccionada?.nombre ?: "Sin Categoría",
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Mover a Categoría") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCatDropdownExpanded) },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
-                            leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Default.Folder, null) }
                         )
-                        
-                        ExposedDropdownMenu(
-                            expanded = isCatDropdownExpanded,
-                            onDismissRequest = { isCatDropdownExpanded = false }
-                        ) {
+                        ExposedDropdownMenu(expanded = isCatDropdownExpanded, onDismissRequest = { isCatDropdownExpanded = false }) {
                             uiState.categorias.forEach { categoria ->
-                                DropdownMenuItem(
-                                    text = { Text(categoria.nombre) },
-                                    onClick = {
-                                        viewModel.onCategoriaChange(categoria)
-                                        isCatDropdownExpanded = false
-                                    }
-                                )
+                                DropdownMenuItem(text = { Text(categoria.nombre) }, onClick = { viewModel.onCategoriaChange(categoria); isCatDropdownExpanded = false })
                             }
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    // 2. Datos Principales
                     Text("Datos Principales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    
-                    OutlinedTextField(
-                        value = uiState.nombre,
-                        onValueChange = viewModel::onNombreChange,
-                        label = { Text("Nombre") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large
-                    )
+                    OutlinedTextField(value = uiState.nombre, onValueChange = viewModel::onNombreChange, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large)
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
                             value = uiState.codigo,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Código (No editable)") },
-                            modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
-                        )
-                        OutlinedTextField(
-                            value = uiState.precio,
-                            onValueChange = viewModel::onPrecioChange,
-                            label = { Text("Precio Alquiler") },
-                            prefix = { Text("S/. ") },
-                            modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            onValueChange = { viewModel.onCodigoChange(it) },
+                            label = { Text("Código/SKU") },
+                            trailingIcon = {
+                                IconButton(onClick = { showBarcodeScanner = true }) {
+                                    Icon(Icons.Default.QrCodeScanner, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            modifier = Modifier.weight(1.5f),
                             shape = MaterialTheme.shapes.large
                         )
+                        OutlinedTextField(value = uiState.precio, onValueChange = viewModel::onPrecioChange, label = { Text("Precio") }, prefix = { Text("S/. ") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), shape = MaterialTheme.shapes.large)
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    // 3. Características Personalizadas
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Especificaciones", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         TextButton(onClick = { showAttrDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Nuevo Campo")
                         }
                     }
 
                     uiState.atributos.forEach { (key, value) ->
-                        AttributeEditField(
-                            label = key,
-                            value = value,
-                            onValueChange = { viewModel.onAtributoChange(key, it) },
-                            onDelete = { viewModel.eliminarAtributo(key) }
-                        )
+                        AttributeEditField(label = key, value = value, onValueChange = { viewModel.onAtributoChange(key, it) }, onDelete = { viewModel.eliminarAtributo(key) })
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    // 4. Botón Actualizar
-                    Button(
-                        onClick = { viewModel.actualizarItem() },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        enabled = !uiState.isSaving
-                    ) {
-                        if (uiState.isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                        } else {
-                            Text("Guardar Cambios", fontWeight = FontWeight.Bold)
-                        }
+                    Button(onClick = { viewModel.actualizarItem() }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = MaterialTheme.shapes.extraLarge, enabled = !uiState.isSaving) {
+                        if (uiState.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                        else Text("Guardar Cambios", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 
-    // Diálogo para nuevo campo
     if (showAttrDialog) {
-        AlertDialog(
-            onDismissRequest = { showAttrDialog = false },
-            title = { Text("Nuevo Campo") },
-            text = {
-                OutlinedTextField(
-                    value = newAttrKey,
-                    onValueChange = { newAttrKey = it },
-                    label = { Text("Ej: Talla, Marca, Kilometraje") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (newAttrKey.isNotBlank()) {
-                        viewModel.onAtributoChange(newAttrKey, "")
-                        newAttrKey = ""
-                        showAttrDialog = false
-                    }
-                }) { Text("Añadir") }
-            },
-            dismissButton = { TextButton(onClick = { showAttrDialog = false }) { Text("Cancelar") } }
-        )
+        AlertDialog(onDismissRequest = { showAttrDialog = false }, title = { Text("Nuevo Campo") }, text = { OutlinedTextField(value = newAttrKey, onValueChange = { newAttrKey = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth()) }, confirmButton = { Button(onClick = { if (newAttrKey.isNotBlank()) { viewModel.onAtributoChange(newAttrKey, ""); newAttrKey = ""; showAttrDialog = false } }) { Text("Añadir") } }, dismissButton = { TextButton(onClick = { showAttrDialog = false }) { Text("Cancelar") } })
+    }
+
+    if (showBarcodeScanner) {
+        BarcodeScannerDialog(onDismiss = { showBarcodeScanner = false }, onScan = { code -> viewModel.onCodigoChange(code); showBarcodeScanner = false })
     }
 }

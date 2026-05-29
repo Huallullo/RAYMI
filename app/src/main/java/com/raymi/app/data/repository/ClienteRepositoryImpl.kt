@@ -123,7 +123,11 @@ class ClienteRepositoryImpl @Inject constructor(
     override suspend fun searchClientes(query: String): Flow<Resource<List<Cliente>>> = flow {
         emit(Resource.Loading())
         try {
-            val documents = dataSource.queryBusinessDocuments("clientes", "nombre", query, limit = 50, negocioId = getWorkspaceId())
+            val documents = if (query.isBlank()) {
+                dataSource.getAllBusinessDocumentsOrderedLimited("clientes", "createdAt", true, 50)
+            } else {
+                dataSource.queryBusinessArrayContainsLimited("clientes", "searchTerms", query.lowercase().trim())
+            }
             val clientes = documents.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(clientes))
         } catch (e: Exception) {

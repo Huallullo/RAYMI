@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -27,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.components.*
@@ -135,7 +139,7 @@ fun ItemsScreen(
             }
 
             // 3. Contenido Principal con Animaciones de Carga
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
                 when {
                     uiState.isLoading -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -172,9 +176,23 @@ fun ItemsScreen(
                                     )
                                 }
                             }
+
+                            if (uiState.hasMore) {
+                                item(span = { GridItemSpan(2) }) {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                        TextButton(onClick = { viewModel.cargarMas() }) {
+                                            Text("Ver más productos", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }
     }
@@ -235,7 +253,6 @@ fun ModernItemCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Header: Visual Placeholder + Badge
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -244,12 +261,21 @@ fun ModernItemCard(
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Category,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                )
+                if (!item.imagenUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.imagenUrl,
+                        contentDescription = item.nombre,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Category,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                    )
+                }
                 
                 // Badge de Estado Superior Derecho (Minimalista)
                 Box(modifier = Modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.TopEnd) {

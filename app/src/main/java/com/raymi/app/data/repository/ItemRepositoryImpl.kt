@@ -16,13 +16,14 @@ class ItemRepositoryImpl @Inject constructor(
     private val observerDataSource: ObserverDataSource
 ) : ItemRepository {
 
-    override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> {
+    override suspend fun getItemsByWorkspace(workspaceId: String, limit: Long, startAfterValue: Any?): Flow<Resource<List<Item>>> {
         return observerDataSource.observeBusinessCollection(
             workspaceId = workspaceId,
             collection = "items",
             orderByField = "nombre",
             descending = false,
-            limit = 100
+            limit = limit,
+            startAfterValue = startAfterValue
         )
             .map { documents ->
                 val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
@@ -90,7 +91,11 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun searchItems(workspaceId: String, query: String): Flow<Resource<List<Item>>> = flow {
         emit(Resource.Loading())
         try {
-            val documents = dataSource.queryBusinessDocuments("items", "nombre", query, limit = 50, negocioId = workspaceId)
+            val documents = if (query.isBlank()) {
+                dataSource.getAllBusinessDocumentsOrderedLimited("items", "nombre", false, 50)
+            } else {
+                dataSource.queryBusinessArrayContainsLimited("items", "searchTerms", query.lowercase().trim())
+            }
             val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(items))
         } catch (e: Exception) {

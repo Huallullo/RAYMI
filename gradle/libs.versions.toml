@@ -33,6 +33,7 @@ bouncycastle = "1.79"
 mlkitVisionCommon = "17.3.0"
 mlkitBarcodeCommon = "17.0.0"
 billing = "7.0.0"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -83,6 +84,7 @@ bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", ver
 mlkit-vision-common = { group = "com.google.mlkit", name = "vision-common", version.ref = "mlkitVisionCommon" }
 mlkit-barcode-scanning-common = { group = "com.google.mlkit", name = "barcode-scanning-common", version.ref = "mlkitBarcodeCommon" }
 billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

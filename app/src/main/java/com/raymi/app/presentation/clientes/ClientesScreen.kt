@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.*
@@ -132,7 +133,7 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             }
 
             // 3. Listado de Clientes
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
                 when {
                     uiState.isLoading -> RaymiLoadingIndicator(message = "Accediendo a contactos...")
                     uiState.visibleClientes.isEmpty() -> {
@@ -147,7 +148,7 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp, start = 24.dp, end = 24.dp),
+                            contentPadding = PaddingValues(bottom = 20.dp, start = 24.dp, end = 24.dp, top = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(uiState.visibleClientes, key = { it.id }) { cliente ->
@@ -168,6 +169,10 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         }
                     }
                 }
+            }
+
+            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }
     }

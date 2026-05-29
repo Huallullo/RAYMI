@@ -2,11 +2,11 @@ package com.raymi.app.data.model.dto
 
 import com.google.firebase.Timestamp
 import com.raymi.app.domain.model.Alquiler
+import com.raymi.app.domain.model.AlquilerItem
 import com.raymi.app.domain.model.EstadoAlquiler
 
 /**
  * DTO para Alquileres.
- * Mapea los datos de Firestore a la lógica de negocio genérica.
  */
 data class AlquilerDto(
     val id: String = "",
@@ -19,6 +19,7 @@ data class AlquilerDto(
     val itemNombre: String = "",
     val itemCodigo: String = "",
     val cantidad: Int = 1,
+    val items: List<Map<String, Any>> = emptyList(),
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
@@ -30,6 +31,7 @@ data class AlquilerDto(
     val penalidad: Double = 0.0,
     val estado: String = "ACTIVO",
     val observaciones: String = "",
+    val garantiaDevuelta: Boolean = false,
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
@@ -44,6 +46,16 @@ data class AlquilerDto(
         itemNombre = itemNombre,
         itemCodigo = itemCodigo,
         cantidad = cantidad,
+        items = items.map { 
+            AlquilerItem(
+                itemId = it["itemId"] as? String ?: "",
+                itemNombre = it["itemNombre"] as? String ?: "",
+                itemCodigo = it["itemCodigo"] as? String ?: "",
+                cantidad = (it["cantidad"] as? Number)?.toInt() ?: 0,
+                precioUnitario = (it["precioUnitario"] as? Number)?.toDouble() ?: 0.0,
+                subtotal = (it["subtotal"] as? Number)?.toDouble() ?: 0.0
+            )
+        },
         fechaInicio = fechaInicio,
         fechaFinPrevista = fechaFinPrevista,
         fechaDevolucion = fechaDevolucion,
@@ -55,6 +67,7 @@ data class AlquilerDto(
         penalidad = penalidad,
         estado = try { EstadoAlquiler.valueOf(estado) } catch (_: Exception) { EstadoAlquiler.ACTIVO },
         observaciones = observaciones,
+        garantiaDevuelta = garantiaDevuelta,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -71,6 +84,16 @@ data class AlquilerDto(
             itemNombre = domain.itemNombre,
             itemCodigo = domain.itemCodigo,
             cantidad = domain.cantidad,
+            items = domain.items.map { 
+                mapOf(
+                    "itemId" to it.itemId,
+                    "itemNombre" to it.itemNombre,
+                    "itemCodigo" to it.itemCodigo,
+                    "cantidad" to it.cantidad,
+                    "precioUnitario" to it.precioUnitario,
+                    "subtotal" to it.subtotal
+                )
+            },
             fechaInicio = domain.fechaInicio,
             fechaFinPrevista = domain.fechaFinPrevista,
             fechaDevolucion = domain.fechaDevolucion,
@@ -82,6 +105,7 @@ data class AlquilerDto(
             penalidad = domain.penalidad,
             estado = domain.estado.name,
             observaciones = domain.observaciones,
+            garantiaDevuelta = domain.garantiaDevuelta,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt
         )
@@ -97,6 +121,7 @@ data class AlquilerDto(
             itemNombre = (map["itemNombre"] as? String) ?: (map["vestuarioNombre"] as? String) ?: "",
             itemCodigo = (map["itemCodigo"] as? String) ?: (map["vestuarioCodigo"] as? String) ?: "",
             cantidad = (map["cantidad"] as? Number)?.toInt() ?: 1,
+            items = (map["items"] as? List<Map<String, Any>>) ?: emptyList(),
             fechaInicio = map["fechaInicio"] as? Timestamp ?: Timestamp.now(),
             fechaFinPrevista = map["fechaFinPrevista"] as? Timestamp ?: Timestamp.now(),
             fechaDevolucion = map["fechaDevolucion"] as? Timestamp,
@@ -108,6 +133,7 @@ data class AlquilerDto(
             penalidad = (map["penalidad"] as? Number)?.toDouble() ?: 0.0,
             estado = map["estado"] as? String ?: "ACTIVO",
             observaciones = map["observaciones"] as? String ?: "",
+            garantiaDevuelta = map["garantiaDevuelta"] as? Boolean ?: false,
             createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now(),
             updatedAt = map["updatedAt"] as? Timestamp ?: Timestamp.now()
         )
@@ -124,6 +150,7 @@ data class AlquilerDto(
         "itemNombre" to itemNombre,
         "itemCodigo" to itemCodigo,
         "cantidad" to cantidad,
+        "items" to items,
         "fechaInicio" to fechaInicio,
         "fechaFinPrevista" to fechaFinPrevista,
         "fechaDevolucion" to fechaDevolucion,
@@ -135,6 +162,7 @@ data class AlquilerDto(
         "penalidad" to penalidad,
         "estado" to estado,
         "observaciones" to observaciones,
+        "garantiaDevuelta" to garantiaDevuelta,
         "createdAt" to createdAt,
         "updatedAt" to updatedAt
     )

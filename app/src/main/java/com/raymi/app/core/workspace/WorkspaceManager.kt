@@ -77,4 +77,16 @@ class WorkspaceManager @Inject constructor(
     fun getWorkspaceId(): String? {
         return _currentWorkspace.value?.id
     }
+
+    /**
+     * Limpia el workspace actual (cerrar sesión).
+     */
+    fun clearWorkspace() {
+        _currentWorkspace.value = null
+        scope.launch {
+            context.dataStore.edit { prefs ->
+                prefs.remove(KEY_WORKSPACE_ID)
+            }
+        }
+    }
 }

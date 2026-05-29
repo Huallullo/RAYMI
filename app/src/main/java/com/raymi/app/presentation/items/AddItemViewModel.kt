@@ -118,7 +118,7 @@ class AddItemViewModel @Inject constructor(
                 // Verificar límites del plan
                 val canAdd = userPlanRepository.canAddMoreItems(user.uid, workspaceId)
                 if (!canAdd) {
-                    _uiState.update { it.copy(isLoading = false, error = "Has alcanzado el límite de ítems de tu plan. Actualiza a PRO para continuar.") }
+                    _uiState.update { it.copy(isLoading = false, shouldNavigateToPlans = true) }
                     return@launch
                 }
 
@@ -167,5 +167,6 @@ data class AddItemUiState(
     val selectedImageUri: Uri? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
+    val shouldNavigateToPlans: Boolean = false
 )

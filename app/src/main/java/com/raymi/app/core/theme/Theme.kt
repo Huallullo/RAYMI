@@ -59,7 +59,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun RaymiTheme(
-    darkTheme: Boolean = false, // QA Fix: Forzamos tema claro por preferencia del usuario
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

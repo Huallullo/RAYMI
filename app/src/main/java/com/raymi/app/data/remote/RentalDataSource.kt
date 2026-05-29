@@ -7,208 +7,184 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Fuente de datos para la gestión de Alquileres y Pagos.
- */
 @Singleton
 class RentalDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
-    suspend fun addPago(
-        workspaceId: String,
-        alquilerId: String,
-        pagoData: Map<String, Any>
-    ) {
-        val alquilerRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("alquileres").document(alquilerId)
+    suspend fun addPago(workspaceId: String, alquilerId: String, pagoData: Map<String, Any>) {
+        val alquilerRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId)
         val pagosRef = alquilerRef.collection("pagos")
-        val statsRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("metadata").document("stats")
-
+        val statsRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("metadata").document("stats")
         val monto = (pagoData["monto"] as? Number)?.toDouble() ?: 0.0
 
         firestore.runTransaction { transaction ->
-            // 1. Agregar el pago
             val newPagoRef = pagosRef.document()
             transaction.set(newPagoRef, pagoData + mapOf("id" to newPagoRef.id))
-
-            // 2. Actualizar saldo y adelanto en el alquiler
             val snapshot = transaction.get(alquilerRef)
             val saldoActual = (snapshot.get("saldo") as? Number)?.toDouble() ?: 0.0
             val adelantoActual = (snapshot.get("adelanto") as? Number)?.toDouble() ?: 0.0
-            
-            transaction.update(alquilerRef, mapOf(
-                "saldo" to (saldoActual - monto).coerceAtLeast(0.0),
-                "adelanto" to (adelantoActual + monto),
-                "updatedAt" to FieldValue.serverTimestamp()
-            ))
-
-            // 3. Actualizar ingresos totales en estadísticas
+            transaction.update(alquilerRef, mapOf("saldo" to (saldoActual - monto).coerceAtLeast(0.0), "adelanto" to (adelantoActual + monto), "updatedAt" to FieldValue.serverTimestamp()))
             transaction.update(statsRef, "totalIngresos", FieldValue.increment(monto))
         }.await()
     }
 
-    suspend fun createAlquilerTransactional(
-        workspaceId: String,
-        alquilerData: Map<String, Any>,
-        itemId: String
-    ): String {
+    suspend fun createAlquilerTransactional(workspaceId: String, alquilerData: Map<String, Any>): String {
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-        val itemRef = negocioRef.collection("items").document(itemId)
+        val itemsRef = negocioRef.collection("items")
         val alquileresRef = negocioRef.collection("alquileres")
         val statsRef = negocioRef.collection("metadata").document("stats")
+        val itemsList = (alquilerData["items"] as? List<Map<String, Any>>) ?: emptyList()
 
         return firestore.runTransaction { transaction ->
-            // 1. Verificar Stock
-            val itemSnap = transaction.get(itemRef)
-            if (!itemSnap.exists()) throw IllegalStateException("Producto no encontrado")
-            
-            val cantidadTotal = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
-            val itemNombre = itemSnap.getString("nombre") ?: ""
-            
-            // Contar alquileres activos para este item (Esto es costoso en transacciones si hay muchos, 
-            // pero necesario para integridad. Alternativa: contador 'alquilados' en el Item)
-            // Por ahora, mejor usar un contador en el Item para eficiencia SaaS.
-            
-            val unidadesAlquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-            if (unidadesAlquiladas >= cantidadTotal) {
-                throw IllegalStateException("No hay stock disponible para $itemNombre")
+            // 1. Verificar y Descontar Stock de cada ítem
+            itemsList.forEach { itemData ->
+                val itemId = itemData["itemId"] as? String ?: return@forEach
+                val cantidad = (itemData["cantidad"] as? Number)?.toInt() ?: 1
+                val itemRef = itemsRef.document(itemId)
+                val itemSnap = transaction.get(itemRef)
+                
+                if (!itemSnap.exists()) throw IllegalStateException("Ítem no encontrado: $itemId")
+                val stockTotal = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 0
+                val alquiladosActuales = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                
+                if (alquiladosActuales + cantidad > stockTotal) {
+                    throw IllegalStateException("Stock insuficiente para: ${itemSnap.getString("nombre")}")
+                }
+                
+                val nuevasUnidades = alquiladosActuales + cantidad
+                transaction.update(itemRef, mapOf(
+                    "unidadesAlquiladas" to nuevasUnidades,
+                    "estado" to if (nuevasUnidades >= stockTotal) "ALQUILADO" else "DISPONIBLE"
+                ))
             }
 
-            // 2. Crear el Alquiler
-            val newAlquilerRef = alquileresRef.document()
-            val finalData = alquilerData + mapOf(
-                "id" to newAlquilerRef.id,
+            // 2. Guardar Alquiler
+            val newRef = alquileresRef.document()
+            transaction.set(newRef, alquilerData + mapOf(
+                "id" to newRef.id,
                 "createdAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
-            )
-            transaction.set(newAlquilerRef, finalData)
-
-            // 3. Actualizar Item (unidades alquiladas y estado)
-            val nuevasUnidades = unidadesAlquiladas + 1
-            val nuevoEstado = if (nuevasUnidades >= cantidadTotal) "ALQUILADO" else "DISPONIBLE"
-            
-            transaction.update(itemRef, mapOf(
-                "unidadesAlquiladas" to nuevasUnidades,
-                "estado" to nuevoEstado
             ))
 
-            // 4. Actualizar Estadísticas
             transaction.update(statsRef, "alquileresActivos", FieldValue.increment(1))
-            
-            newAlquilerRef.id
+            newRef.id
         }.await()
     }
 
     suspend fun getPagos(workspaceId: String, alquilerId: String): List<Map<String, Any>> {
-        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("alquileres").document(alquilerId)
-            .collection("pagos")
-            .orderBy("fecha", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .get()
-            .await()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId).collection("pagos").orderBy("fecha", com.google.firebase.firestore.Query.Direction.DESCENDING).get().await()
         return snapshot.documents.mapNotNull { it.data }
     }
 
     suspend fun getAlquiler(workspaceId: String, alquilerId: String): Map<String, Any>? {
-        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("alquileres").document(alquilerId).get().await()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId).get().await()
         return if (snapshot.exists()) snapshot.data else null
     }
 
     suspend fun updateAlquiler(workspaceId: String, alquilerId: String, data: Map<String, Any>) {
-        firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("alquileres").document(alquilerId).update(data).await()
+        firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId).update(data).await()
     }
 
-    /**
-     * Elimina un alquiler de forma transaccional, liberando el stock del ítem asociado
-     * y actualizando los contadores globales del negocio.
-     */
-    suspend fun deleteAlquilerTransactional(workspaceId: String, alquilerId: String) {
-        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-        val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
-        val statsRef = negocioRef.collection("metadata").document("stats")
-
+    suspend fun updateAlquilerTransactional(workspaceId: String, alquilerId: String, newData: Map<String, Any>, itemId: String, diff: Int) {
+        val itemRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("items").document(itemId)
+        val alquilerRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId)
         firestore.runTransaction { transaction ->
-            val alqSnap = transaction.get(alquilerRef)
-            if (!alqSnap.exists()) return@runTransaction
-
-            val itemId = alqSnap.getString("itemId")
-            val estado = alqSnap.getString("estado") ?: "ACTIVO"
-            
-            // 1. Si estaba ACTIVO o VENCIDO, debemos devolver el stock al Item
-            if (estado == "ACTIVO" || estado == "VENCIDO") {
-                itemId?.let { id ->
-                    val itemRef = negocioRef.collection("items").document(id)
-                    val itemSnap = transaction.get(itemRef)
-                    if (itemSnap.exists()) {
-                        val alquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 1
-                        transaction.update(itemRef, mapOf(
-                            "unidadesAlquiladas" to (alquiladas - 1).coerceAtLeast(0),
-                            "estado" to "DISPONIBLE"
-                        ))
-                    }
+            if (diff != 0) {
+                val itemSnap = transaction.get(itemRef)
+                if (itemSnap.exists()) {
+                    val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                    val total = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
+                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current + diff), "estado" to if (current + diff >= total) "ALQUILADO" else "DISPONIBLE"))
                 }
-                // Decrementar alquileres activos en stats
-                transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
             }
-
-            // 2. Eliminar el documento principal
-            transaction.delete(alquilerRef)
-            
-            // 3. Nota: Los pagos (subcolección) se deben borrar vía Cloud Function o borrado recursivo 
-            // desde el cliente si es necesario, pero para integridad SaaS, el registro de ingresos 
-            // ya está consolidado en el totalIngresos de stats.
+            transaction.update(alquilerRef, newData)
         }.await()
     }
 
-    suspend fun registrarDevolucionTransactional(
-        workspaceId: String,
-        alquilerId: String,
-        penalidad: Double = 0.0,
-        observaciones: String = ""
-    ) {
+    suspend fun deleteAlquilerTransactional(workspaceId: String, alquilerId: String) {
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-        val alquilerRef = negocioRef.collection("alquileres").document(alquilerId)
+        val alqRef = negocioRef.collection("alquileres").document(alquilerId)
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
-            val alqSnap = transaction.get(alquilerRef)
-            if (!alqSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
-            
-            val itemId = alqSnap.getString("itemId") ?: return@runTransaction
-            val itemRef = negocioRef.collection("items").document(itemId)
-            
-            val observacionesPrevias = alqSnap.getString("observaciones") ?: ""
-            val nuevasObservaciones = if (observaciones.isNotBlank()) {
-                "$observacionesPrevias\n[Devolución]: $observaciones"
-            } else observacionesPrevias
+            val snapshot = transaction.get(alqRef)
+            if (!snapshot.exists()) return@runTransaction
+            val items = (snapshot.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            val estado = snapshot.getString("estado") ?: "ACTIVO"
 
-            // 1. Marcar Alquiler como DEVUELTO y registrar penalidad
-            transaction.update(alquilerRef, mapOf(
-                "estado" to "DEVUELTO",
-                "penalidad" to penalidad,
-                "observaciones" to nuevasObservaciones,
-                "fechaDevolucion" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            ))
-
-            // 2. Decrementar unidades alquiladas y actualizar estado Item
-            val itemSnap = transaction.get(itemRef)
-            val alquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 1
-            transaction.update(itemRef, mapOf(
-                "unidadesAlquiladas" to (alquiladas - 1).coerceAtLeast(0),
-                "estado" to "DISPONIBLE"
-            ))
-
-            // 3. Actualizar Stats
-            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
-            
-            // Si hay penalidad, se suma a los ingresos totales (o podrías manejarlo como deuda pendiente)
-            if (penalidad > 0) {
-                transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad))
+            if (estado == "ACTIVO" || estado == "VENCIDO" || estado == "RESERVADO") {
+                items.forEach { itemData ->
+                    val id = itemData["itemId"] as? String ?: return@forEach
+                    val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
+                    val itemRef = negocioRef.collection("items").document(id)
+                    val itemSnap = transaction.get(itemRef)
+                    if (itemSnap.exists()) {
+                        val alq = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                        transaction.update(itemRef, mapOf("unidadesAlquiladas" to (alq - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                    }
+                }
+                transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
             }
+            transaction.delete(alqRef)
+        }.await()
+    }
+
+    suspend fun registrarDevolucionTransactional(workspaceId: String, alquilerId: String, penalidad: Double = 0.0, observaciones: String = "", montoGarantiaRetenida: Double = 0.0) {
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+        val alqRef = negocioRef.collection("alquileres").document(alquilerId)
+        val statsRef = negocioRef.collection("metadata").document("stats")
+
+        firestore.runTransaction { transaction ->
+            val alqSnap = transaction.get(alqRef)
+            if (!alqSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
+            val items = (alqSnap.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            val gTotal = (alqSnap.get("garantia") as? Number)?.toDouble() ?: 0.0
+            val infoG = if (montoGarantiaRetenida > 0) "\n[Garantía]: Retenida S/. $montoGarantiaRetenida de S/. $gTotal" else "\n[Garantía]: Devuelta íntegra"
+            val prevObs = alqSnap.getString("observaciones") ?: ""
+            val newObs = if (observaciones.isNotBlank()) "$prevObs\n[Devolución]: $observaciones$infoG" else "$prevObs$infoG"
+
+            transaction.update(alqRef, mapOf("estado" to "DEVUELTO", "penalidad" to (penalidad + montoGarantiaRetenida), "observaciones" to newObs, "garantiaDevuelta" to (montoGarantiaRetenida == 0.0), "fechaDevolucion" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
+            
+            items.forEach { itemData ->
+                val id = itemData["itemId"] as? String ?: return@forEach
+                val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
+                val itemRef = negocioRef.collection("items").document(id)
+                val itemSnap = transaction.get(itemRef)
+                if (itemSnap.exists()) {
+                    val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                }
+            }
+            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
+            if (penalidad + montoGarantiaRetenida > 0) transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad + montoGarantiaRetenida))
+        }.await()
+    }
+
+    suspend fun cancelarAlquilerTransactional(workspaceId: String, alquilerId: String, motivo: String = "") {
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+        val alqRef = negocioRef.collection("alquileres").document(alquilerId)
+        val statsRef = negocioRef.collection("metadata").document("stats")
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(alqRef)
+            if (!snapshot.exists()) throw IllegalStateException("Alquiler no encontrado")
+            val items = (snapshot.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            val prevObs = snapshot.getString("observaciones") ?: ""
+            val newObs = if (motivo.isNotBlank()) "$prevObs\n[Cancelado]: $motivo" else "$prevObs\n[Cancelado]"
+
+            transaction.update(alqRef, mapOf("estado" to "CANCELADO", "observaciones" to newObs, "updatedAt" to FieldValue.serverTimestamp()))
+            
+            items.forEach { itemData ->
+                val id = itemData["itemId"] as? String ?: return@forEach
+                val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
+                val itemRef = negocioRef.collection("items").document(id)
+                val itemSnap = transaction.get(itemRef)
+                if (itemSnap.exists()) {
+                    val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                }
+            }
+            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
         }.await()
     }
 }

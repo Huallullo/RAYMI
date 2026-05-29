@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
         // Inicialización Maestro de Publicidad
         lifecycleScope.launch {
             com.raymi.app.core.ads.AdManager.inicializar(this@MainActivity)
+            com.raymi.app.core.ads.AdInterstitialManager.loadAd(this@MainActivity)
         }
 
         enableEdgeToEdge()

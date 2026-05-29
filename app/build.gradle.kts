@@ -47,6 +47,8 @@ android {
         buildConfigField("String", "APIPERU_TOKEN", "\"${project.findProperty("APIPERU_TOKEN") ?: "c8e569705a79f471d022671d85079d3731128154fc96cbd74bcb0c300709459c"}\"")
         buildConfigField("String", "MIAPI_URL", "\"${project.findProperty("MIAPI_URL") ?: "https://api.miapi.cloud/api/v1/cpe"}\"")
         buildConfigField("String", "MIAPI_TOKEN", "\"${project.findProperty("MIAPI_TOKEN") ?: "a05063ad-da54-4791-b556-6e49bcd2f93d"}\"")
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"${project.findProperty("ADMOB_BANNER_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\"")
+        buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"${project.findProperty("ADMOB_INTERSTITIAL_ID") ?: "ca-app-pub-3940256099942544/1033173712"}\"")
     }
 
     signingConfigs {
@@ -196,6 +198,9 @@ dependencies {
 
     // Google Play Billing
     implementation(libs.billing)
+
+    // QR Generation
+    implementation(libs.zxing.core)
 
     // Tests
     testImplementation(libs.junit)

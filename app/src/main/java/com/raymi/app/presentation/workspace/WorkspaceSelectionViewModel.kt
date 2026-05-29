@@ -18,6 +18,7 @@ import javax.inject.Inject
 class WorkspaceSelectionViewModel @Inject constructor(
     private val getWorkspacesUseCase: GetWorkspacesUseCase,
     private val authRepository: AuthRepository,
+    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -26,6 +27,22 @@ class WorkspaceSelectionViewModel @Inject constructor(
 
     init {
         loadWorkspaces()
+    }
+
+    fun onCreateNewWorkspace(onCanCreate: () -> Unit) {
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser() ?: return@launch
+            val canCreate = userPlanRepository.canCreateWorkspace(user.uid)
+            if (canCreate) {
+                onCanCreate()
+            } else {
+                _uiState.value = _uiState.value.copy(showLimitDialog = true)
+            }
+        }
+    }
+
+    fun dismissLimitDialog() {
+        _uiState.value = _uiState.value.copy(showLimitDialog = false)
     }
 
     fun loadWorkspaces() {
@@ -81,5 +98,6 @@ data class WorkspaceSelectionUiState(
     val workspaces: List<Workspace> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val workspaceSelected: Boolean = false
+    val workspaceSelected: Boolean = false,
+    val showLimitDialog: Boolean = false
 )

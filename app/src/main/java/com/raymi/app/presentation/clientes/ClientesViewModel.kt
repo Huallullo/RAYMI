@@ -26,6 +26,8 @@ class ClientesViewModel @Inject constructor(
     private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: DeleteClienteUseCase,
     private val consultarReniecUseCase: ConsultarReniecUseCase,
+    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val auth: com.google.firebase.auth.FirebaseAuth,
     private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 ) : ViewModel() {
 
@@ -36,6 +38,19 @@ class ClientesViewModel @Inject constructor(
 
     init {
         loadClientes()
+        loadUserPlan()
+    }
+
+    private fun loadUserPlan() {
+        viewModelScope.launch {
+            auth.uid?.let { uid ->
+                userPlanRepository.getUserPlan(uid).collect { result ->
+                    if (result is Resource.Success) {
+                        _uiState.update { it.copy(userPlan = result.data) }
+                    }
+                }
+            }
+        }
     }
 
     fun loadClientes() {
@@ -196,6 +211,7 @@ data class ClientesUiState(
     val orden: OrdenCliente = OrdenCliente.RECIBIENTES,
     val visibleLimit: Int = 50,
     val hasMoreClientes: Boolean = false,
+    val userPlan: com.raymi.app.domain.model.UserPlan? = null,
     val isLoading: Boolean = false,
     val showAddDialog: Boolean = false,
     val error: String? = null,

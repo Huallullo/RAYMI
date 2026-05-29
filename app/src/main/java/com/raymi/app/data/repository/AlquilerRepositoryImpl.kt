@@ -112,7 +112,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val dto = AlquilerDto.fromDomain(alquiler)
             val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            val id = rentalDataSource.createAlquilerTransactional(alquiler.workspaceId, dataMap, alquiler.itemId)
+            val id = rentalDataSource.createAlquilerTransactional(alquiler.workspaceId, dataMap)
             emit(Resource.Success(id))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -132,19 +132,44 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateAlquilerConStock(alquiler: Alquiler, diffCantidad: Int): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
+            rentalDataSource.updateAlquilerTransactional(alquiler.workspaceId, alquiler.id, dataMap, alquiler.itemId, diffCantidad)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al actualizar stock: ${e.message}"))
+        }
+    }
+
     override suspend fun registrarDevolucion(
         alquilerId: String,
         penalidad: Double,
-        observaciones: String
+        observaciones: String,
+        montoGarantiaRetenida: Double
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
-            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId, penalidad, observaciones)
+            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId, penalidad, observaciones, montoGarantiaRetenida)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error: ${e.message}"))
+        }
+    }
+
+    override suspend fun cancelarAlquiler(alquilerId: String, motivo: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
+            rentalDataSource.cancelarAlquilerTransactional(workspaceId, alquilerId, motivo)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al cancelar alquiler: ${e.message}"))
         }
     }
 

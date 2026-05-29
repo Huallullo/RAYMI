@@ -20,6 +20,7 @@ import com.raymi.app.presentation.items.AddItemScreen
 import com.raymi.app.presentation.items.EditItemScreen
 import com.raymi.app.presentation.items.ItemDetailScreen
 import com.raymi.app.presentation.items.ItemsScreen
+import com.raymi.app.presentation.items.mantenimiento.MantenimientoScreen
 import com.raymi.app.presentation.plans.PlansScreen
 import com.raymi.app.presentation.profile.ProfileScreen
 import com.raymi.app.presentation.profile.edit.EditProfileScreen
@@ -78,6 +79,9 @@ fun RaymiNavGraph(
                 },
                 onCreateWorkspace = {
                     navController.navigate(Screen.WorkspaceCreate.route)
+                },
+                onNavigateToPlans = {
+                    navController.navigate(Screen.Plans.route)
                 },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
@@ -200,7 +204,22 @@ fun RaymiNavGraph(
                 },
                 onRentItem = { id ->
                     navController.navigate("create_alquiler?itemId=$id")
+                },
+                onNavigateToMaintenance = { id ->
+                    navController.navigate(Screen.ItemMantenimiento.createRoute(id))
                 }
+            )
+        }
+
+        /**
+         * Mantenimiento de Ítem
+         */
+        composable(
+            route = Screen.ItemMantenimiento.route,
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType })
+        ) {
+            MantenimientoScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -225,6 +244,9 @@ fun RaymiNavGraph(
             AddItemScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToPlans = {
+                    navController.navigate(Screen.Plans.route)
                 }
             )
         }

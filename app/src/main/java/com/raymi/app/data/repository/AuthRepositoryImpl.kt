@@ -16,7 +16,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class AuthRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
-    private val authDataSource: AuthDataSource
+    private val authDataSource: AuthDataSource,
+    private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 ) : AuthRepository {
 
     /**
@@ -194,6 +195,7 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             authDataSource.signOut()
+            workspaceManager.clearWorkspace()
             emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e

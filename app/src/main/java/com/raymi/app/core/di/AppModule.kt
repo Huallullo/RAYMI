@@ -109,7 +109,19 @@ abstract class AppModule {
         externalLookupRepositoryImpl: ExternalLookupRepositoryImpl
     ): ExternalLookupRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindMantenimientoRepository(
+        mantenimientoRepositoryImpl: MantenimientoRepositoryImpl
+    ): MantenimientoRepository
+
     companion object {
+        @Provides
+        @Singleton
+        fun provideConnectivityObserver(@ApplicationContext context: Context): com.raymi.app.core.utils.ConnectivityObserver {
+            return com.raymi.app.core.utils.ConnectivityObserver(context)
+        }
+
         @Provides
         @Singleton
         fun provideContext(@ApplicationContext context: Context): Context {

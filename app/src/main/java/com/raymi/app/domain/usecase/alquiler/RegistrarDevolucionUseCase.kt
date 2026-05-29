@@ -19,14 +19,15 @@ class RegistrarDevolucionUseCase @Inject constructor(
     operator fun invoke(
         alquilerId: String,
         penalidad: Double = 0.0,
-        observaciones: String = ""
+        observaciones: String = "",
+        montoGarantiaRetenida: Double = 0.0
     ): Flow<Resource<Unit>> = flow {
         if (alquilerId.isBlank()) {
             emit(Resource.Error("ID de alquiler no proporcionado"))
             return@flow
         }
         
-        // 1. Validar saldo antes de proceder (Excluyendo la penalidad actual que se está registrando)
+        // 1. Validar saldo antes de proceder
         val alquilerResult = alquilerRepository.getAlquilerById(alquilerId).first { it !is Resource.Loading }
         if (alquilerResult is Resource.Success) {
             val alquiler = alquilerResult.data
@@ -37,7 +38,7 @@ class RegistrarDevolucionUseCase @Inject constructor(
         }
 
         // 2. Ejecutar devolución
-        alquilerRepository.registrarDevolucion(alquilerId, penalidad, observaciones).collect { result ->
+        alquilerRepository.registrarDevolucion(alquilerId, penalidad, observaciones, montoGarantiaRetenida).collect { result ->
             emit(result)
         }
     }

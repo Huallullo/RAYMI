@@ -15,7 +15,7 @@ import com.raymi.app.core.ads.AdManager
 @Composable
 fun AdBanner(
     modifier: Modifier = Modifier,
-    adUnitId: String = AdManager.TEST_BANNER_ID
+    adUnitId: String = com.raymi.app.BuildConfig.ADMOB_BANNER_ID
 ) {
     AndroidView(
         modifier = modifier.fillMaxWidth(),

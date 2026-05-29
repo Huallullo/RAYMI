@@ -105,6 +105,7 @@ data class ComprobanteDto(
     }
 
     fun toMap(): Map<String, Any?> = mapOf(
+        "id" to id,
         "workspaceId" to workspaceId,
         "alquilerId" to alquilerId,
         "tipo" to tipo,

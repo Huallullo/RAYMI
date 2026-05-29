@@ -70,7 +70,7 @@ fun PlansScreen(
             // 1. Tarjeta Plan FREE
             PlanCard(
                 name = "Plan Inicial",
-                price = "S/. 0.00",
+                price = "S/. ${uiState.freePrice}",
                 features = listOf(
                     "Tickets Ilimitados (Locales)",
                     "Hasta 1 Negocio (Workspace)",
@@ -86,7 +86,7 @@ fun PlansScreen(
             // 2. Tarjeta Plan PRO (La estrella)
             PlanCard(
                 name = "Raymi Pro Business",
-                price = "S/. 19.99 /mes",
+                price = "S/. ${uiState.proPrice} /mes",
                 features = listOf(
                     "Boletas y Facturas Ilimitadas",
                     "Validez SUNAT (Nubefact/ApiPeru)",

@@ -10,4 +10,5 @@ interface ComprobanteRepository {
     suspend fun saveComprobante(comprobante: Comprobante): Flow<Resource<String>>
     suspend fun getComprobantesByAlquiler(workspaceId: String, alquilerId: String): Flow<Resource<List<Comprobante>>>
     suspend fun getComprobanteById(workspaceId: String, id: String): Flow<Resource<Comprobante>>
+    suspend fun anularComprobante(workspaceId: String, comprobanteId: String): Flow<Resource<Unit>>
 }

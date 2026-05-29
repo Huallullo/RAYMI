@@ -53,6 +53,9 @@ fun HistorialScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.exportarCSV() }) {
+                        Icon(Icons.Default.Download, contentDescription = "Exportar CSV")
+                    }
                     IconButton(onClick = { viewModel.exportarInventario() }) {
                         Icon(Icons.Default.Inventory, contentDescription = "Exportar Inventario")
                     }

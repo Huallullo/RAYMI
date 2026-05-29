@@ -69,7 +69,7 @@ class DashboardViewModel @Inject constructor(
         statsResult: Resource<Map<String, Any>>,
         alquileresResult: Resource<List<Alquiler>>
     ) {
-        // Actualizar Estadísticas
+        // Actualizar Estadísticas base desde metadata
         if (statsResult is Resource.Success) {
             val data = statsResult.data ?: emptyMap()
             updateEstadisticas {
@@ -77,25 +77,54 @@ class DashboardViewModel @Inject constructor(
                     totalClientes = (data["totalClientes"] as? Number)?.toInt() ?: 0,
                     totalItems = (data["totalItems"] as? Number)?.toInt() ?: 0,
                     alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt() ?: 0,
-                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0,
-                    ingresosMes = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
+                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
                 )
             }
         }
 
-        // Actualizar Alquileres
+        // Actualizar Alquileres y Métricas Calculadas
         when (alquileresResult) {
             is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             is Resource.Success -> {
                 val alquileres = alquileresResult.data ?: emptyList()
                 calcularActividadSemanal(alquileres)
                 calcularOperacionesHoy(alquileres)
+                calcularIngresosMensuales(alquileres)
                 _uiState.update { it.copy(isLoading = false) }
             }
             is Resource.Error -> {
                 _uiState.update { it.copy(isLoading = false, error = alquileresResult.message) }
             }
         }
+    }
+
+    private fun calcularIngresosMensuales(alquileres: List<Alquiler>) {
+        val cal = java.util.Calendar.getInstance()
+        val mesActual = cal.get(java.util.Calendar.MONTH)
+        val anioActual = cal.get(java.util.Calendar.YEAR)
+        
+        cal.add(java.util.Calendar.MONTH, -1)
+        val mesAnterior = cal.get(java.util.Calendar.MONTH)
+        val anioAnterior = cal.get(java.util.Calendar.YEAR)
+
+        var totalActual = 0.0
+        var totalAnterior = 0.0
+
+        alquileres.forEach { alq ->
+            val creationCal = java.util.Calendar.getInstance()
+            creationCal.time = alq.createdAt.toDate()
+            
+            if (creationCal.get(java.util.Calendar.MONTH) == mesActual && creationCal.get(java.util.Calendar.YEAR) == anioActual) {
+                totalActual += alq.adelanto
+            } else if (creationCal.get(java.util.Calendar.MONTH) == mesAnterior && creationCal.get(java.util.Calendar.YEAR) == anioAnterior) {
+                totalAnterior += alq.adelanto
+            }
+        }
+
+        val variacion = if (totalAnterior > 0) ((totalActual - totalAnterior) / totalAnterior) * 100 else 0.0
+        
+        updateEstadisticas { copy(ingresosMes = totalActual) }
+        _uiState.update { it.copy(variacionMensualPct = variacion) }
     }
 
     private fun calcularOperacionesHoy(alquileres: List<Alquiler>) {

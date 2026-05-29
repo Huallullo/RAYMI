@@ -24,11 +24,16 @@ import androidx.compose.ui.platform.testTag
  * Actúa como el orquestador de la navegación y la barra inferior.
  * Diseño Senior: Barra de navegación scrollable para legibilidad premium.
  */
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 @Composable
 fun MainScreen(
-    workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
+    workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
+    viewModel: MainViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
+    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -37,6 +42,22 @@ fun MainScreen(
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
     Scaffold(
+        topBar = {
+            if (!isConnected) {
+                Surface(
+                    color = Color(0xFFFFF176),
+                    modifier = Modifier.fillMaxWidth().statusBarsPadding()
+                ) {
+                    Text(
+                        text = "Sin conexión - Datos locales",
+                        modifier = Modifier.padding(8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Black,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
                 Surface(

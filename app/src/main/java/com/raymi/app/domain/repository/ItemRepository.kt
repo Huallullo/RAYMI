@@ -10,9 +10,13 @@ import kotlinx.coroutines.flow.Flow
 interface ItemRepository {
     
     /**
-     * Obtiene todos los ítems de un workspace
+     * Obtiene los ítems de un negocio con soporte de paginación básica.
      */
-    suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>>
+    suspend fun getItemsByWorkspace(
+        workspaceId: String,
+        limit: Long = 100,
+        startAfterValue: Any? = null
+    ): Flow<Resource<List<Item>>>
     
     /**
      * Obtiene un ítem por su ID

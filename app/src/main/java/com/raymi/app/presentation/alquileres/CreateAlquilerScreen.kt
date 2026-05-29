@@ -26,19 +26,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.raymi.app.core.theme.CustomShapes
+import com.raymi.app.core.ads.AdInterstitialManager
 import com.raymi.app.core.utils.formatTo
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.clientes.ModernClienteItem
 import com.raymi.app.presentation.components.*
 import java.util.*
-import androidx.compose.ui.platform.testTag   // ✅ IMPORTADO
+import androidx.compose.ui.platform.testTag
 
-/**
- * Pantalla de Creación de Alquiler Premium.
- * Diseño Senior: Proceso guiado, cálculos automatizados y estética moderna.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAlquilerScreen(
@@ -48,23 +44,26 @@ fun CreateAlquilerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
-    // QA Fix: Feedback visual proactivo
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
-            onNavigateBack()
+    LaunchedEffect(uiState.shouldShowInterstitial) {
+        if (uiState.shouldShowInterstitial) {
+            val activity = context as? android.app.Activity
+            activity?.let {
+                AdInterstitialManager.showAd(it) {
+                    viewModel.onInterstitialShown()
+                }
+            }
         }
     }
 
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) onNavigateBack()
+    }
+
     LaunchedEffect(uiState.error, uiState.successMessage) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
-        uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
+        uiState.error?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        uiState.successMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
     }
 
     Scaffold(
@@ -81,16 +80,11 @@ fun CreateAlquilerScreen(
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(scrollState)
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(scrollState).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Selección de Actores (Cliente e Ítem)
             SelectionSection(
-                title = "Quién y Qué",
+                title = "Cliente",
                 content = {
                     SelectionTile(
                         label = "Cliente",
@@ -98,80 +92,71 @@ fun CreateAlquilerScreen(
                         icon = Icons.Default.Person,
                         isSelected = uiState.selectedCliente != null,
                         onClick = { viewModel.showClienteDialog() },
-                        modifier = Modifier.testTag("alquiler_select_cliente")   // ✅ AÑADIDO
-                    )
-
-                    SelectionTile(
-                        label = "Producto / Servicio",
-                        value = uiState.selectedItem?.nombre ?: "Seleccionar Ítem",
-                        icon = Icons.Default.Inventory2,
-                        isSelected = uiState.selectedItem != null,
-                        onClick = { viewModel.showItemDialog() },
-                        modifier = Modifier.testTag("alquiler_select_item")   // ✅ AÑADIDO
+                        modifier = Modifier.testTag("alquiler_select_cliente")
                     )
                 }
             )
 
-            // 2. Tiempos y Duración
+            SelectionSection(
+                title = "Productos / Items",
+                content = {
+                    uiState.selectedItems.forEachIndexed { index, item ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.itemNombre, fontWeight = FontWeight.Bold)
+                                    Text("Cant: ${item.cantidad} • Sub: S/. ${item.subtotal}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { viewModel.removerItem(index) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                    TextButton(onClick = { viewModel.showItemDialog() }, modifier = Modifier.fillMaxWidth().testTag("alquiler_add_item")) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Agregar Item")
+                    }
+                }
+            )
+
             SelectionSection(
                 title = "Periodo de Alquiler",
                 content = {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DatePickerField(
-                            label = "Entrega",
-                            date = uiState.fechaInicio,
-                            modifier = Modifier.weight(1f),
-                            onDateSelected = { viewModel.setFechaInicio(it) }
-                        )
-                        DatePickerField(
-                            label = "Devolución",
-                            date = uiState.fechaFin,
-                            modifier = Modifier.weight(1f).testTag("alquiler_fecha_fin"),   // ✅ AÑADIDO
-                            onDateSelected = { viewModel.setFechaFin(it) }
-                        )
+                        DatePickerField("Entrega", uiState.fechaInicio, Modifier.weight(1f)) { viewModel.setFechaInicio(it) }
+                        DatePickerField("Devolución", uiState.fechaFin, Modifier.weight(1f).testTag("alquiler_fecha_fin")) { viewModel.setFechaFin(it) }
                     }
                     if (uiState.diasAlquiler > 0) {
-                        Text(
-                            "Duración estimada: ${uiState.diasAlquiler} días",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Duración: ${uiState.diasAlquiler} días", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             )
 
-            // 3. Resumen Económico
             SelectionSection(
                 title = "Liquidación y Pagos",
                 content = {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedTextField(
-                                value = uiState.cantidad,
-                                onValueChange = viewModel::onCantidadChange,
-                                label = { Text("Cantidad") },
-                                modifier = Modifier.weight(1f),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = MaterialTheme.shapes.large
-                            )
-                            OutlinedTextField(
-                                value = String.format(Locale.getDefault(), "%.2f", uiState.precioTotal),
-                                onValueChange = {},
-                                label = { Text("Subtotal Alquiler") },
-                                modifier = Modifier.weight(1f),
-                                readOnly = true,
-                                prefix = { Text("S/. ") },
-                                shape = MaterialTheme.shapes.large,
-                                colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
-                            )
-                        }
-
+                        OutlinedTextField(
+                            value = String.format(Locale.getDefault(), "%.2f", uiState.precioTotal),
+                            onValueChange = {},
+                            label = { Text("Total Alquiler") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            prefix = { Text("S/. ") },
+                            shape = MaterialTheme.shapes.large,
+                            colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                        )
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedTextField(
                                 value = uiState.adelanto,
                                 onValueChange = viewModel::onAdelantoChange,
-                                label = { Text("Adelanto Recibido") },
+                                label = { Text("Adelanto") },
                                 modifier = Modifier.weight(1f).testTag("alquiler_adelanto_input"),
                                 prefix = { Text("S/. ") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -180,101 +165,54 @@ fun CreateAlquilerScreen(
                             OutlinedTextField(
                                 value = uiState.garantia,
                                 onValueChange = viewModel::onGarantiaChange,
-                                label = { Text("Garantía / Depósito") },
+                                label = { Text("Garantía") },
                                 modifier = Modifier.weight(1f),
                                 prefix = { Text("S/. ") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 shape = MaterialTheme.shapes.large
                             )
                         }
-
                         if (uiState.saldo > 0) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    "Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.saldo)}",
-                                    modifier = Modifier.padding(12.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Surface(color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f), shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+                                Text("Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.saldo)}", modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             )
 
-            // 3.5 Estado Inicial (SaaS Operativo)
             SelectionSection(
-                title = "Estado Inicial del Contrato",
+                title = "Estado Inicial",
                 content = {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.ACTIVO,
                             onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.ACTIVO) },
-                            label = { Text("Activo (Ya entregado)") },
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = { if (uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.ACTIVO) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            label = { Text("Activo") },
+                            modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.RESERVADO,
                             onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.RESERVADO) },
-                            label = { Text("Reserva (Separado)") },
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = { if (uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.RESERVADO) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            label = { Text("Reserva") },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
             )
 
-            // 4. Notas Finales
-            OutlinedTextField(
-                value = uiState.observaciones,
-                onValueChange = viewModel::onObservacionesChange,
-                label = { Text("Notas adicionales") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                shape = MaterialTheme.shapes.large
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { viewModel.crearAlquiler() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .testTag("alquiler_confirmar_button"),   // ✅ AÑADIDO
-                shape = MaterialTheme.shapes.extraLarge,
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                } else {
-                    Icon(Icons.Default.TaskAlt, contentDescription = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Confirmar Alquiler", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
-
-            if (uiState.error != null) {
-                Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.CenterHorizontally))
+            OutlinedTextField(value = uiState.observaciones, onValueChange = viewModel::onObservacionesChange, label = { Text("Notas") }, modifier = Modifier.fillMaxWidth(), minLines = 2, shape = MaterialTheme.shapes.large)
+            Button(onClick = { viewModel.crearAlquiler() }, modifier = Modifier.fillMaxWidth().height(58.dp).testTag("alquiler_confirmar_button"), shape = MaterialTheme.shapes.extraLarge, enabled = !uiState.isLoading) {
+                if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                else { Icon(Icons.Default.TaskAlt, null); Spacer(Modifier.width(12.dp)); Text("Confirmar Alquiler", fontWeight = FontWeight.Bold) }
             }
         }
     }
 
     if (uiState.showClienteDialog) {
-        GenericSelectionDialog(
-            title = "Seleccionar Cliente",
-            items = uiState.clientes,
-            onDismiss = { viewModel.hideClienteDialog() },
-            itemContent = { cliente ->
-                ModernClienteItem(cliente = cliente, onClick = { viewModel.seleccionarCliente(cliente) })
-            }
-        )
+        GenericSelectionDialog("Seleccionar Cliente", uiState.clientes, { viewModel.hideClienteDialog() }) { cliente ->
+            ModernClienteItem(cliente = cliente, onClick = { viewModel.seleccionarCliente(cliente) })
+        }
     }
 
     if (uiState.showItemDialog) {
@@ -283,41 +221,27 @@ fun CreateAlquilerScreen(
             items = uiState.itemsDisponibles,
             onDismiss = { viewModel.hideItemDialog() },
             header = {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = uiState.categoriaFiltro == null,
-                            onClick = { viewModel.filtrarPorCategoria(null) },
-                            label = { Text("Todos") },
-                            shape = CircleShape
-                        )
-                    }
-                    items(uiState.categorias) { categoria ->
-                        FilterChip(
-                            selected = uiState.categoriaFiltro?.id == categoria.id,
-                            onClick = { viewModel.filtrarPorCategoria(categoria) },
-                            label = { Text(categoria.nombre) },
-                            shape = CircleShape
-                        )
-                    }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    item { FilterChip(selected = uiState.categoriaFiltro == null, onClick = { viewModel.filtrarPorCategoria(null) }, label = { Text("Todos") }) }
+                    items(uiState.categorias) { categoria -> FilterChip(selected = uiState.categoriaFiltro?.id == categoria.id, onClick = { viewModel.filtrarPorCategoria(categoria) }, label = { Text(categoria.nombre) }) }
                 }
             },
             itemContent = { item ->
-                Surface(
-                    onClick = { viewModel.seleccionarItem(item) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(item.nombre, fontWeight = FontWeight.Bold)
-                            Text("S/. ${item.precio} • SKU: ${item.codigo}", style = MaterialTheme.typography.bodySmall)
+                var cant by remember { mutableStateOf("1") }
+                Surface(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Category, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.nombre, fontWeight = FontWeight.Bold)
+                                Text("S/. ${item.precio}", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text("Cant") }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            Spacer(Modifier.width(12.dp))
+                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { Text("Agregar") }
                         }
                     }
                 }
@@ -335,30 +259,16 @@ fun SelectionSection(title: String, content: @Composable ColumnScope.() -> Unit)
 }
 
 @Composable
-fun SelectionTile(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier   // ✅ PARÁMETRO MODIFIER AÑADIDO
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),   // ✅ APLICAR MODIFIER
-        shape = MaterialTheme.shapes.large,
-        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
-    ) {
+fun SelectionTile(label: String, value: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(icon, null, tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.weight(1f)); Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -366,49 +276,13 @@ fun SelectionTile(
 @Composable
 fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelected: (Date) -> Unit) {
     val context = LocalContext.current
-    OutlinedTextField(
-        value = date?.formatTo("dd/MM/yyyy") ?: "",
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
-        modifier = modifier.clickable {
-            val cal = Calendar.getInstance()
-            date?.let { cal.time = it }
-            DatePickerDialog(context, { _, y, m, d ->
-                cal.set(y, m, d)
-                onDateSelected(cal.time)
-            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-        },
-        enabled = false,
-        shape = MaterialTheme.shapes.large,
-        colors = TextFieldDefaults.colors(disabledTextColor = MaterialTheme.colorScheme.onSurface, disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant)
-    )
+    OutlinedTextField(value = date?.formatTo("dd/MM/yyyy") ?: "", onValueChange = {}, readOnly = true, label = { Text(label) }, modifier = modifier.clickable {
+        val cal = Calendar.getInstance(); date?.let { cal.time = it }
+        DatePickerDialog(context, { _, y, m, d -> cal.set(y, m, d); onDateSelected(cal.time) }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+    }, enabled = false, shape = MaterialTheme.shapes.large, colors = TextFieldDefaults.colors(disabledTextColor = MaterialTheme.colorScheme.onSurface, disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant))
 }
 
 @Composable
-fun <T> GenericSelectionDialog(
-    title: String,
-    items: List<T>,
-    onDismiss: () -> Unit,
-    header: @Composable (() -> Unit)? = null,
-    itemContent: @Composable (T) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                header?.invoke()
-
-                if (items.isEmpty()) {
-                    Text("No hay elementos disponibles en este momento.", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(items) { itemContent(it) }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
-    )
+fun <T> GenericSelectionDialog(title: String, items: List<T>, onDismiss: () -> Unit, header: @Composable (() -> Unit)? = null, itemContent: @Composable (T) -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text("No hay elementos disponibles.", style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } })
 }

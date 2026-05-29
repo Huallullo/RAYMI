@@ -19,6 +19,7 @@ import javax.inject.Inject
 class AlquilerDetailViewModel @Inject constructor(
     private val getAlquilerByIdUseCase: GetAlquilerByIdUseCase,
     private val registrarDevolucionUseCase: RegistrarDevolucionUseCase,
+    private val cancelarAlquilerUseCase: CancelarAlquilerUseCase,
     private val updateAlquilerUseCase: UpdateAlquilerUseCase,
     private val addPagoUseCase: AddPagoUseCase,
     private val getPagosUseCase: GetPagosUseCase,
@@ -91,9 +92,9 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
-    fun registrarDevolucion(penalidad: Double = 0.0, observaciones: String = "") {
+    fun registrarDevolucion(penalidad: Double = 0.0, observaciones: String = "", montoGarantiaRetenida: Double = 0.0) {
         viewModelScope.launch {
-            registrarDevolucionUseCase(alquilerId, penalidad, observaciones).collect { result ->
+            registrarDevolucionUseCase(alquilerId, penalidad, observaciones, montoGarantiaRetenida).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
                         _uiState.update { it.copy(isProcessing = true) }
@@ -115,6 +116,21 @@ class AlquilerDetailViewModel @Inject constructor(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fun cancelarAlquiler(motivo: String) {
+        viewModelScope.launch {
+            cancelarAlquilerUseCase(alquilerId, motivo).collect { result ->
+                when (result) {
+                    is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
+                    is Resource.Success -> {
+                        _uiState.update { it.copy(isProcessing = false, successMessage = "Alquiler cancelado correctamente") }
+                        loadAlquiler()
+                    }
+                    is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }
             }
         }
@@ -174,9 +190,12 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun updateAlquiler(alquiler: Alquiler) {
+        val anterior = _uiState.value.alquiler ?: return
+        val diff = alquiler.cantidad - anterior.cantidad
+
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessing = true) }
-            updateAlquilerUseCase(alquiler).collect { result ->
+            updateAlquilerUseCase(alquiler, diff).collect { result ->
                 when (result) {
                     is Resource.Success -> {
                         _uiState.update { 
@@ -191,6 +210,22 @@ class AlquilerDetailViewModel @Inject constructor(
                         _uiState.update { it.copy(isProcessing = false, error = result.message) }
                     }
                     is Resource.Loading -> { }
+                }
+            }
+        }
+    }
+
+    fun anularComprobante(comprobanteId: String) {
+        val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        viewModelScope.launch {
+            comprobanteRepository.anularComprobante(workspaceId, comprobanteId).collect { result ->
+                when (result) {
+                    is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
+                    is Resource.Success -> {
+                        _uiState.update { it.copy(isProcessing = false, successMessage = "Comprobante anulado") }
+                        loadAlquiler()
+                    }
+                    is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }
             }
         }

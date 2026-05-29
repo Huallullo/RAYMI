@@ -135,14 +135,25 @@ class PdfService @Inject constructor(
                 PdfDocument(writer).use { pdf ->
                     Document(pdf).use { doc ->
                         doc.setMargins(20f, 20f, 20f, 20f)
-                        doc.add(Paragraph(workspace?.nombre?.uppercase() ?: "RAYMI GESTIÓN")
+                        
+                        // 1. Header
+                        doc.add(Paragraph(workspace?.nombreComercial?.uppercase() ?: workspace?.nombre?.uppercase() ?: "RAYMI GESTIÓN")
                             .setBold().setFontSize(16f).setFontColor(primaryColor).setTextAlignment(TextAlignment.CENTER))
+                        
+                        workspace?.let {
+                            if (it.ruc.isNotBlank()) doc.add(Paragraph("RUC: ${it.ruc}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                            if (it.direccion.isNotBlank()) doc.add(Paragraph(it.direccion).setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                            if (it.telefono.isNotBlank()) doc.add(Paragraph("WhatsApp: ${it.telefono}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                        }
                         
                         doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY).setTextAlignment(TextAlignment.CENTER))
                         doc.add(Paragraph("NOTA DE VENTA").setBold().setFontSize(10f).setTextAlignment(TextAlignment.CENTER))
                         doc.add(Paragraph(comprobante.correlativoCompleto).setBold().setFontSize(12f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Emisión: ${dateFormat.format(Date())}").setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Ref Alquiler: ${alquiler.id.takeLast(8).uppercase()}").setFontSize(7f).setTextAlignment(TextAlignment.CENTER))
                         
                         doc.add(Paragraph("\nCLIENTE: ${comprobante.clienteNombre}").setBold().setFontSize(9f))
+                        if (comprobante.clienteDocumento.isNotBlank()) doc.add(Paragraph("DNI/RUC: ${comprobante.clienteDocumento}").setFontSize(8f))
                         doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY))
 
                         val table = Table(UnitValue.createPercentArray(floatArrayOf(10f, 60f, 30f))).useAllAvailableWidth()
@@ -153,7 +164,17 @@ class PdfService @Inject constructor(
                         doc.add(table)
                         doc.add(Paragraph("------------------------------------------------------------------").setFontColor(ColorConstants.LIGHT_GRAY))
                         doc.add(Paragraph("TOTAL: S/. ${String.format(Locale.US, "%.2f", comprobante.total)}").setBold().setTextAlignment(TextAlignment.RIGHT))
-                        doc.add(Paragraph("\n¡Gracias por su preferencia!").setItalic().setFontSize(9f).setTextAlignment(TextAlignment.CENTER))
+                        
+                        // Términos y Condiciones
+                        workspace?.terminosCondiciones?.let { terms ->
+                            if (terms.isNotBlank()) {
+                                doc.add(Paragraph("\nTérminos y Condiciones:").setBold().setFontSize(7f))
+                                doc.add(Paragraph(terms).setFontSize(6f))
+                            }
+                        }
+
+                        doc.add(Paragraph("\n--- Gracias por su preferencia ---").setItalic().setFontSize(9f).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Desarrollado por RAYMI SaaS").setFontSize(6f).setFontColor(ColorConstants.GRAY).setTextAlignment(TextAlignment.CENTER))
                     }
                 }
             }

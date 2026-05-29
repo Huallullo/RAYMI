@@ -6,9 +6,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Regla global para el ADMIN: Si el documento (o su ancestro) tiene ownerUid == uid, permitir.
-    // Para subcolecciones, permitimos si el usuario está autenticado,
-    // confiando en que el negocioId es el del usuario.
+    function isBusinessOwner(negocioId) {
+      return get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+    }
 
     match /usuarios/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
@@ -18,10 +18,16 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
       allow read, write: if isSignedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
 
-      // Subcolecciones: Permitir acceso si está autenticado.
-      // El aislamiento se da porque el negocioId es único y solo el dueño lo conoce/usa.
+      // TAREA 16: Reforzar límites de plan para ítems
+      match /items/{itemId} {
+        allow create: if isSignedIn() && isBusinessOwner(negocioId) &&
+          get(/databases/$(database)/documents/negocios/$(negocioId)/metadata/stats).data.totalItems <
+          get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.itemsLimit;
+      }
+
+      // TAREA 14: Restringir acceso a subcolecciones al dueño del negocio
       match /{allPaths=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() && isBusinessOwner(negocioId);
       }
     }
 

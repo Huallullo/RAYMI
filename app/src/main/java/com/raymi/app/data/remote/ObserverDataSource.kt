@@ -24,15 +24,21 @@ class ObserverDataSource @Inject constructor(
         collection: String,
         orderByField: String,
         descending: Boolean = true,
-        limit: Long = 50
+        limit: Long = 50,
+        startAfterValue: Any? = null
     ): Flow<List<Pair<String, Map<String, Any>>>> = callbackFlow {
         val direction = if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING
-        val subscription = firestore.collection(COLLECTION_NEGOCIOS)
+        var query = firestore.collection(COLLECTION_NEGOCIOS)
             .document(workspaceId)
             .collection(collection)
             .orderBy(orderByField, direction)
             .limit(limit)
-            .addSnapshotListener { snapshot, error ->
+        
+        if (startAfterValue != null) {
+            query = query.startAfter(startAfterValue)
+        }
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
                     return@addSnapshotListener

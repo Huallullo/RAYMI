@@ -12,7 +12,11 @@ import javax.inject.Inject
 class GetItemsUseCase @Inject constructor(
     private val repository: ItemRepository
 ) {
-    suspend operator fun invoke(workspaceId: String): Flow<Resource<List<Item>>> {
-        return repository.getItemsByWorkspace(workspaceId)
+    suspend operator fun invoke(
+        workspaceId: String,
+        limit: Long = 100,
+        startAfterValue: Any? = null
+    ): Flow<Resource<List<Item>>> {
+        return repository.getItemsByWorkspace(workspaceId, limit, startAfterValue)
     }
 }

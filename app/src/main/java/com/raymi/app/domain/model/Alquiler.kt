@@ -24,6 +24,7 @@ data class Alquiler(
     val itemNombre: String = "",
     val itemCodigo: String = "",
     val cantidad: Int = 1,
+    val items: List<AlquilerItem> = emptyList(),
     val fechaInicio: Timestamp = Timestamp.now(),
     val fechaFinPrevista: Timestamp = Timestamp.now(),
     val fechaDevolucion: Timestamp? = null,
@@ -36,6 +37,7 @@ data class Alquiler(
     val estado: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
     val boletaId: String? = null,
+    val garantiaDevuelta: Boolean = false,
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {

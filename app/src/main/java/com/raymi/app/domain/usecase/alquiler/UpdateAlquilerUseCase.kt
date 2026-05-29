@@ -11,7 +11,7 @@ import javax.inject.Inject
 class UpdateAlquilerUseCase @Inject constructor(
     private val alquilerRepository: AlquilerRepository
 ) {
-    operator fun invoke(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
+    operator fun invoke(alquiler: Alquiler, diffCantidad: Int = 0): Flow<Resource<Unit>> = flow {
         // Validaciones
         if (alquiler.id.isBlank()) {
             emit(Resource.Error("ID de alquiler inválido"))
@@ -28,14 +28,11 @@ class UpdateAlquilerUseCase @Inject constructor(
             return@flow
         }
 
-        if (alquiler.adelanto > alquiler.precioTotal) {
-            emit(Resource.Error("El adelanto no puede ser mayor al precio total"))
-            return@flow
-        }
-
         // Actualizar
-        alquilerRepository.updateAlquiler(alquiler).collect { result ->
-            emit(result)
+        if (diffCantidad != 0) {
+            alquilerRepository.updateAlquilerConStock(alquiler, diffCantidad).collect { emit(it) }
+        } else {
+            alquilerRepository.updateAlquiler(alquiler).collect { emit(it) }
         }
     }
 }

@@ -25,205 +25,98 @@ import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
 import androidx.compose.ui.platform.testTag
 
-/**
- * Hub de Negocios (SaaS Selection).
- * Diseño ultra-moderno: Tarjetas con gradientes, bienvenida personalizada y minimalismo.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceSelectionScreen(
     viewModel: WorkspaceSelectionViewModel = hiltViewModel(),
     onWorkspaceSelected: () -> Unit,
     onCreateWorkspace: () -> Unit,
+    onNavigateToPlans: () -> Unit,
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Recargar al entrar o volver a la pantalla
-    LaunchedEffect(Unit) {
-        viewModel.loadWorkspaces()
-    }
-
-    LaunchedEffect(uiState.workspaceSelected) {
-        if (uiState.workspaceSelected) {
-            onWorkspaceSelected()
-        }
-    }
+    LaunchedEffect(Unit) { viewModel.loadWorkspaces() }
+    LaunchedEffect(uiState.workspaceSelected) { if (uiState.workspaceSelected) onWorkspaceSelected() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { },
-                actions = {
-                    TextButton(onClick = {
-                        viewModel.logout { onLogout() }
-                    }) {
-                        Text("Cerrar Sesión")
-                    }
-                },
+                actions = { TextButton(onClick = { viewModel.logout { onLogout() } }) { Text("Cerrar Sesión") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
         bottomBar = {
             Button(
-                onClick = onCreateWorkspace,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .height(56.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                onClick = { viewModel.onCreateNewWorkspace(onCreateWorkspace) },
+                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
+                shape = MaterialTheme.shapes.extraLarge
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
+                Icon(Icons.Default.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("Registrar Nuevo Negocio", fontWeight = FontWeight.Bold)
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(40.dp))
-            
-            Icon(
-                painter = painterResource(id = R.drawable.ic_raymi_logo),
-                contentDescription = "Logo RAYMI",
-                modifier = Modifier.size(70.dp),
-                tint = Color.Unspecified
-            )
+            Icon(painter = painterResource(id = R.drawable.ic_raymi_logo), contentDescription = "Logo", modifier = Modifier.size(70.dp), tint = Color.Unspecified)
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "RAYMI",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            )
-            
+            Text(text = "RAYMI", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary))
             Spacer(modifier = Modifier.height(32.dp))
-            
-            Text(
-                text = "Bienvenido de nuevo",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-1).sp
-                )
-            )
-            
-            Text(
-                text = "Selecciona el centro de operaciones",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
+            Text(text = "Bienvenido", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp))
+            Text(text = "Selecciona tu negocio", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(24.dp))
 
             if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 3.dp)
-                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(strokeWidth = 3.dp) }
             } else if (uiState.workspaces.isEmpty()) {
                 EmptyWorkspacesView(onCreateWorkspace)
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 100.dp)
-                ) {
+                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 100.dp)) {
                     items(uiState.workspaces) { workspace ->
-                        PremiumWorkspaceCard(
-                            workspace = workspace,
-                            onClick = { viewModel.selectWorkspace(workspace) }
-                        )
+                        PremiumWorkspaceCard(workspace = workspace, onClick = { viewModel.selectWorkspace(workspace) })
                     }
                 }
             }
         }
     }
+
+    if (uiState.showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissLimitDialog() },
+            title = { Text("Límite Alcanzado") },
+            text = { Text("Tu plan actual solo permite un negocio activo. Actualiza a PLAN PRO para gestionar múltiples centros de alquiler de forma centralizada.") },
+            confirmButton = { Button(onClick = { viewModel.dismissLimitDialog(); onNavigateToPlans() }) { Text("Ver Planes PRO") } },
+            dismissButton = { TextButton(onClick = { viewModel.dismissLimitDialog() }) { Text("Cancelar") } }
+        )
+    }
 }
 
 @Composable
-fun PremiumWorkspaceCard(
-    workspace: Workspace,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("workspace_card"),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icono con Background Circular Dinámico
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.BusinessCenter,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
+fun PremiumWorkspaceCard(workspace: Workspace, onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag("workspace_card"), shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))) {
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(imageVector = Icons.Default.BusinessCenter, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
             }
-            
             Spacer(modifier = Modifier.width(16.dp))
-            
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = workspace.nombre,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = workspace.tipoNegocio,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(text = workspace.nombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = workspace.tipoNegocio, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline
-            )
+            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
 
 @Composable
 fun EmptyWorkspacesView(onClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            Icons.Default.Storefront,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(Icons.Default.Storefront, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
         Spacer(modifier = Modifier.height(16.dp))
         Text("No tienes negocios aún", fontWeight = FontWeight.Bold)
-        Text(
-            "Empieza a gestionar tus alquileres hoy mismo.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text("Empieza a gestionar tus alquileres hoy mismo.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

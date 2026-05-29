@@ -71,4 +71,20 @@ class ComprobanteRepositoryImpl @Inject constructor(
             emit(Resource.Error("Error: ${e.message}"))
         }
     }
+
+    override suspend fun anularComprobante(workspaceId: String, comprobanteId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            dataSource.updateBusinessDocument(
+                collection = "comprobantes",
+                documentId = comprobanteId,
+                data = mapOf("estado" to "ANULADO"),
+                negocioId = workspaceId
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al anular comprobante: ${e.message}"))
+        }
+    }
 }

@@ -17,12 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.core.utils.formatTo
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
 
 /**
  * Detalle de Alquiler Premium.
- * Diseño Senior: Separación clara de responsabilidades, estados financieros y gestión de producto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,9 +36,10 @@ fun AlquilerDetailScreen(
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDevolucionDialog by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var comprobanteParaAnular by remember { mutableStateOf<String?>(null) }
 
-    // Observar mensajes
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -75,16 +76,29 @@ fun AlquilerDetailScreen(
             )
         },
         bottomBar = {
-            if (uiState.alquiler != null && uiState.alquiler?.estado == EstadoAlquiler.ACTIVO) {
+            val estado = uiState.alquiler?.estado
+            if (estado == EstadoAlquiler.ACTIVO || estado == EstadoAlquiler.RESERVADO) {
                 Surface(tonalElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { showDevolucionDialog = true },
-                        modifier = Modifier.padding(24.dp).fillMaxWidth().height(56.dp),
-                        shape = MaterialTheme.shapes.extraLarge
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.AssignmentReturn, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Registrar Devolución", fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = { showDevolucionDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.AssignmentReturn, contentDescription = null)
+                            Spacer(Modifier.width(12.dp))
+                            Text("Registrar Devolución", fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Cancel, contentDescription = null)
+                            Spacer(Modifier.width(12.dp))
+                            Text("Cancelar Alquiler", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -112,7 +126,6 @@ fun AlquilerDetailScreen(
                             )
                         }
 
-                        // Detalle de Garantía y Penalidad
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
                                 Column(modifier = Modifier.padding(12.dp)) {
@@ -130,7 +143,6 @@ fun AlquilerDetailScreen(
                             }
                         }
 
-                        // QA Fix: Resumen de Saldo y Pago
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
@@ -155,22 +167,18 @@ fun AlquilerDetailScreen(
                                         color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
                                     )
                                 }
-                                
                                 if (alquiler.saldoPendienteReal > 0) {
                                     Button(
                                         onClick = { viewModel.liquidarDeuda() },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = MaterialTheme.shapes.medium
-                                    ) {
-                                        Text("Pagar", fontWeight = FontWeight.Bold)
-                                    }
+                                    ) { Text("Pagar", fontWeight = FontWeight.Bold) }
                                 } else {
                                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(32.dp))
                                 }
                             }
                         }
 
-                        // 2. Información del Cliente
                         Text("Cliente Subscrito", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -191,7 +199,6 @@ fun AlquilerDetailScreen(
                             }
                         }
 
-                        // 3. Producto en Alquiler
                         Text("Ítem en Alquiler", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -209,7 +216,6 @@ fun AlquilerDetailScreen(
                             }
                         }
 
-                        // 4. Fechas Críticas
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
@@ -221,18 +227,12 @@ fun AlquilerDetailScreen(
                                     Text("Entrega: ${alquiler.fechaInicioFormatted}")
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.NotificationImportant, 
-                                        contentDescription = null, 
-                                        modifier = Modifier.size(20.dp),
-                                        tint = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Icon(Icons.Default.NotificationImportant, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
                                     Text("Devolución: ${alquiler.fechaFinFormatted}", color = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                         }
 
-                        // 5. Comprobantes (NUEVO)
                         Text("Comprobantes Generados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.comprobantes.isEmpty()) {
                             Text("No se han generado comprobantes para este alquiler.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
@@ -241,7 +241,8 @@ fun AlquilerDetailScreen(
                                 uiState.comprobantes.forEach { comprobante ->
                                     ComprobanteListItem(
                                         comprobante = comprobante,
-                                        onShare = { viewModel.compartirPdf(android.net.Uri.parse(comprobante.pdfUrl ?: "")) }
+                                        onShare = { viewModel.compartirPdf(android.net.Uri.parse(comprobante.pdfUrl ?: "")) },
+                                        onAnular = { comprobanteParaAnular = comprobante.id }
                                     )
                                 }
                             }
@@ -251,11 +252,8 @@ fun AlquilerDetailScreen(
 
                         OutlinedButton(
                             onClick = { 
-                                if (uiState.comprobantes.isNotEmpty()) {
-                                    showDuplicateWarning = true
-                                } else {
-                                    onGenerateComprobante(alquiler.id) 
-                                }
+                                if (uiState.comprobantes.isNotEmpty()) showDuplicateWarning = true
+                                else onGenerateComprobante(alquiler.id) 
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large
@@ -280,15 +278,64 @@ fun AlquilerDetailScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(80.dp))
+                        // 6. Historial de Pagos
+                        Text("Historial de Pagos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (uiState.pagos.isEmpty()) {
+                            Text("Sin pagos registrados", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        } else {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    uiState.pagos.forEach { pago ->
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Column {
+                                                Text(text = "S/. ${pago.monto}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                                Text(text = pago.metodoPago.name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                            Text(
+                                                text = pago.fecha.toDate().formatTo("dd/MM/yyyy HH:mm"),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        if (uiState.pagos.last() != pago) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(200.dp))
                     }
                 }
             }
         }
     }
 
+    if (comprobanteParaAnular != null) {
+        AlertDialog(
+            onDismissRequest = { comprobanteParaAnular = null },
+            title = { Text("Anular Comprobante") },
+            text = { Text("¿Estás seguro de anular este comprobante? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        comprobanteParaAnular?.let { viewModel.anularComprobante(it) }
+                        comprobanteParaAnular = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Confirmar Anulación") }
+            },
+            dismissButton = { TextButton(onClick = { comprobanteParaAnular = null }) { Text("Volver") } }
+        )
+    }
+
     if (showDevolucionDialog) {
         var penalidadStr by remember { mutableStateOf("0") }
+        var garantiaRetenidaStr by remember { mutableStateOf("0") }
         var observacionesDev by remember { mutableStateOf("") }
 
         AlertDialog(
@@ -296,22 +343,27 @@ fun AlquilerDetailScreen(
             title = { Text("Finalizar Alquiler") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Confirma la recepción del ítem. El stock se actualizará automáticamente.")
-                    
+                    Text("Confirma la recepción del ítem.")
                     OutlinedTextField(
                         value = penalidadStr,
                         onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) penalidadStr = it },
-                        label = { Text("Penalidad Adicional (S/.)") },
+                        label = { Text("Penalidad Extra (S/.)") },
                         modifier = Modifier.fillMaxWidth(),
                         prefix = { Text("S/. ") },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
                     )
-                    
+                    OutlinedTextField(
+                        value = garantiaRetenidaStr,
+                        onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) garantiaRetenidaStr = it },
+                        label = { Text("Descuento de garantía (S/.)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        prefix = { Text("S/. ") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                    )
                     OutlinedTextField(
                         value = observacionesDev,
                         onValueChange = { observacionesDev = it },
-                        label = { Text("Observaciones del estado") },
-                        placeholder = { Text("Ej: Entregado con empaque dañado") },
+                        label = { Text("Observaciones") },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 3
                     )
@@ -321,12 +373,43 @@ fun AlquilerDetailScreen(
                 Button(onClick = { 
                     viewModel.registrarDevolucion(
                         penalidad = penalidadStr.toDoubleOrNull() ?: 0.0,
-                        observaciones = observacionesDev
+                        observaciones = observacionesDev,
+                        montoGarantiaRetenida = garantiaRetenidaStr.toDoubleOrNull() ?: 0.0
                     ) 
                     showDevolucionDialog = false
                 }) { Text("Confirmar Devolución") }
             },
             dismissButton = { TextButton(onClick = { showDevolucionDialog = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showCancelDialog) {
+        var motivoCancel by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancelar Alquiler") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("¿Estás seguro de cancelar este alquiler? El stock se liberará.")
+                    OutlinedTextField(
+                        value = motivoCancel,
+                        onValueChange = { motivoCancel = it },
+                        label = { Text("Motivo de cancelación") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        viewModel.cancelarAlquiler(motivoCancel)
+                        showCancelDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Confirmar Cancelación") }
+            },
+            dismissButton = { TextButton(onClick = { showCancelDialog = false }) { Text("Volver") } }
         )
     }
 
@@ -346,7 +429,8 @@ fun AlquilerDetailScreen(
 @Composable
 fun ComprobanteListItem(
     comprobante: com.raymi.app.domain.model.Comprobante,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onAnular: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -354,44 +438,22 @@ fun ComprobanteListItem(
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = null,
-                tint = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            )
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(imageVector = Icons.Default.Description, contentDescription = null, tint = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${comprobante.tipo}: ${comprobante.correlativoCompleto}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                )
+                Text(text = "${comprobante.tipo}: ${comprobante.correlativoCompleto}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.ANULADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Total: S/. ${comprobante.total}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    EstadoBadge(
-                        texto = comprobante.estado.name,
-                        color = when(comprobante.estado) {
-                            com.raymi.app.domain.model.EstadoComprobante.GENERADO -> Color(0xFF4CAF50)
-                            com.raymi.app.domain.model.EstadoComprobante.COMPARTIDO -> Color(0xFF2196F3)
-                            com.raymi.app.domain.model.EstadoComprobante.ANULADO -> Color(0xFFF44336)
-                            else -> MaterialTheme.colorScheme.outline
-                        }
-                    )
+                    Text(text = "Total: S/. ${comprobante.total}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    EstadoBadge(texto = comprobante.estado.name, color = when(comprobante.estado) { com.raymi.app.domain.model.EstadoComprobante.GENERADO -> Color(0xFF4CAF50); com.raymi.app.domain.model.EstadoComprobante.COMPARTIDO -> Color(0xFF2196F3); com.raymi.app.domain.model.EstadoComprobante.ANULADO -> Color(0xFFF44336); else -> MaterialTheme.colorScheme.outline })
                 }
             }
             if (comprobante.estado != com.raymi.app.domain.model.EstadoComprobante.ANULADO) {
-                IconButton(onClick = onShare) {
-                    Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.primary)
+                if (comprobante.estado == com.raymi.app.domain.model.EstadoComprobante.GENERADO) {
+                    IconButton(onClick = onAnular) {
+                        Icon(Icons.Default.DeleteForever, contentDescription = "Anular", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
+                IconButton(onClick = onShare) { Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.primary) }
             }
         }
     }

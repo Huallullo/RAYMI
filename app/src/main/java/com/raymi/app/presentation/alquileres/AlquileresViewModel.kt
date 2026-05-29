@@ -13,16 +13,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel para la gestión de alquileres bajo arquitectura SaaS.
- * Maneja la lista de contratos, búsquedas y filtrado por estado.
- */
 @HiltViewModel
 class AlquileresViewModel @Inject constructor(
-    private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val getAlquileresUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase,
+    private val alquilerRepository: com.raymi.app.domain.repository.AlquilerRepository,
+    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val auth: com.google.firebase.auth.FirebaseAuth,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -48,6 +48,16 @@ class AlquileresViewModel @Inject constructor(
                     return@launch
                 }
                 
+                launch {
+                    auth.uid?.let { uid ->
+                        userPlanRepository.getUserPlan(uid).collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(userPlan = result.data) }
+                            }
+                        }
+                    }
+                }
+
                 getAlquileresUseCase(workspaceId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
@@ -60,6 +70,8 @@ class AlquileresViewModel @Inject constructor(
                                     isLoading = false 
                                 )
                             }
+                            // Re-chequeo de vencidos asíncrono
+                            verificarVencidos(data)
                         }
                         is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
@@ -67,6 +79,17 @@ class AlquileresViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = "No se pudo identificar el negocio activo") }
             }
+        }
+    }
+
+    private fun verificarVencidos(alquileres: List<Alquiler>) {
+        viewModelScope.launch {
+            alquileres.filter { it.estaVencido && it.estado == EstadoAlquiler.ACTIVO }
+                .forEach { alquiler ->
+                    launch {
+                        alquilerRepository.updateEstadoAlquiler(alquiler.id, EstadoAlquiler.VENCIDO).first()
+                    }
+                }
         }
     }
 
@@ -122,6 +145,7 @@ data class AlquileresUiState(
     val filteredAlquileres: List<Alquiler> = emptyList(),
     val searchQuery: String = "",
     val selectedEstado: EstadoAlquiler? = null,
+    val userPlan: com.raymi.app.domain.model.UserPlan? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null

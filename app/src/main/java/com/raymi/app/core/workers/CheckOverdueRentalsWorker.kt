@@ -8,6 +8,7 @@ import com.google.firebase.Timestamp
 import com.raymi.app.core.utils.Constants.COLLECTION_CLIENTES
 import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.data.remote.FirebaseDataSource
+import com.raymi.app.core.notifications.NotificationHelper
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
@@ -36,9 +37,11 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
             }
 
             // Notificar y actualizar cada alquiler vencido
+            val notificationHelper = NotificationHelper(applicationContext)
             vencidos.forEach { alquiler ->
                 notificarClienteVencido(alquiler)
                 marcarComoVencidoEnFirestore(alquiler)
+                notificationHelper.sendOverdueNotification(alquiler.clienteNombre, alquiler.id)
             }
 
             Result.success()

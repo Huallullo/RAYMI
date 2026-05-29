@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.raymi.app.core.theme.CustomShapes
+import com.raymi.app.core.utils.QrCodeGenerator
+import androidx.compose.ui.graphics.asImageBitmap
 import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.components.EstadoBadge
 import com.raymi.app.presentation.components.RaymiErrorState
@@ -37,11 +38,13 @@ fun ItemDetailScreen(
     viewModel: ItemDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onEditItem: (String) -> Unit,
-    onRentItem: (String) -> Unit
+    onRentItem: (String) -> Unit,
+    onNavigateToMaintenance: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
 
     // Observar mensajes
     LaunchedEffect(uiState.error) {
@@ -68,6 +71,12 @@ fun ItemDetailScreen(
                 actions = {
                     IconButton(onClick = { onEditItem(itemId) }) {
                         Icon(Icons.Default.Edit, contentDescription = "Editar")
+                    }
+                    IconButton(onClick = { showQrDialog = true }) {
+                        Icon(Icons.Default.QrCode, contentDescription = "Ver QR")
+                    }
+                    IconButton(onClick = { onNavigateToMaintenance(itemId) }) {
+                        Icon(Icons.Default.Build, contentDescription = "Mantenimiento")
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
@@ -129,6 +138,32 @@ fun ItemDetailScreen(
                     Text("Cancelar")
                 }
             }
+        )
+    }
+
+    if (showQrDialog && uiState.item != null) {
+        val qrBitmap = remember(uiState.item?.codigo) {
+            QrCodeGenerator.generateQrCode(uiState.item!!.codigo)
+        }
+        AlertDialog(
+            onDismissRequest = { showQrDialog = false },
+            title = { Text("QR del Ítem", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    if (qrBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = qrBitmap.asImageBitmap(),
+                            contentDescription = "Código QR",
+                            modifier = Modifier.size(200.dp)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(uiState.item!!.codigo, fontWeight = FontWeight.ExtraBold)
+                    } else {
+                        Text("Error al generar QR")
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = { showQrDialog = false }) { Text("Cerrar") } }
         )
     }
 }

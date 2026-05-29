@@ -40,18 +40,20 @@ jobs:
       - name: Dar permisos de ejecución a gradlew
         run: chmod +x gradlew
 
-      # Paso 5: Ejecutar las pruebas unitarias
-      - name: Ejecutar pruebas unitarias
-        run: ./gradlew test
+      # Paso 5: Ejecutar las pruebas unitarias y generar reporte de cobertura
+      - name: Ejecutar pruebas unitarias con Jacoco
+        run: ./gradlew testDebugUnitTest jacocoTestReport
 
       # Paso 6: Compilar el APK de depuración para verificar errores de compilación
       - name: Compilar APK (Debug)
         run: ./gradlew assembleDebug
 
-      # Paso 7: Subir los reportes de prueba como artefacto (siempre, incluso si las pruebas fallan)
+      # Paso 7: Subir los reportes de prueba y cobertura como artefacto
       - name: Subir resultados de las pruebas
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: resultados-pruebas
-          path: app/build/reports/tests/
+          name: resultados-pruebas-y-cobertura
+          path: |
+            app/build/reports/tests/
+            app/build/reports/jacoco/
