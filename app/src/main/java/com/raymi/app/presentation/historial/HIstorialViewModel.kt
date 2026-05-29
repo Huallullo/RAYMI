@@ -46,13 +46,15 @@ class HistorialViewModel @Inject constructor(
             try {
                 // get() puntual — NO listener
                 alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.DEVUELTO)
-                    .first { it !is Resource.Loading }
+                    .filter { it !is Resource.Loading }
+                    .first()
                     .let { result ->
                         if (result is Resource.Success) {
                             val devueltos = result.data ?: emptyList()
                             // También busca cancelados
                             alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.CANCELADO)
-                                .first { it !is Resource.Loading }
+                                .filter { it !is Resource.Loading }
+                                .first()
                                 .let { cancelResult ->
                                     val cancelados = (cancelResult as? Resource.Success)?.data ?: emptyList()
                                     val todos = (devueltos + cancelados).sortedByDescending { it.updatedAt }
@@ -64,7 +66,8 @@ class HistorialViewModel @Inject constructor(
                         }
                     }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }
+                android.util.Log.e("Historial", "Error: ${e.message}")
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial: ${e.message}") }
             }
         }
     }

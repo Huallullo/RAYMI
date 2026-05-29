@@ -101,8 +101,19 @@ class GenerateComprobanteViewModel @Inject constructor(
 
     fun generarComprobante() {
         val state = _uiState.value
-        val alquiler = state.alquiler ?: return
-        val workspace = workspaceManager.currentWorkspace.value ?: return
+        val alquiler = state.alquiler
+        if (alquiler == null) {
+            _uiState.update { it.copy(error = "No hay datos del alquiler cargados.") }
+            return
+        }
+        val workspace = workspaceManager.currentWorkspace.value
+        if (workspace == null) {
+             _uiState.update { it.copy(error = "No hay un negocio seleccionado.") }
+             return
+        }
+
+        android.util.Log.d("RAYMI_BILLING", "Generando comprobante: ${state.tipo} para alquiler ${alquiler.id} en workspace ${workspace.id}")
+        android.util.Log.d("RAYMI_BILLING", "Workspace data: RUC=${workspace.ruc}, SerieTicket=${workspace.serieTicket}")
 
         // REGLA SAAS: Solo PRO puede emitir Boletas y Facturas
         if (state.tipo != TipoComprobante.TICKET) {
@@ -147,6 +158,7 @@ class GenerateComprobanteViewModel @Inject constructor(
 
         viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.uid ?: "admin"
+            android.util.Log.d("RAYMI_BILLING", "Llamando a generateComprobanteUseCase...")
             
             val comprobante = Comprobante(
                 workspaceId = workspace.id,
@@ -176,6 +188,7 @@ class GenerateComprobanteViewModel @Inject constructor(
             )
 
             generateComprobanteUseCase(comprobante, alquiler, workspace).collect { result ->
+                android.util.Log.d("RAYMI_BILLING", "Resultado en ViewModel: ${result::class.simpleName}")
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isSaving = true) }
                     is Resource.Success -> {

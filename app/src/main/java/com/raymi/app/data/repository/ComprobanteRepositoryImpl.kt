@@ -7,15 +7,12 @@ import com.raymi.app.domain.model.Comprobante
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.TipoComprobante
 import com.raymi.app.domain.repository.ComprobanteRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.*
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class ComprobanteRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource,
-    private val comprobanteDataSource: ComprobanteDataSource
+    private val comprobanteDataSource: ComprobanteDataSource,
+    private val dataSource: FirebaseDataSource
 ) : ComprobanteRepository {
 
     override suspend fun getNextNumber(workspaceId: String, tipo: TipoComprobante): Flow<Resource<Int>> = flow {
@@ -24,6 +21,7 @@ class ComprobanteRepositoryImpl @Inject constructor(
             val number = comprobanteDataSource.getNextNumberAtomic(workspaceId, tipo)
             emit(Resource.Success(number))
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error al obtener número correlativo: ${e.message}"))
         }
     }
@@ -36,6 +34,7 @@ class ComprobanteRepositoryImpl @Inject constructor(
             val id = comprobanteDataSource.saveComprobante(comprobante.workspaceId, data)
             emit(Resource.Success(id))
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error al guardar comprobante: ${e.message}"))
         }
     }
@@ -53,6 +52,7 @@ class ComprobanteRepositoryImpl @Inject constructor(
                 .sortedByDescending { it.createdAt }
             emit(Resource.Success(list))
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error al cargar comprobantes: ${e.message}"))
         }
     }
@@ -67,7 +67,8 @@ class ComprobanteRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Comprobante no encontrado"))
             }
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener comprobante: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 }

@@ -4,40 +4,35 @@ import com.raymi.app.data.model.dto.ItemDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.ItemDataSource
 import com.raymi.app.data.remote.ObserverDataSource
-import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class ItemRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val itemDataSource: ItemDataSource,
     private val observerDataSource: ObserverDataSource
 ) : ItemRepository {
 
-    override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> = flow {
-        emit(Resource.Loading())
-        try {
-            // Optimización de costos: Una sola lectura para Inventario.
-            val documents = dataSource.getAllBusinessDocumentsOrderedLimited(
-                collection = "items",
-                orderByField = "nombre",
-                descending = false,
-                limit = 100
-            )
-            val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
-            emit(Resource.Success(items))
-        } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener ítems: ${e.message}"))
-        }
+    override suspend fun getItemsByWorkspace(workspaceId: String): Flow<Resource<List<Item>>> {
+        return observerDataSource.observeBusinessCollection(
+            workspaceId = workspaceId,
+            collection = "items",
+            orderByField = "nombre",
+            descending = false,
+            limit = 100
+        )
+            .map { documents ->
+                val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+                Resource.Success(items) as Resource<List<Item>>
+            }
+            .onStart { emit(Resource.Loading()) }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                emit(Resource.Error("Error al obtener inventario: ${e.message}"))
+            }
     }
 
     override suspend fun getItemById(workspaceId: String, itemId: String): Flow<Resource<Item>> = flow {
@@ -47,10 +42,11 @@ class ItemRepositoryImpl @Inject constructor(
             if (data != null) {
                 emit(Resource.Success(ItemDto.fromMap(itemId, data).toDomain()))
             } else {
-                emit(Resource.Error("Ítem no encontrado"))
+                emit(Resource.Error("Producto no encontrado"))
             }
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener ítem: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 
@@ -58,20 +54,12 @@ class ItemRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val dto = ItemDto.fromDomain(item)
-            val id = itemDataSource.addItemTransactional(
-                workspaceId = item.workspaceId,
-                itemData = dto.toMap().filterValues { it != null }.mapValues { it.value!! },
-                codigo = item.codigo
-            )
+            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            val id = itemDataSource.addItemTransactional(item.workspaceId, data, item.codigo)
             emit(Resource.Success(id))
-        } catch (e: IllegalStateException) {
-            if (e.message?.contains("Ya existe") == true) {
-                emit(Resource.Error("El código '${item.codigo}' ya está en uso. Usa otro o deja que el sistema genere uno nuevo."))
-            } else {
-                emit(Resource.Error(e.localizedMessage ?: "Error de validación"))
-            }
         } catch (e: Exception) {
-            emit(Resource.Error("Error al agregar ítem: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al agregar: ${e.message}"))
         }
     }
 
@@ -79,14 +67,12 @@ class ItemRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val dto = ItemDto.fromDomain(item)
-            dataSource.updateBusinessDocument(
-                collection = "items",
-                documentId = item.id,
-                data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            )
+            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            dataSource.updateBusinessDocument("items", item.id, data, item.workspaceId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al actualizar ítem: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al actualizar: ${e.message}"))
         }
     }
 
@@ -96,42 +82,32 @@ class ItemRepositoryImpl @Inject constructor(
             itemDataSource.deleteItemTransactional(workspaceId, itemId, codigo)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al eliminar ítem: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al eliminar: ${e.message}"))
         }
     }
 
     override suspend fun searchItems(workspaceId: String, query: String): Flow<Resource<List<Item>>> = flow {
         emit(Resource.Loading())
         try {
-            val documents = dataSource.queryBusinessArrayContainsLimited(
-                collection = "items",
-                field = "searchTerms",
-                value = query.lowercase(),
-                limit = 100
-            )
-            val items = documents.map { (id, data) ->
-                ItemDto.fromMap(id, data).toDomain()
-            }
+            val documents = dataSource.queryBusinessDocuments("items", "nombre", query, limit = 50, negocioId = workspaceId)
+            val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(items))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al buscar ítems: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error en búsqueda: ${e.message}"))
         }
     }
 
     override suspend fun getItemsByCategoria(workspaceId: String, categoriaId: String): Flow<Resource<List<Item>>> = flow {
         emit(Resource.Loading())
         try {
-            val documents = dataSource.queryBusinessDocuments(
-                collection = "items",
-                field = "categoriaId",
-                value = categoriaId,
-                limit = 300,
-                negocioId = workspaceId
-            )
+            val documents = dataSource.queryBusinessDocuments("items", "categoriaId", categoriaId, limit = 50, negocioId = workspaceId)
             val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(items))
         } catch (e: Exception) {
-            emit(Resource.Error("Error al filtrar por categoría: ${e.message}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Resource.Error("Error al filtrar: ${e.message}"))
         }
     }
 }

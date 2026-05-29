@@ -18,8 +18,13 @@ class GenerateComprobanteUseCase @Inject constructor(
     ): Flow<Resource<GeneratedComprobanteResult>> = flow {
         emit(Resource.Loading())
         try {
-            // 1. Obtener número correlativo atómico y guardar registro inicial (GENERANDO)
-            val numberResult = repository.getNextNumber(workspace.id, comprobanteInput.tipo).first { it !is Resource.Loading }
+            android.util.Log.d("RAYMI_BILLING", "Iniciando generación de comprobante tipo: ${comprobanteInput.tipo}")
+            
+            // 1. Obtener número correlativo
+            val numberResult = repository.getNextNumber(workspace.id, comprobanteInput.tipo)
+                .filter { it !is Resource.Loading }
+                .first()
+                
             if (numberResult !is Resource.Success) {
                 emit(Resource.Error(numberResult.message ?: "Error al asignar número"))
                 return@flow
@@ -30,53 +35,64 @@ class GenerateComprobanteUseCase @Inject constructor(
                 numero = numero,
                 estado = EstadoComprobante.GENERANDO
             )
+            android.util.Log.d("RAYMI_BILLING", "Número obtenido: $numero. Reservando en DB...")
 
-            // Guardar registro inicial para "reservar" el número en DB
-            val saveResult = repository.saveComprobante(comprobanteConNumero).first { it !is Resource.Loading }
+            // Guardar registro inicial
+            val saveResult = repository.saveComprobante(comprobanteConNumero)
+                .filter { it !is Resource.Loading }
+                .first()
+                
             if (saveResult !is Resource.Success) {
                 emit(Resource.Error("No se pudo reservar el número de comprobante."))
                 return@flow
             }
             val comprobanteId = saveResult.data!!
+            android.util.Log.d("RAYMI_BILLING", "Comprobante reservado con ID: $comprobanteId")
 
             // 2. Lógica de Emisión Inteligente
             val apiResult = if (comprobanteConNumero.tipo == TipoComprobante.TICKET) {
-                // LOS TICKETS SON GRATIS: Usamos generación local directamente
                 billingService.emitirSoloLocal(comprobanteConNumero, alquiler, workspace)
             } else {
-                // Boletas y Facturas: Usan la cascada de APIs con Fallback (Nubefact -> ApiPeru -> MiApi)
                 billingService.emitirConFallback(comprobanteConNumero, alquiler, workspace)
             }
             
             if (apiResult !is Resource.Success) {
-                // Si fallan todos los providers, marcamos error en DB
+                android.util.Log.e("RAYMI_BILLING", "Falla en emisión: ${apiResult.message}")
                 repository.saveComprobante(comprobanteConNumero.copy(id = comprobanteId, estado = EstadoComprobante.ERROR_GENERACION)).first { it !is Resource.Loading }
-                emit(Resource.Error(apiResult.message ?: "Error al procesar el comprobante electrónico."))
+                emit(Resource.Error(apiResult.message ?: "Error al procesar el comprobante."))
                 return@flow
             }
 
             val finalPdfUriStr = apiResult.data!!
+            android.util.Log.d("RAYMI_BILLING", "PDF generado con éxito: $finalPdfUriStr")
 
-            // 3. Actualizar a GENERADO con el URI final
+            // 3. Actualizar a GENERADO
             val finalComprobante = comprobanteConNumero.copy(
                 id = comprobanteId,
                 pdfUrl = finalPdfUriStr,
                 estado = EstadoComprobante.GENERADO
             )
             
-            repository.saveComprobante(finalComprobante).collect { updateResult ->
-                if (updateResult is Resource.Success) {
-                    emit(Resource.Success(GeneratedComprobanteResult(
-                        comprobanteId = comprobanteId,
-                        pdfUri = finalPdfUriStr.toUri(),
-                        correlativo = finalComprobante.correlativoCompleto
-                    )))
-                } else if (updateResult is Resource.Error) {
-                    emit(Resource.Error(updateResult.message ?: "Error al finalizar el registro del comprobante"))
+            android.util.Log.d("RAYMI_BILLING", "Finalizando registro de comprobante...")
+            repository.saveComprobante(finalComprobante)
+                .filter { it !is Resource.Loading }
+                .first()
+                .let { updateResult ->
+                    if (updateResult is Resource.Success) {
+                        android.util.Log.d("RAYMI_BILLING", "¡Comprobante generado y registrado exitosamente!")
+                        emit(Resource.Success(GeneratedComprobanteResult(
+                            comprobanteId = comprobanteId,
+                            pdfUri = finalPdfUriStr.toUri(),
+                            correlativo = finalComprobante.correlativoCompleto
+                        )))
+                    } else if (updateResult is Resource.Error) {
+                        android.util.Log.e("RAYMI_BILLING", "Error al finalizar registro: ${updateResult.message}")
+                        emit(Resource.Error(updateResult.message ?: "Error al finalizar el registro"))
+                    }
                 }
-            }
         } catch (e: Exception) {
-            emit(Resource.Error("Fallo técnico crítico: ${e.message}"))
+            android.util.Log.e("RAYMI_BILLING", "Fallo técnico: ${e.message}", e)
+            emit(Resource.Error("Fallo técnico: ${e.message}"))
         }
     }
 }

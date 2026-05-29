@@ -1,15 +1,11 @@
 package com.raymi.app.data.remote
 
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Fuente de datos para la gestión de Clientes.
- */
 @Singleton
 class ClientDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -22,7 +18,6 @@ class ClientDataSource @Inject constructor(
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val clientesRef = negocioRef.collection("clientes")
         val dniIndexRef = negocioRef.collection("clientes_dni_index").document(dni)
-        val statsRef = negocioRef.collection("metadata").document("stats")
 
         return firestore.runTransaction { transaction ->
             if (transaction.get(dniIndexRef).exists()) {
@@ -31,8 +26,22 @@ class ClientDataSource @Inject constructor(
             val clienteRef = clientesRef.document()
             transaction.set(clienteRef, clienteData + mapOf("id" to clienteRef.id))
             transaction.set(dniIndexRef, mapOf("clienteId" to clienteRef.id, "dni" to dni))
-            transaction.update(statsRef, "totalClientes", FieldValue.increment(1))
             clienteRef.id
+        }.await()
+    }
+
+    suspend fun deleteClienteTransactional(
+        workspaceId: String,
+        clienteId: String,
+        dni: String
+    ) {
+        val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+        val clienteRef = negocioRef.collection("clientes").document(clienteId)
+        val dniIndexRef = negocioRef.collection("clientes_dni_index").document(dni)
+
+        firestore.runTransaction { transaction ->
+            transaction.delete(clienteRef)
+            transaction.delete(dniIndexRef)
         }.await()
     }
 }

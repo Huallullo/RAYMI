@@ -1,7 +1,6 @@
 package com.raymi.app.data.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Transaction
 import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.domain.model.TipoComprobante
 import kotlinx.coroutines.tasks.await
@@ -36,10 +35,20 @@ class ComprobanteDataSource @Inject constructor(
     }
 
     suspend fun saveComprobante(workspaceId: String, data: Map<String, Any>): String {
-        val docRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-            .collection("comprobantes").document()
-        val finalData = data + mapOf("id" to docRef.id)
-        docRef.set(finalData).await()
+        val id = data["id"] as? String
+        val docRef = if (id.isNullOrBlank()) {
+            firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+                .collection("comprobantes").document()
+        } else {
+            firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+                .collection("comprobantes").document(id)
+        }
+        
+        val finalData = if (id.isNullOrBlank()) {
+            data + mapOf("id" to docRef.id)
+        } else data
+        
+        docRef.set(finalData, com.google.firebase.firestore.SetOptions.merge()).await()
         return docRef.id
     }
 }

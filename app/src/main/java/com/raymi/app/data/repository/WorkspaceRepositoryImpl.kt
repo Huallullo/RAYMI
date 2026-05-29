@@ -2,35 +2,30 @@ package com.raymi.app.data.repository
 
 import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.data.model.dto.WorkspaceDto
-import com.raymi.app.data.remote.AuthDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.WorkspaceDataSource
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.Workspace
 import com.raymi.app.domain.repository.WorkspaceRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class WorkspaceRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
-    private val workspaceDataSource: WorkspaceDataSource,
-    private val authDataSource: AuthDataSource
+    private val workspaceDataSource: WorkspaceDataSource
 ) : WorkspaceRepository {
 
     override suspend fun getWorkspacesByUser(userId: String): Flow<Resource<List<Workspace>>> = flow {
         emit(Resource.Loading())
         try {
-            // Un usuario ADMIN solo accede a negocios donde es dueño (ownerUid)
             val response = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
-            val workspaces = response.map { (id, data) ->
-                WorkspaceDto.fromMap(id, data).toDomain()
-            }
+            val workspaces = response.map { (id, data) -> WorkspaceDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(workspaces))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al obtener negocios"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error al obtener negocios: ${e.message}"))
         }
     }
 
@@ -44,32 +39,21 @@ class WorkspaceRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Negocio no encontrado"))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al obtener negocio"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error al obtener datos del negocio: ${e.message}"))
         }
     }
 
     override suspend fun createWorkspace(workspace: Workspace): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
-            val user = authDataSource.getCurrentUser() ?: throw IllegalStateException("Usuario no autenticado")
             val dto = WorkspaceDto.fromDomain(workspace)
-            val workspaceData = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            
-            val statsData = mapOf(
-                "totalItems" to 0L,
-                "alquileresActivos" to 0L,
-                "totalIngresos" to 0.0,
-                "totalClientes" to 0L
-            )
-
-            val id = workspaceDataSource.createWorkspaceAtomic(
-                workspaceData = workspaceData,
-                statsData = statsData,
-                uid = user.uid
-            )
+            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            val id = workspaceDataSource.createWorkspaceAtomic(data, emptyMap(), workspace.ownerId)
             emit(Resource.Success(id))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al crear workspace"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error al crear negocio: ${e.message}"))
         }
     }
 
@@ -77,11 +61,12 @@ class WorkspaceRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val dto = WorkspaceDto.fromDomain(workspace)
-            val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
-            dataSource.updateDocument(COLLECTION_NEGOCIOS, workspace.id, dataMap)
+            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            dataSource.updateDocument(COLLECTION_NEGOCIOS, workspace.id, data)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al actualizar negocio"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error al actualizar negocio: ${e.message}"))
         }
     }
 
@@ -91,28 +76,25 @@ class WorkspaceRepositoryImpl @Inject constructor(
             dataSource.deleteDocument(COLLECTION_NEGOCIOS, workspaceId)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al eliminar negocio"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error al eliminar negocio: ${e.message}"))
         }
     }
 
     override suspend fun getCurrentWorkspace(userId: String): Flow<Resource<Workspace?>> = flow {
         emit(Resource.Loading())
         try {
-            // QA Fix: Encontrar negocio asignado al perfil
-            val negocioId = dataSource.ensureBusinessProfileForUser(authDataSource.getCurrentUser() ?: throw Exception("No user"))
-            
-            if (negocioId.isNotBlank()) {
-                val data = dataSource.getDocument(COLLECTION_NEGOCIOS, negocioId)
-                if (data != null) {
-                    emit(Resource.Success(WorkspaceDto.fromMap(negocioId, data).toDomain()))
-                } else {
-                    emit(Resource.Success(null))
-                }
+            // El primer negocio que encuentre para este ADMIN
+            val response = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
+            if (response.isNotEmpty()) {
+                val (id, data) = response.first()
+                emit(Resource.Success(WorkspaceDto.fromMap(id, data).toDomain()))
             } else {
                 emit(Resource.Success(null))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Error al obtener negocio actual"))
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error: ${e.message}"))
         }
     }
 }
