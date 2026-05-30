@@ -3,10 +3,12 @@ package com.raymi.app.presentation.auth
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -38,6 +41,10 @@ import androidx.compose.ui.platform.testTag
 import com.raymi.app.core.lang.EnglishStrings
 import com.raymi.app.core.lang.LocalRaymiStrings
 import com.raymi.app.core.lang.SpanishStrings
+import androidx.compose.ui.window.Dialog
+import android.speech.tts.TextToSpeech
+import androidx.compose.ui.platform.LocalContext
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +56,7 @@ fun LoginScreen(
     @Suppress("UNUSED_PARAMETER") onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
@@ -57,7 +65,38 @@ fun LoginScreen(
     val strings = LocalRaymiStrings.current
     val isEnglish = strings is EnglishStrings
 
-    // Gestión de navegación (Senior)
+    // Motor de Texto a Voz (TTS) para el CAPTCHA
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    LaunchedEffect(Unit) {
+        tts = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = if (isEnglish) Locale.US else Locale("es", "PE")
+            }
+        }
+    }
+    
+    // Liberar recursos de voz al salir
+    DisposableEffect(Unit) {
+        onDispose {
+            tts?.stop()
+            tts?.shutdown()
+        }
+    }
+
+    fun speakChallenge() {
+        val opLabel = when(uiState.botOp) {
+            "+" -> strings.botOpPlus
+            "-" -> strings.botOpMinus
+            else -> strings.botOpMult
+        }
+        val num1Word = strings.numberWords.getOrElse(uiState.botNum1) { uiState.botNum1.toString() }
+        val num2Word = strings.numberWords.getOrElse(uiState.botNum2) { uiState.botNum2.toString() }
+        val text = strings.solveChallenge.format(num1Word, opLabel, num2Word)
+        
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
+
+    // Gestión de navegación
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->
             when (event) {
@@ -205,56 +244,14 @@ fun LoginScreen(
                     strings = strings
                 )
 
-                // Bot Protection (Solo en Registro)
-                AnimatedVisibility(visible = uiState.isRegisterMode) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
-                            .clip(MaterialTheme.shapes.large)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = strings.botChallenge,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            val opLabel = when(uiState.botOp) {
-                                "+" -> strings.botOpPlus
-                                "-" -> strings.botOpMinus
-                                else -> strings.botOpMult
-                            }
-                            val num1Word = strings.numberWords.getOrElse(uiState.botNum1) { uiState.botNum1.toString() }
-                            val num2Word = strings.numberWords.getOrElse(uiState.botNum2) { uiState.botNum2.toString() }
-                            
-                            Text(
-                                text = strings.solveChallenge.format(num1Word, opLabel, num2Word),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            OutlinedTextField(
-                                value = uiState.botAnswer,
-                                onValueChange = viewModel::onBotAnswerChange,
-                                modifier = Modifier.width(85.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.medium,
-                                isError = uiState.botAnswer.isNotEmpty() && !uiState.isBotVerified
-                            )
-                            IconButton(onClick = { viewModel.refreshBotChallenge() }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(20.dp))
-                            }
-                            if (uiState.isBotVerified) {
-                                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
-                            }
-                        }
-                    }
+                // CAPTCHA WIDGET
+                if (uiState.isRegisterMode) {
+                    Spacer(modifier = Modifier.height(28.dp))
+                    CaptchaWidget(
+                        isVerified = uiState.isBotVerified,
+                        strings = strings,
+                        onClick = { viewModel.onRobotCheckboxClick() }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -329,6 +326,203 @@ fun LoginScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    // Modal del Desafío Matemático (Estilo reCAPTCHA Image Challenge)
+    if (uiState.showBotMath && !uiState.isBotVerified) {
+        Dialog(onDismissRequest = { /* Forzar resolución */ }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(2.dp),
+                color = Color.White,
+                shadowElevation = 8.dp
+            ) {
+                Column {
+                    // Cabecera Azul reCAPTCHA
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF4A90E2))
+                            .padding(24.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = if (isEnglish) "Select the correct" else "Resuelve para continuar",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = strings.botChallenge.uppercase(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Contenido del Desafío
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        val opLabel = when(uiState.botOp) {
+                            "+" -> strings.botOpPlus
+                            "-" -> strings.botOpMinus
+                            else -> strings.botOpMult
+                        }
+                        val num1Word = strings.numberWords.getOrElse(uiState.botNum1) { uiState.botNum1.toString() }
+                        val num2Word = strings.numberWords.getOrElse(uiState.botNum2) { uiState.botNum2.toString() }
+
+                        Text(
+                            text = strings.solveChallenge.format(num1Word, opLabel, num2Word),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 28.sp,
+                            color = Color(0xFF333333)
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        OutlinedTextField(
+                            value = uiState.botAnswer,
+                            onValueChange = viewModel::onBotAnswerChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("0") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            shape = RoundedCornerShape(2.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF4A90E2),
+                                cursorColor = Color(0xFF4A90E2)
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Barra de Herramientas reCAPTCHA - FIJA Y ESPACIADA
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Grupo de íconos (Izquierda)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { viewModel.refreshBotChallenge() }) {
+                                    Icon(Icons.Default.Refresh, null, tint = Color.Gray, modifier = Modifier.size(24.dp))
+                                }
+                                IconButton(onClick = { speakChallenge() }) {
+                                    Icon(Icons.Default.Headset, null, tint = Color.Gray, modifier = Modifier.size(24.dp))
+                                }
+                                IconButton(onClick = { /* Info */ }) {
+                                    Icon(Icons.Default.Info, null, tint = Color.Gray, modifier = Modifier.size(24.dp))
+                                }
+                            }
+
+                            // Botón de acción (Derecha) - Con ancho mínimo para evitar deformación
+                            Button(
+                                onClick = { viewModel.verifyBotAnswer() },
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .widthIn(min = 120.dp),
+                                shape = RoundedCornerShape(2.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A90E2)),
+                                enabled = uiState.botAnswer.isNotEmpty(),
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "VERIFY" else "VERIFICAR",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp,
+                                        color = Color.White
+                                    ),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CaptchaWidget(
+    isVerified: Boolean,
+    strings: com.raymi.app.core.lang.RaymiStrings,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(304.dp)
+            .height(78.dp)
+            .clickable(enabled = !isVerified) { onClick() },
+        shape = RoundedCornerShape(3.dp),
+        color = Color(0xFFF9F9F9),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D1D1)),
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Checkbox interactivo
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .border(
+                        width = 2.dp,
+                        color = if (isVerified) Color(0xFF4CAF50) else Color(0xFFC1C1C1),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+                    .background(if (isVerified) Color.Transparent else Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isVerified) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = Color(0xFF4CAF50)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Text(
+                text = strings.iamNotARobot,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = Color(0xFF333333),
+                modifier = Modifier.weight(1f)
+            )
+
+            // Logo reCAPTCHA Style
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 8.dp)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_raymi_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp).alpha(0.5f),
+                    tint = Color.Unspecified
+                )
+                Text(
+                    text = "reCAPTCHA",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                    color = Color.Gray
+                )
+                Text(
+                    text = "Privacy - Terms",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
+                    color = Color.Gray
+                )
             }
         }
     }

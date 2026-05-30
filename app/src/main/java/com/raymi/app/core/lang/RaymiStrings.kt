@@ -196,6 +196,7 @@ interface RaymiStrings {
     val botChallenge: String
     val solveChallenge: String
     val invalidChallenge: String
+    val iamNotARobot: String
     val botOpPlus: String
     val botOpMinus: String
     val botOpMult: String
@@ -426,6 +427,7 @@ class SpanishStrings : RaymiStrings {
     override val botChallenge = "Verificación de Seguridad"
     override val solveChallenge = "¿Cuánto es %s %s %s?"
     override val invalidChallenge = "La respuesta es incorrecta. Inténtalo de nuevo."
+    override val iamNotARobot = "No soy un robot"
     override val botOpPlus = "más"
     override val botOpMinus = "menos"
     override val botOpMult = "por"
@@ -638,6 +640,7 @@ class EnglishStrings : RaymiStrings {
     override val botChallenge = "Security Verification"
     override val solveChallenge = "What is %s %s %s?"
     override val invalidChallenge = "Incorrect answer. Try again."
+    override val iamNotARobot = "I am not a robot"
     override val botOpPlus = "plus"
     override val botOpMinus = "minus"
     override val botOpMult = "times"

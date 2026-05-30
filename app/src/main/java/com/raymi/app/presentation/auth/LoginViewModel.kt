@@ -60,7 +60,11 @@ class LoginViewModel @Inject constructor(
             infoMessage = null,
             emailError = null,
             passwordError = null,
-            businessNameError = null
+            businessNameError = null,
+            // Limpiar protección contra bots
+            botAnswer = "",
+            isBotVerified = false,
+            showBotMath = false
         )
     }
 
@@ -236,6 +240,10 @@ class LoginViewModel @Inject constructor(
     }
 
     fun onBotAnswerChange(answer: String) {
+        _uiState.value = _uiState.value.copy(botAnswer = answer)
+    }
+
+    fun verifyBotAnswer() {
         val state = _uiState.value
         val expected = when (state.botOp) {
             "+" -> state.botNum1 + state.botNum2
@@ -243,11 +251,16 @@ class LoginViewModel @Inject constructor(
             "x" -> state.botNum1 * state.botNum2
             else -> 0
         }
-        val verified = answer.toIntOrNull() == expected
-        _uiState.value = _uiState.value.copy(
-            botAnswer = answer,
-            isBotVerified = verified
-        )
+        
+        if (state.botAnswer.toIntOrNull() == expected) {
+            _uiState.value = _uiState.value.copy(
+                isBotVerified = true,
+                showBotMath = false
+            )
+        } else {
+            // Error simple: refrescar reto para evitar fuerza bruta
+            refreshBotChallenge()
+        }
     }
 
     fun refreshBotChallenge() {
@@ -262,6 +275,12 @@ class LoginViewModel @Inject constructor(
             botAnswer = "",
             isBotVerified = false
         )
+    }
+
+    fun onRobotCheckboxClick() {
+        if (!_uiState.value.isBotVerified) {
+            _uiState.value = _uiState.value.copy(showBotMath = true)
+        }
     }
 }
 
@@ -284,7 +303,8 @@ data class LoginUiState(
     val botNum2: Int = (1..10).random(),
     val botOp: String = listOf("+", "-", "x").random(),
     val botAnswer: String = "",
-    val isBotVerified: Boolean = false
+    val isBotVerified: Boolean = false,
+    val showBotMath: Boolean = false
 )
 
 sealed class NavigationEvent {
