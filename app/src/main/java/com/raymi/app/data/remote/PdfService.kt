@@ -44,7 +44,10 @@ class PdfService @Inject constructor(
     private fun getLogoImage(logoUrl: String?): Image? {
         if (logoUrl.isNullOrBlank()) return null
         return try {
-            val bytes = URL(logoUrl).readBytes()
+            val connection = URL(logoUrl).openConnection()
+            connection.connectTimeout = 5000 // 5 segundos de timeout
+            connection.readTimeout = 5000
+            val bytes = connection.getInputStream().use { it.readBytes() }
             val imageData = ImageDataFactory.create(bytes)
             Image(imageData)
         } catch (e: Exception) {

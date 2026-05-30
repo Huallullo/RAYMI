@@ -158,7 +158,7 @@ fun ClientesScreen(
                 }
             }
 
-            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+            if (viewModel.debeMostrarAnuncios()) {
                 AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }

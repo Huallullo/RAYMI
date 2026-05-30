@@ -28,11 +28,14 @@ class ClientesViewModel @Inject constructor(
     private val consultarReniecUseCase: ConsultarReniecUseCase,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val adManager: com.raymi.app.core.ads.AdManager,
     private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
+
+    fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     private var observeJob: Job? = null
 

@@ -16,6 +16,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import javax.inject.Provider
 import com.raymi.app.domain.model.Resource
+import com.raymi.app.data.remote.FirebaseDataSource
 
 private val Context.dataStore by preferencesDataStore(name = "workspace_prefs")
 
@@ -26,7 +27,8 @@ private val Context.dataStore by preferencesDataStore(name = "workspace_prefs")
 @Singleton
 class WorkspaceManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val workspaceRepositoryProvider: Provider<WorkspaceRepository>
+    private val workspaceRepositoryProvider: Provider<WorkspaceRepository>,
+    private val firebaseDataSource: FirebaseDataSource
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val KEY_WORKSPACE_ID = stringPreferencesKey("current_workspace_id")
@@ -48,6 +50,9 @@ class WorkspaceManager @Inject constructor(
             _currentLanguage.value = lang
 
             if (id != null && _currentWorkspace.value == null) {
+                // Seteamos caché inicial
+                firebaseDataSource.setBusinessId(id)
+                
                 // Primero seteamos el ID básico para evitar UI vacía si es posible
                 _currentWorkspace.value = Workspace(id = id)
                 
@@ -70,6 +75,7 @@ class WorkspaceManager @Inject constructor(
      */
     fun setWorkspace(workspace: Workspace) {
         _currentWorkspace.value = workspace
+        firebaseDataSource.setBusinessId(workspace.id)
         scope.launch {
             context.dataStore.edit { prefs ->
                 prefs[KEY_WORKSPACE_ID] = workspace.id
@@ -98,6 +104,7 @@ class WorkspaceManager @Inject constructor(
      */
     fun clearWorkspace() {
         _currentWorkspace.value = null
+        firebaseDataSource.clearCache()
         scope.launch {
             context.dataStore.edit { prefs ->
                 prefs.remove(KEY_WORKSPACE_ID)

@@ -156,7 +156,7 @@ fun ItemDetailScreen(
                     if (qrBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = qrBitmap.asImageBitmap(),
-                            contentDescription = "Código QR",
+                            contentDescription = "Código QR del producto ${uiState.item!!.nombre}",
                             modifier = Modifier.size(200.dp)
                         )
                         Spacer(Modifier.height(16.dp))

@@ -6,7 +6,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.Timestamp
 import com.raymi.app.core.utils.Constants.COLLECTION_CLIENTES
-import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.core.notifications.NotificationHelper
 import com.raymi.app.domain.model.Alquiler
@@ -14,11 +13,11 @@ import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-
 import kotlinx.coroutines.CancellationException
 
 /**
  * Worker que verifica diariamente alquileres vencidos y notifica a los clientes.
+ * Optimizado para SaaS (Collection Group Query) para reducir lecturas de Firestore.
  */
 @HiltWorker
 class CheckOverdueRentalsWorker @AssistedInject constructor(
@@ -30,13 +29,12 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            val vencidos = obtenerAlquileresVencidos()
+            val vencidos = obtenerAlquileresVencidosSaaS()
 
             if (vencidos.isEmpty()) {
                 return Result.success()
             }
 
-            // Notificar y actualizar cada alquiler vencido
             val notificationHelper = NotificationHelper(applicationContext)
             vencidos.forEach { alquiler ->
                 notificarClienteVencido(alquiler)
@@ -47,45 +45,32 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            // Reintentar si hay error de red; fallar definitivamente en errores de lógica
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
 
     /**
-     * Obtiene todos los alquileres activos que están vencidos desde Firestore.
+     * Obtiene todos los alquileres activos vencidos de TODOS los negocios en una sola query.
+     * Uso de Collection Group Query: Escala sin importar el número de negocios.
      */
-    private suspend fun obtenerAlquileresVencidos(): List<Alquiler> {
-        val todosLosVencidos = mutableListOf<Alquiler>()
-        
-        try {
-            // Obtenemos todos los negocios para procesarlos uno por uno (SaaS Architecture)
-            val negocios = firebaseDataSource.getAllDocuments(COLLECTION_NEGOCIOS)
-            
-            negocios.forEach { (negocioId, _) ->
-                val alquileresNegocio = firebaseDataSource.queryBusinessDocuments(
-                    collection = "alquileres",
-                    field = "estado",
-                    value = "ACTIVO",
-                    limit = 1000,
-                    negocioId = negocioId
-                ).mapNotNull { (id, data) -> 
-                    // Manual mapping to handle legacy/new fields consistently
-                    mapToAlquiler(id, data) 
-                }.filter { it.estaVencido }
-                
-                todosLosVencidos.addAll(alquileresNegocio)
+    private suspend fun obtenerAlquileresVencidosSaaS(): List<Alquiler> {
+        return try {
+            firebaseDataSource.queryCollectionGroup(
+                collectionId = "alquileres",
+                field = "estado",
+                value = "ACTIVO",
+                limit = 5000
+            ).mapNotNull { (id, data) ->
+                val alquiler = mapToAlquiler(id, data)
+                // Filtramos por fecha en memoria (Firestore no permite rangos en Collection Groups sin indexar cada fecha)
+                if (alquiler != null && alquiler.estaVencido) alquiler else null
             }
         } catch (e: Exception) {
-            android.util.Log.e("CheckOverdueWorker", "Error al obtener alquileres SaaS: ${e.message}")
+            android.util.Log.e("CheckOverdueWorker", "Error en SaaS Collection Group query: ${e.message}")
+            emptyList()
         }
-        
-        return todosLosVencidos
     }
 
-    /**
-     * Actualiza el estado en Firestore a VENCIDO.
-     */
     private suspend fun marcarComoVencidoEnFirestore(alquiler: Alquiler) {
         try {
             firebaseDataSource.updateBusinessDocument(
@@ -100,55 +85,39 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
         } catch (_: Exception) { }
     }
 
-    /**
-     * Envía notificación WhatsApp/SMS al cliente del alquiler vencido.
-     * Los errores de envío se ignoran para no bloquear el resto de notificaciones.
-     */
     private suspend fun notificarClienteVencido(alquiler: Alquiler) {
         try {
             val telefonoCliente = obtenerTelefonoCliente(alquiler.clienteId)
             if (telefonoCliente.isBlank()) return
 
-            // Usamos collect para esperar el resultado final sin colgar el worker
             enviarMensajeUseCase.enviarRecordatorioDevolucion(
                 telefono = telefonoCliente,
                 cliente = alquiler.clienteNombre,
                 item = alquiler.itemNombre,
                 esVencido = true
             ).collect { }
-        } catch (_: Exception) {
-            // No propagamos el error para seguir con el resto de alquileres
-        }
+        } catch (_: Exception) { }
     }
 
-    /**
-     * Obtiene el teléfono de un cliente desde Firestore.
-     */
     private suspend fun obtenerTelefonoCliente(clienteId: String): String {
         if (clienteId.isBlank()) return ""
         return try {
-            val data = firebaseDataSource.getDocument(
-                COLLECTION_CLIENTES,
-                clienteId
-            )
+            val data = firebaseDataSource.getDocument(COLLECTION_CLIENTES, clienteId)
             data?.get("telefono") as? String ?: ""
-        } catch (_: Exception) {
-            ""
-        }
+        } catch (_: Exception) { "" }
     }
-
-    // ─── Mapeo de datos ──────────────────────────────────────────────────────
 
     private fun mapToAlquiler(id: String, data: Map<String, Any>): Alquiler? {
         return try {
             Alquiler(
                 id              = id,
+                workspaceId     = data["workspaceId"]     as? String    ?: "", 
                 clienteId       = data["clienteId"]       as? String    ?: return null,
                 clienteNombre   = data["clienteNombre"]   as? String    ?: "",
                 itemId          = data["itemId"]          as? String    ?: (data["vestuarioId"] as? String) ?: return null,
                 itemNombre      = data["itemNombre"]      as? String    ?: (data["vestuarioNombre"] as? String) ?: "",
                 itemCodigo      = data["itemCodigo"]      as? String    ?: (data["vestuarioCodigo"] as? String) ?: "",
-                cantidad        = (data["cantidad"]       as? Long)?.toInt() ?: 1,
+                cantidad        = (data["cantidad"]       as? Number)?.toInt() ?: 1,
                 fechaInicio     = data["fechaInicio"]     as? Timestamp ?: Timestamp.now(),
                 fechaFinPrevista= data["fechaFinPrevista"]as? Timestamp ?: Timestamp.now(),
                 fechaDevolucion = data["fechaDevolucion"] as? Timestamp,
@@ -169,8 +138,6 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 createdAt       = data["createdAt"]       as? Timestamp ?: Timestamp.now(),
                 updatedAt       = data["updatedAt"]       as? Timestamp ?: Timestamp.now()
             )
-        } catch (_: Exception) {
-            null
-        }
+        } catch (_: Exception) { null }
     }
 }

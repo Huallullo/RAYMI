@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
@@ -115,7 +114,7 @@ fun AlquileresScreen(
                 }
             }
 
-            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+            if (viewModel.debeMostrarAnuncios()) {
                 AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }

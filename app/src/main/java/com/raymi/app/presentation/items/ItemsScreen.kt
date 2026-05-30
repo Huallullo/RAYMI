@@ -30,7 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.components.*
@@ -193,7 +192,7 @@ fun ItemsScreen(
                 }
             }
 
-            if (AdManager.debeMostrarAnuncios(uiState.userPlan)) {
+            if (viewModel.debeMostrarAnuncios(uiState.userPlan)) {
                 AdBanner(modifier = Modifier.padding(bottom = 8.dp))
             }
         }

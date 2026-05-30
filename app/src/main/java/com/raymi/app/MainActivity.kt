@@ -5,12 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
-import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.raymi.app.core.theme.RaymiTheme
 import com.raymi.app.presentation.MainScreen
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -26,14 +24,18 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 
+    @Inject
+    lateinit var adManager: com.raymi.app.core.ads.AdManager
+    
+    @Inject
+    lateinit var adInterstitialManager: com.raymi.app.core.ads.AdInterstitialManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         // Inicialización Maestro de Publicidad
-        lifecycleScope.launch {
-            com.raymi.app.core.ads.AdManager.inicializar(this@MainActivity)
-            com.raymi.app.core.ads.AdInterstitialManager.loadAd(this@MainActivity)
-        }
+        adManager.inicializar()
+        adInterstitialManager.loadAd()
 
         enableEdgeToEdge()
 

@@ -16,7 +16,9 @@ import javax.inject.Singleton
 @Singleton
 class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val analytics: com.google.firebase.analytics.FirebaseAnalytics
+    private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
+    private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore
 ) : PurchasesUpdatedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -115,8 +117,7 @@ class BillingManager @Inject constructor(
     }
 
     private fun savePurchaseTokenToFirestore(purchaseToken: String) {
-        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val uid = auth.currentUser?.uid ?: return
         
         val purchaseData = mapOf(
             "purchaseToken" to purchaseToken,
@@ -124,8 +125,8 @@ class BillingManager @Inject constructor(
             "status" to "PENDING"
         )
         
-        // TODO: Cloud Function debe validar purchaseToken con Google Play Developer API antes de activar PRO
-        db.collection("usuarios").document(uid)
+        // Cloud Function debe validar purchaseToken con Google Play Developer API antes de activar PRO
+        firestore.collection("usuarios").document(uid)
             .collection("pendingPurchases")
             .add(purchaseData)
     }

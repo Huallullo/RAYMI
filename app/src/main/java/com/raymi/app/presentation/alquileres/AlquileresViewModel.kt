@@ -19,10 +19,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AlquileresViewModel @Inject constructor(
-    private val getAlquileresUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase,
+    private val getAlquileresUseCase: GetAlquileresUseCase,
     private val alquilerRepository: com.raymi.app.domain.repository.AlquilerRepository,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val adManager: com.raymi.app.core.ads.AdManager,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -30,6 +31,8 @@ class AlquileresViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(AlquileresUiState())
     val uiState: StateFlow<AlquileresUiState> = _uiState.asStateFlow()
+
+    fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     init {
         loadAlquileres()

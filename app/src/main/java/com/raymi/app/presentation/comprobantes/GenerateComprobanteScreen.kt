@@ -2,6 +2,7 @@ package com.raymi.app.presentation.comprobantes
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.TipoComprobante
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import androidx.compose.material.icons.automirrored.filled.Send
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,28 +224,50 @@ fun ComprobanteTypeChip(
 @Composable
 fun SuccessView(onShare: () -> Unit, onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(100.dp))
-        Spacer(Modifier.height(24.dp))
-        Text("¡Comprobante Generado!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-        Text("El documento se ha guardado correctamente.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Ícono Dinámico de Documento
+        Surface(
+            shape = CircleShape,
+            color = Color(0xFFE8F5E9),
+            modifier = Modifier.size(120.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.PictureAsPdf, 
+                    contentDescription = null, 
+                    tint = Color(0xFF4CAF50), 
+                    modifier = Modifier.size(60.dp)
+                )
+            }
+        }
+        
+        Spacer(Modifier.height(32.dp))
+        Text("¡Comprobante Listo!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+        Text("El PDF ha sido generado con éxito.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         
         Spacer(Modifier.height(48.dp))
         
         Button(
             onClick = onShare,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = MaterialTheme.shapes.large
+            shape = MaterialTheme.shapes.extraLarge,
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Icon(Icons.Default.Share, contentDescription = null)
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
             Spacer(Modifier.width(12.dp))
             Text("Compartir Comprobante", fontWeight = FontWeight.Bold)
         }
         
-        TextButton(onClick = onBack, modifier = Modifier.padding(top = 16.dp)) {
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = MaterialTheme.shapes.extraLarge
+        ) {
             Text("Volver al Alquiler")
         }
     }

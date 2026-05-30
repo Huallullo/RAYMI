@@ -20,7 +20,7 @@ class ClienteDetailViewModel @Inject constructor(
     private val getClienteByIdUseCase: GetClienteByIdUseCase,
     private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase,
-    private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val getAlquileresByClienteUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresByClienteUseCase,
     private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -64,12 +64,10 @@ class ClienteDetailViewModel @Inject constructor(
     private fun loadAlquileres() {
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-            getAlquileresUseCase(workspaceId).collect { result ->
+            getAlquileresByClienteUseCase(workspaceId, clienteId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        val alquileres = result.data?.filter {
-                            it.clienteId == clienteId
-                        } ?: emptyList()
+                        val alquileres = result.data ?: emptyList()
 
                         val totalAlquileres = alquileres.size
                         val totalGastado = alquileres.sumOf { it.precioTotal }

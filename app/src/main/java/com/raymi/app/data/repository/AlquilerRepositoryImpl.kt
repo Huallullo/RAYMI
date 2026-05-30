@@ -8,6 +8,7 @@ import com.raymi.app.data.remote.RentalDataSource
 import com.raymi.app.data.remote.ObserverDataSource
 import com.raymi.app.domain.model.*
 import com.raymi.app.domain.repository.AlquilerRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
@@ -35,6 +36,22 @@ class AlquilerRepositoryImpl @Inject constructor(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
             }
+    }
+
+    override suspend fun getAlquileresOnce(workspaceId: String): Resource<List<Alquiler>> {
+        return try {
+            val docs = dataSource.getAllBusinessDocumentsOrderedLimited(
+                collection = "alquileres",
+                orderByField = "createdAt",
+                descending = true,
+                limit = 200
+            )
+            val alquileres = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            Resource.Success(alquileres)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Resource.Error("Error al cargar dashboard: ${e.localizedMessage}")
+        }
     }
 
     override suspend fun getAlquilerById(id: String): Flow<Resource<Alquiler>> = flow {

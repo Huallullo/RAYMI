@@ -11,9 +11,14 @@ import kotlinx.coroutines.flow.Flow
 interface AlquilerRepository {
 
     /**
-     * Obtiene todos los alquileres
+     * Obtiene todos los alquileres (Stream real-time)
      */
     suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Obtiene todos los alquileres una sola vez (Snapshot)
+     */
+    suspend fun getAlquileresOnce(workspaceId: String): Resource<List<Alquiler>>
 
     /**
      * Obtiene un alquiler por su ID

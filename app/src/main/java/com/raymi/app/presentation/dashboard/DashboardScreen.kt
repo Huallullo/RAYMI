@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,7 @@ import java.util.Locale
 
 /**
  * Dashboard Ejecutivo Premium v2.
+ * Optimizado para ahorro de costos (Firestore Snapshots) y Pull-to-refresh.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,82 +80,82 @@ fun DashboardScreen(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            if (uiState.isLoading && uiState.estadisticas.totalClientes == 0) {
-                RaymiLoadingIndicator(message = strings.loading)
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(28.dp)
-                ) {
-                    ExecutiveSummaryCard(
-                        ingresoMes = uiState.estadisticas.ingresosMes,
-                        ingresoTotal = uiState.estadisticas.ingresosTotales,
-                        variacion = uiState.variacionMensualPct,
-                        labelMes = strings.monthlyEarnings,
-                        labelTotal = strings.totalEarnings,
-                        onExport = { viewModel.exportarResumenFinancieroPdf() }
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshData() },
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp)
+            ) {
+                ExecutiveSummaryCard(
+                    ingresoMes = uiState.estadisticas.ingresosMes,
+                    ingresoTotal = uiState.estadisticas.ingresosTotales,
+                    variacion = uiState.variacionMensualPct,
+                    labelMes = strings.monthlyEarnings,
+                    labelTotal = strings.totalEarnings,
+                    onExport = { viewModel.exportarResumenFinancieroPdf() }
+                )
+
+                // Sección de "Hoy" (SaaS Operativo)
+                TodayOperationsRow(
+                    entregas = uiState.estadisticas.entregasHoy,
+                    devoluciones = uiState.estadisticas.devolucionesHoy,
+                    pagosPendientes = uiState.estadisticas.pagosPendientesCount,
+                    labelEntregas = strings.todayDeliveries,
+                    labelRetornos = strings.todayReturns,
+                    labelCobros = strings.pendingPayments
+                )
+
+                if (uiState.actividadSemanal.isNotEmpty()) {
+                    Text(strings.weeklyActivity, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    WeeklyActivityChart(uiState.actividadSemanal)
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(strings.operationalStatus, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    OperationsGrid(
+                        inventario = uiState.estadisticas.totalItems,
+                        alquilados = uiState.estadisticas.alquileresActivos,
+                        clientes = uiState.estadisticas.totalClientes,
+                        labelInventario = strings.inventory,
+                        labelAlquilados = strings.rented,
+                        labelClientes = strings.activeClients,
+                        onInventoryClick = onNavigateToItems,
+                        onRentalsClick = onNavigateToAlquileres,
+                        onClientsClick = onNavigateToClientes
                     )
+                }
 
-                    // Sección de "Hoy" (SaaS Operativo)
-                    TodayOperationsRow(
-                        entregas = uiState.estadisticas.entregasHoy,
-                        devoluciones = uiState.estadisticas.devolucionesHoy,
-                        pagosPendientes = uiState.estadisticas.pagosPendientesCount,
-                        labelEntregas = strings.todayDeliveries,
-                        labelRetornos = strings.todayReturns,
-                        labelCobros = strings.pendingPayments
-                    )
+                QuickManagementRow(
+                    onNewRental = onNavigateToAlquileres,
+                    onNewClient = onNavigateToClientes,
+                    labelNewRental = strings.newRental,
+                    labelNewClient = strings.newClient
+                )
 
-                    if (uiState.actividadSemanal.isNotEmpty()) {
-                        Text(strings.weeklyActivity, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        WeeklyActivityChart(uiState.actividadSemanal)
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(strings.operationalStatus, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        OperationsGrid(
-                            inventario = uiState.estadisticas.totalItems,
-                            alquilados = uiState.estadisticas.alquileresActivos,
-                            clientes = uiState.estadisticas.totalClientes,
-                            labelInventario = strings.inventory,
-                            labelAlquilados = strings.rented,
-                            labelClientes = strings.activeClients,
-                            onInventoryClick = onNavigateToItems,
-                            onRentalsClick = onNavigateToAlquileres,
-                            onClientsClick = onNavigateToClientes
-                        )
-                    }
-
-                    QuickManagementRow(
-                        onNewRental = onNavigateToAlquileres,
-                        onNewClient = onNavigateToClientes,
-                        labelNewRental = strings.newRental,
-                        labelNewClient = strings.newClient
-                    )
-
-                    if (AdManager.debeMostrarAnuncios(uiState.currentPlan)) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                if (viewModel.debeMostrarAnuncios()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(
-                                modifier = Modifier.padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(strings.adTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                Spacer(Modifier.height(4.dp))
-                                AdBanner()
-                            }
+                            Text(strings.adTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                            Spacer(Modifier.height(4.dp))
+                            AdBanner()
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(40.dp))
                 }
+
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -287,7 +289,7 @@ fun ExecutiveSummaryCard(
                 Column {
                     Text(labelMes, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelLarge)
                     Text(
-                        "S/. ${String.format(Locale.getDefault(), "%,.2f", ingresoMes)}",
+                        text = "S/. " + String.format(Locale.getDefault(), "%,.2f", ingresoMes),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = Color.White
@@ -317,7 +319,7 @@ fun ExecutiveSummaryCard(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "${if (isPositive) "+" else ""}${String.format(Locale.getDefault(), "%.1f", variacion)}%",
+                            text = (if (isPositive) "+" else "") + String.format(Locale.getDefault(), "%.1f", variacion) + "%",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold
@@ -326,7 +328,7 @@ fun ExecutiveSummaryCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "$labelTotal: S/. ${String.format(Locale.getDefault(), "%,.1f", ingresoTotal)}",
+                    text = labelTotal + ": S/. " + String.format(Locale.getDefault(), "%,.1f", ingresoTotal),
                     color = Color.White.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.labelSmall
                 )

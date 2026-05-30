@@ -6,8 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.*
 import com.raymi.app.domain.repository.UserPlanRepository
-import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
+import com.raymi.app.domain.usecase.alquiler.GetAlquileresOnceUseCase
 import com.raymi.app.domain.usecase.workspace.GetWorkspaceStatsUseCase
+import com.raymi.app.domain.usecase.workspace.UpdateWorkspaceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -16,25 +17,31 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
 
-import com.raymi.app.domain.usecase.workspace.UpdateWorkspaceUseCase
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val getAlquileresOnceUseCase: GetAlquileresOnceUseCase,
     private val getWorkspaceStatsUseCase: GetWorkspaceStatsUseCase,
     private val generarPdfResumenFinancieroUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfResumenFinancieroUseCase,
     private val updateWorkspaceUseCase: UpdateWorkspaceUseCase,
     private val userPlanRepository: UserPlanRepository,
+    private val adManager: com.raymi.app.core.ads.AdManager,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.currentPlan)
+
     init {
         observeWorkspace()
-        observeDashboardData()
+        // Carga inicial bajo demanda (ahorro de costos)
+        viewModelScope.launch {
+            workspaceManager.currentWorkspace.filterNotNull().first().let {
+                refreshData()
+            }
+        }
     }
 
     private fun observeWorkspace() {
@@ -48,56 +55,55 @@ class DashboardViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private fun observeDashboardData() {
-        workspaceManager.currentWorkspace
-            .filterNotNull()
-            .flatMapLatest { workspace ->
-                combine(
-                    getWorkspaceStatsUseCase(workspace.id),
-                    getAlquileresUseCase(workspace.id)
-                ) { statsResult, alquileresResult ->
-                    Pair(statsResult, alquileresResult)
+    /**
+     * Refresca los datos del dashboard. 
+     * Implementado como petición puntual (Snapshot) para reducir lecturas de Firestore.
+     */
+    fun refreshData() {
+        val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            // 1. Cargar Estadísticas base
+            launch {
+                getWorkspaceStatsUseCase(workspaceId).collect { result ->
+                    if (result is Resource.Success) {
+                        handleStatsResult(result.data ?: emptyMap())
+                    }
                 }
             }
-            .onEach { (statsResult, alquileresResult) ->
-                handleDashboardResults(statsResult, alquileresResult)
-            }
-            .catch { e ->
-                _uiState.update { it.copy(isLoading = false, error = "Error de sincronización: ${e.message}") }
-            }
-            .launchIn(viewModelScope)
+
+            // 2. Cargar Alquileres para métricas (Una sola lectura)
+            val alquileresResult = getAlquileresOnceUseCase(workspaceId)
+            handleAlquileresResult(alquileresResult)
+            
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
-    private fun handleDashboardResults(
-        statsResult: Resource<Map<String, Any>>,
-        alquileresResult: Resource<List<Alquiler>>
-    ) {
-        // Actualizar Estadísticas base desde metadata
-        if (statsResult is Resource.Success) {
-            val data = statsResult.data ?: emptyMap()
-            updateEstadisticas {
-                copy(
-                    totalClientes = (data["totalClientes"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
-                    totalItems = (data["totalItems"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
-                    alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
-                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble()?.coerceAtLeast(0.0) ?: 0.0
-                )
-            }
+    private fun handleStatsResult(data: Map<String, Any>) {
+        updateEstadisticas {
+            copy(
+                totalClientes = (data["totalClientes"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                totalItems = (data["totalItems"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble()?.coerceAtLeast(0.0) ?: 0.0
+            )
         }
+    }
 
-        // Actualizar Alquileres y Métricas Calculadas
-        when (alquileresResult) {
-            is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+    private fun handleAlquileresResult(result: Resource<List<Alquiler>>) {
+        when (result) {
             is Resource.Success -> {
-                val alquileres = alquileresResult.data ?: emptyList()
+                val alquileres = result.data ?: emptyList()
                 calcularActividadSemanal(alquileres)
                 calcularOperacionesHoy(alquileres)
                 calcularIngresosMensuales(alquileres)
-                _uiState.update { it.copy(isLoading = false) }
             }
             is Resource.Error -> {
-                _uiState.update { it.copy(isLoading = false, error = alquileresResult.message) }
+                _uiState.update { it.copy(error = result.message) }
             }
+            else -> { }
         }
     }
 
@@ -185,27 +191,27 @@ class DashboardViewModel @Inject constructor(
         
         viewModelScope.launch {
             _uiState.update { it.copy(isExportingPdf = true) }
-            getAlquileresUseCase(workspace.id).collect { result ->
-                if (result is Resource.Success) {
-                    val alquileres = result.data ?: emptyList()
-                    generarPdfResumenFinancieroUseCase.generarPdf(alquileres, anioActual).collect { pdfResult ->
-                        when (pdfResult) {
-                            is Resource.Loading -> { }
-                            is Resource.Success -> {
-                                _uiState.update { it.copy(
-                                    isExportingPdf = false,
-                                    successMessage = "Resumen financiero generado",
-                                    pdfResumenUri = pdfResult.data
-                                ) }
-                            }
-                            is Resource.Error -> {
-                                _uiState.update { it.copy(isExportingPdf = false, error = pdfResult.message) }
-                            }
+            // Para exportación, usamos una lectura puntual también
+            val result = getAlquileresOnceUseCase(workspace.id)
+            if (result is Resource.Success) {
+                val alquileres = result.data ?: emptyList()
+                generarPdfResumenFinancieroUseCase.generarPdf(alquileres, anioActual).collect { pdfResult ->
+                    when (pdfResult) {
+                        is Resource.Loading -> { }
+                        is Resource.Success -> {
+                            _uiState.update { it.copy(
+                                isExportingPdf = false,
+                                successMessage = "Resumen financiero generado",
+                                pdfResumenUri = pdfResult.data
+                            ) }
+                        }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(isExportingPdf = false, error = pdfResult.message) }
                         }
                     }
-                } else if (result is Resource.Error) {
-                    _uiState.update { it.copy(isExportingPdf = false, error = result.message) }
                 }
+            } else if (result is Resource.Error) {
+                _uiState.update { it.copy(isExportingPdf = false, error = result.message) }
             }
         }
     }

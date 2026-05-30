@@ -24,12 +24,15 @@ class ItemsViewModel @Inject constructor(
     private val getCategoriasUseCase: GetCategoriasUseCase,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val adManager: com.raymi.app.core.ads.AdManager,
     workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     private val _selectedCategoria = MutableStateFlow<Categoria?>(null)
     private val _limit = MutableStateFlow(100L)
+
+    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
     val uiState: StateFlow<ItemsUiState> = workspaceManager.currentWorkspace
         .filterNotNull()

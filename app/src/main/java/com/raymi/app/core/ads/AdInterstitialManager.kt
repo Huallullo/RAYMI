@@ -7,18 +7,22 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.raymi.app.BuildConfig
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- * Gestor de Anuncios Intersticiales (Pantalla Completa).
+ * Gestor de Anuncios Intersticiales.
+ * Refactorizado a clase inyectable para evitar fugas de memoria y mejorar DI.
  */
-object AdInterstitialManager {
+@Singleton
+class AdInterstitialManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
     private var interstitialAd: InterstitialAd? = null
     private var isAdLoading = false
 
-    /**
-     * Precarga un anuncio para tenerlo listo antes de mostrarlo.
-     */
-    fun loadAd(context: Context) {
+    fun loadAd() {
         if (interstitialAd != null || isAdLoading) return
 
         isAdLoading = true
@@ -41,16 +45,18 @@ object AdInterstitialManager {
         )
     }
 
-    /**
-     * Muestra el anuncio si está cargado.
-     */
     fun showAd(activity: Activity, onAdClosed: () -> Unit) {
+        if (activity.isFinishing || activity.isDestroyed) {
+            onAdClosed()
+            return
+        }
+
         if (interstitialAd != null) {
             interstitialAd?.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     interstitialAd = null
                     onAdClosed()
-                    loadAd(activity) // Cargar el siguiente
+                    loadAd() 
                 }
 
                 override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
@@ -61,7 +67,7 @@ object AdInterstitialManager {
             interstitialAd?.show(activity)
         } else {
             onAdClosed()
-            loadAd(activity)
+            loadAd()
         }
     }
 }

@@ -14,9 +14,22 @@ class FirebaseDataSource @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
+    private var cachedBusinessId: String? = null
 
     companion object {
         const val DEFAULT_QUERY_LIMIT = 500L
+    }
+
+    /**
+     * Establece manualmente el negocio activo en la sesión (Caché).
+     * Evita consultas repetitivas a Firestore para obtener el ID.
+     */
+    fun setBusinessId(id: String) {
+        cachedBusinessId = id
+    }
+
+    fun clearCache() {
+        cachedBusinessId = null
     }
 
     suspend fun getDocument(collection: String, documentId: String): Map<String, Any>? {
@@ -128,8 +141,11 @@ class FirebaseDataSource @Inject constructor(
     }
 
     suspend fun getCurrentBusinessId(): String {
+        cachedBusinessId?.let { return it }
         val user = auth.currentUser ?: throw IllegalStateException("Usuario no autenticado")
-        return ensureBusinessProfileForUser(user)
+        val id = ensureBusinessProfileForUser(user)
+        cachedBusinessId = id
+        return id
     }
 
     suspend fun getBusinessDocument(collection: String, documentId: String, negocioId: String? = null): Map<String, Any>? {
@@ -207,5 +223,19 @@ class FirebaseDataSource @Inject constructor(
     suspend fun addBusinessDocument(workspaceId: String, collection: String, data: Map<String, Any>): String {
         val docRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection(collection).add(data).await()
         return docRef.id
+    }
+
+    suspend fun queryCollectionGroup(
+        collectionId: String,
+        field: String,
+        value: Any,
+        limit: Long = DEFAULT_QUERY_LIMIT
+    ): List<Pair<String, Map<String, Any>>> {
+        val snapshot = firestore.collectionGroup(collectionId)
+            .whereEqualTo(field, value)
+            .limit(limit)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 }
