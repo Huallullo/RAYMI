@@ -22,6 +22,7 @@ import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.*
 import androidx.compose.ui.platform.testTag
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun ClientesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
 
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
@@ -52,13 +54,13 @@ fun ClientesScreen(
             LargeTopAppBar(
                 title = {
                     Column {
-                        Text("Mis Clientes", fontWeight = FontWeight.Black)
-                        Text("${uiState.clientes.size} contactos registrados", style = MaterialTheme.typography.bodySmall)
+                        Text(strings.clients, fontWeight = FontWeight.Black)
+                        Text("${uiState.clientes.size} ${strings.activeClients.lowercase()}", style = MaterialTheme.typography.bodySmall)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.search)
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -68,44 +70,29 @@ fun ClientesScreen(
             ExtendedFloatingActionButton(
                 onClick = { viewModel.showAddClienteDialog() },
                 icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-                text = { Text("Nuevo Cliente") },
+                text = { Text(strings.newClient) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 shape = CustomShapes.CardShape,
                 modifier = Modifier.testTag("fab_add_cliente")
             )
         }
     ) { paddingValues ->
-Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             
             // 1. Buscador Inteligente
             RaymiSearchBar(
                 query = uiState.searchQuery,
                 onQueryChange = { viewModel.searchClientes(it) },
-                placeholder = "Nombre o DNI del cliente...",
+                placeholder = strings.searchClient + "...",
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 trailingIcon = {
-                    if (uiState.searchQuery.length == 1) {
-                        Text(
-                            "✍️", 
-                            modifier = Modifier.padding(end = 12.dp),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    } else if (uiState.searchQuery.isNotEmpty()) {
+                    if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.searchClientes("") }) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Limpiar")
+                            Icon(Icons.Filled.Clear, contentDescription = strings.cancel)
                         }
                     }
                 }
             )
-            
-            if (uiState.searchQuery.length == 1) {
-                Text(
-                    "Escribe al menos 2 caracteres para búsqueda rápida",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
-                )
-            }
 
             // 2. Chips de Ordenamiento (Recurso Gratis para UX)
             LazyRow(
@@ -117,7 +104,7 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                     FilterChip(
                         selected = uiState.orden == OrdenCliente.RECIBIENTES,
                         onClick = { viewModel.cambiarOrden(OrdenCliente.RECIBIENTES) },
-                        label = { Text("Recientes") },
+                        label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Recientes" else "Recent") },
                         leadingIcon = { if (uiState.orden == OrdenCliente.RECIBIENTES) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) },
                         shape = CircleShape
                     )
@@ -135,13 +122,13 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             // 3. Listado de Clientes
             Box(modifier = Modifier.weight(1f)) {
                 when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = "Accediendo a contactos...")
+                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
                     uiState.visibleClientes.isEmpty() -> {
                         RaymiEmptyState(
                             icon = Icons.AutoMirrored.Filled.ContactSupport,
-                            title = "Sin Contactos",
-                            description = if (uiState.searchQuery.isEmpty()) "Comienza a registrar clientes para tu negocio." else "No hay coincidencias para tu búsqueda.",
-                            actionText = if (uiState.searchQuery.isEmpty()) "Registrar Ahora" else null,
+                            title = strings.clients,
+                            description = if (uiState.searchQuery.isEmpty()) strings.activeClients else "No results found.",
+                            actionText = if (uiState.searchQuery.isEmpty()) strings.newClient else null,
                             onActionClick = { viewModel.showAddClienteDialog() }
                         )
                     }
@@ -163,7 +150,7 @@ Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                                     TextButton(
                                         onClick = { viewModel.loadMoreClientes() },
                                         modifier = Modifier.fillMaxWidth()
-                                    ) { Text("Ver más clientes") }
+                                    ) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Ver más clientes" else "Show more") }
                                 }
                             }
                         }
@@ -215,7 +202,7 @@ fun ModernClienteItem(cliente: Cliente, onClick: () -> Unit) {
                     maxLines = 1
                 )
                 Text(
-                    text = "DNI: ${cliente.dni}",
+                    text = "ID: ${cliente.dni}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

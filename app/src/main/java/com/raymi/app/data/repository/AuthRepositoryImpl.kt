@@ -232,6 +232,25 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun changePassword(newPassword: String): Flow<Resource<Unit>> = flow {
+        try {
+            emit(Resource.Loading())
+            if (newPassword.length < 6) {
+                emit(Resource.Error("La contraseña debe tener al menos 6 caracteres"))
+                return@flow
+            }
+            authDataSource.updatePassword(newPassword)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            val msg = e.localizedMessage ?: ""
+            val error = when {
+                msg.contains("RECENT_LOGIN") -> "Por seguridad, debes haber iniciado sesión recientemente para cambiar tu contraseña. Por favor, cierra sesión e ingresa de nuevo."
+                else -> "Error al cambiar contraseña: ${e.message}"
+            }
+            emit(Resource.Error(error))
+        }
+    }
+
     /**
      * Verifica si hay un usuario autenticado (no suspendida)
      */

@@ -120,10 +120,20 @@ class ClientesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             
-            // Asegurar que el cliente tenga el workspaceId actual
             val currentWorkspaceId = workspaceManager.getWorkspaceId()
             if (currentWorkspaceId == null) {
                 _uiState.update { it.copy(isLoading = false, error = "Negocio no identificado") }
+                return@launch
+            }
+
+            // --- REGLA PLAN FREE: Limitar Clientes ---
+            val userId = auth.uid ?: return@launch
+            val canAdd = userPlanRepository.canAddMoreClients(userId, currentWorkspaceId)
+            if (!canAdd) {
+                _uiState.update { it.copy(
+                    isLoading = false, 
+                    error = "🔒 Límite de clientes alcanzado en Plan FREE (Máx 50). Pásate a PRO para clientes ilimitados."
+                ) }
                 return@launch
             }
 

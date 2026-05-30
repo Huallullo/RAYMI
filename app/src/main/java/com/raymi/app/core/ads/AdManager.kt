@@ -27,14 +27,11 @@ object AdManager {
      * Determina si se deben mostrar anuncios basado en el plan del usuario.
      */
     fun debeMostrarAnuncios(plan: UserPlan?): Boolean {
-        if (plan == null) return false
+        if (plan == null) return true // Por defecto mostrar si no hay datos
         if (plan.plan != PlanType.FREE) return false
         if (!plan.mostrarAnuncios) return false
         
-        // Trial: 30 días sin ads desde la creación del plan
-        val diasDesdeCreacion = (System.currentTimeMillis() / 1000 - plan.fechaInicio.seconds) / 86400
-        if (diasDesdeCreacion < 30) return false
-        
+        // Eliminada la restricción de 30 días para permitir ver anuncios de inmediato en Plan Free
         return true
     }
 

@@ -20,19 +20,21 @@ data class UserPlan(
     val idCompra: String? = null,  // Google Play Billing ID
     val renovacionAutomatica: Boolean = false,
     val workspacesLimit: Int = 1,  // FREE=1, PRO=ilimitado
-    val itemsLimit: Int = 50,      // FREE=50, PRO=ilimitado
+    val itemsLimit: Int = 30,      // FREE=30, PRO=ilimitado
+    val clientsLimit: Int = 40,    // FREE=40, PRO=ilimitado
     val mostrarAnuncios: Boolean = true,
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 )
 
 enum class PlanType {
-    FREE,   // S/. 0: Con anuncios, 1 workspace, 50 items
-    PRO;    // S/. 19.99/mes: Sin anuncios, ilimitado
+    FREE,   // S/. 0: Con anuncios, 1 workspace, 30 items, 40 clientes
+    PRO;    // S/. 20.00/mes: Sin anuncios, ilimitado
 
     companion object {
         const val PRICE_FREE = 0.0
-        const val PRICE_PRO = 19.90 // Unificado según sugerencia comercial
+        const val PRICE_PRO = 20.00 
+        const val PRICE_PRO_USD = 5.40
         const val CURRENCY = "PEN"
     }
 }

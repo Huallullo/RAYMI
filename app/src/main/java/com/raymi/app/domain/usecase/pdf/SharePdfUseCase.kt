@@ -15,12 +15,18 @@ class SharePdfUseCase @Inject constructor(
             }
 
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
-                putExtra(Intent.EXTRA_STREAM, uri)
+                if (uri.scheme == "https" || uri.scheme == "http") {
+                    // Si es un enlace remoto, compartir como texto
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, "Hola, puedes ver el comprobante aquí: $uri")
+                } else {
+                    // Si es un URI de contenido/local
+                    type = "application/pdf"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
                 putExtra(Intent.EXTRA_SUBJECT, title)
-                putExtra(Intent.EXTRA_TITLE, title)
-                putExtra(Intent.EXTRA_TEXT, "Hola, te comparto el comprobante de alquiler generado por RAYMI.")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             
             val chooser = Intent.createChooser(shareIntent, "Enviar por:")

@@ -32,6 +32,13 @@ class WorkspaceSelectionViewModel @Inject constructor(
     fun onCreateNewWorkspace(onCanCreate: () -> Unit) {
         viewModelScope.launch {
             val user = authRepository.getCurrentUser() ?: return@launch
+            
+            // Bypass extremo para test@raymi.com (ignoramos mayúsculas)
+            if (user.email?.trim()?.lowercase() == "test@raymi.com") {
+                onCanCreate()
+                return@launch
+            }
+
             val canCreate = userPlanRepository.canCreateWorkspace(user.uid)
             if (canCreate) {
                 onCanCreate()

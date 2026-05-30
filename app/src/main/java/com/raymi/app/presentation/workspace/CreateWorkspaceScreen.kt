@@ -13,9 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
- * Pantalla para registrar un nuevo negocio (Workspace).
+ * Pantalla para registrar un nuevo negocio (Workspace) - Localizada y Corregida.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,8 +27,9 @@ fun CreateWorkspaceScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val strings = LocalRaymiStrings.current
+    val isSpanish = strings is com.raymi.app.core.lang.SpanishStrings
 
-    // Si se creó con éxito, volvemos a la selección
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
             onSuccess()
@@ -36,11 +38,11 @@ fun CreateWorkspaceScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Registrar Negocio") },
+            CenterAlignedTopAppBar(
+                title = { Text(strings.registerNewBusiness) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -56,41 +58,39 @@ fun CreateWorkspaceScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Cuéntanos sobre tu nuevo negocio",
+                text = if (isSpanish) "Cuéntanos sobre tu nuevo negocio" else "Tell us about your new business",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Nombre del negocio
             OutlinedTextField(
                 value = uiState.nombre,
                 onValueChange = viewModel::onNombreChange,
-                label = { Text("Nombre del Negocio") },
-                placeholder = { Text("Ej: Alquileres Raymi") },
+                label = { Text(if (isSpanish) "Nombre del Negocio" else "Business Name") },
+                placeholder = { Text(if (isSpanish) "Ej: Alquileres Raymi" else "e.g., Raymi Rentals") },
                 leadingIcon = { Icon(Icons.Default.Business, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.error != null,
                 supportingText = {
                     if (uiState.error != null) {
+                        // El error ya viene traducido desde el Repositorio/ViewModel
                         Text(uiState.error!!, color = MaterialTheme.colorScheme.error)
                     }
                 }
             )
 
-            // Descripción
             OutlinedTextField(
                 value = uiState.descripcion,
                 onValueChange = viewModel::onDescripcionChange,
-                label = { Text("Descripción (Opcional)") },
-                placeholder = { Text("¿Qué alquilas principalmente?") },
+                label = { Text(if (isSpanish) "Descripción (Opcional)" else "Description (Optional)") },
+                placeholder = { Text(if (isSpanish) "¿Qué alquilas principalmente?" else "What do you mainly rent?") },
                 leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
 
-            // Selección de Rubro (Tipo de Negocio)
             Text(
-                text = "Tipo de Negocio",
+                text = if (isSpanish) "Tipo de Negocio" else "Business Type",
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.align(Alignment.Start)
             )
@@ -107,12 +107,11 @@ fun CreateWorkspaceScreen(
                     value = uiState.tipoNegocio,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Selecciona un Rubro") },
+                    label = { Text(if (isSpanish) "Selecciona un Rubro" else "Select a Category") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth(),
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        .fillMaxWidth()
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
@@ -132,7 +131,6 @@ fun CreateWorkspaceScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botón de registro
             Button(
                 onClick = { viewModel.registrarNegocio() },
                 modifier = Modifier
@@ -147,7 +145,7 @@ fun CreateWorkspaceScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Crear Mi Negocio")
+                    Text(if (isSpanish) "Crear Mi Negocio" else "Create My Business")
                 }
             }
         }

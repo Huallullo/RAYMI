@@ -25,6 +25,7 @@ class AlquilerDetailViewModel @Inject constructor(
     private val getPagosUseCase: GetPagosUseCase,
     private val generarPdfAlquilerUseCase: GenerarPdfAlquilerUseCase,
     private val sharePdfUseCase: SharePdfUseCase,
+    private val viewPdfUseCase: com.raymi.app.domain.usecase.pdf.ViewPdfUseCase,
     private val comprobanteRepository: ComprobanteRepository,
     private val workspaceManager: WorkspaceManager,
     savedStateHandle: SavedStateHandle
@@ -74,7 +75,7 @@ class AlquilerDetailViewModel @Inject constructor(
         }
     }
 
-    fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String) {
+    fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String = "") {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
         val pago = Pago(alquilerId = alquilerId, monto = monto, metodoPago = metodo, referencia = referencia)
 
@@ -160,9 +161,10 @@ class AlquilerDetailViewModel @Inject constructor(
     fun generarPdf() {
         val alquiler = _uiState.value.alquiler ?: return
         val workspace = workspaceManager.currentWorkspace.value
+        val pagos = _uiState.value.pagos
         
         viewModelScope.launch {
-            generarPdfAlquilerUseCase.generarPdf(alquiler, workspace).collect { result ->
+            generarPdfAlquilerUseCase.generarPdf(alquiler, workspace, pagos).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
                         _uiState.update { it.copy(isProcessing = true) }
@@ -186,7 +188,17 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun compartirPdf(uri: Uri) {
-        sharePdfUseCase(uri)
+        val result = sharePdfUseCase(uri)
+        if (result is Resource.Error) {
+            _uiState.update { it.copy(error = result.message) }
+        }
+    }
+
+    fun abrirPdf(uri: Uri) {
+        val result = viewPdfUseCase(uri)
+        if (result is Resource.Error) {
+            _uiState.update { it.copy(error = result.message) }
+        }
     }
 
     fun updateAlquiler(alquiler: Alquiler) {

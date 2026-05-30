@@ -25,12 +25,10 @@ import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.data.remote.ReniecData
+import com.raymi.app.presentation.components.RaymiPhoneField
 import androidx.compose.ui.platform.testTag
+import com.raymi.app.core.lang.LocalRaymiStrings
 
-/**
- * Diálogo para agregar un nuevo cliente con Diseño Senior.
- * Optimizado para velocidad: Consulta RENIEC integrada y validaciones proactivas.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddClienteDialog(
@@ -40,6 +38,8 @@ fun AddClienteDialog(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isLoading = uiState.isLoading
+    val strings = LocalRaymiStrings.current
+
     var dni by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var apellidos by remember { mutableStateOf("") }
@@ -72,12 +72,12 @@ fun AddClienteDialog(
                     }
                     is Resource.Error -> {
                         isConsultingReniec = false
-                        dniError = "DNI no encontrado"
+                        dniError = if (strings is com.raymi.app.core.lang.SpanishStrings) "DNI no encontrado" else "ID not found"
                     }
                 }
             }
         } else {
-            dniError = "Ingrese 8 dígitos"
+            dniError = strings.errorDniLength
         }
     }
 
@@ -85,8 +85,8 @@ fun AddClienteDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
         title = {
             Column {
-                Text("Nuevo Registro", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text("Ingresa los datos del cliente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(strings.addClient, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+                Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Ingresa los datos del cliente" else "Enter client data", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         text = {
@@ -94,12 +94,11 @@ fun AddClienteDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. Identificación y Consulta Rápida
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = dni,
                         onValueChange = { if (it.length <= 8) dni = it; dniError = null },
-                        label = { Text("DNI") },
+                        label = { Text(strings.dni) },
                         modifier = Modifier.weight(1f).testTag("cliente_dni_input"),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                         isError = dniError != null,
@@ -119,11 +118,10 @@ fun AddClienteDialog(
                 }
                 if (dniError != null) Text(dniError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
 
-                // 2. Datos Personales
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it; if(it.isNotBlank()) nombreError = false },
-                    label = { Text("Nombres") },
+                    label = { Text(strings.names) },
                     modifier = Modifier.fillMaxWidth().testTag("cliente_nombre_input"),
                     isError = nombreError,
                     shape = MaterialTheme.shapes.large,
@@ -133,28 +131,23 @@ fun AddClienteDialog(
                 OutlinedTextField(
                     value = apellidos,
                     onValueChange = { apellidos = it; if(it.isNotBlank()) apellidosError = false },
-                    label = { Text("Apellidos") },
+                    label = { Text(strings.surnames) },
                     modifier = Modifier.fillMaxWidth().testTag("cliente_apellidos_input"),
                     isError = apellidosError,
                     shape = MaterialTheme.shapes.large
                 )
 
-                // 3. Contacto Directo
-                OutlinedTextField(
-                    value = telefono,
-                    onValueChange = { if (it.length <= 9) { telefono = it; if(it.length >= 9) telefonoError = false } },
-                    label = { Text("WhatsApp / Celular") },
-                    modifier = Modifier.fillMaxWidth().testTag("cliente_telefono_input"),
+                RaymiPhoneField(
+                    phone = telefono,
+                    onPhoneChange = { telefono = it; telefonoError = false },
                     isError = telefonoError,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = MaterialTheme.shapes.large,
-                    leadingIcon = { Icon(Icons.Default.Phone, null) }
+                    label = strings.phone
                 )
 
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email (Opcional)") },
+                    label = { Text("${strings.email} ${strings.optional}") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.MailOutline, null) }
@@ -169,10 +162,9 @@ fun AddClienteDialog(
                     val apellidosLimpio = apellidos.trim()
                     val telefonoLimpio = telefono.trim()
 
-                    // Validaciones Senior (QA: No vacíos)
                     var hasError = false
                     if (dniLimpio.length != 8) {
-                        dniError = "El DNI debe tener 8 dígitos"
+                        dniError = strings.errorDniLength
                         hasError = true
                     }
                     if (nombreLimpio.isBlank()) {
@@ -183,7 +175,7 @@ fun AddClienteDialog(
                         apellidosError = true
                         hasError = true
                     }
-                    if (telefonoLimpio.length < 9) {
+                    if (telefonoLimpio.length != 9) {
                         telefonoError = true
                         hasError = true
                     }
@@ -204,11 +196,11 @@ fun AddClienteDialog(
                 shape = MaterialTheme.shapes.large
             ) {
                 if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                else Text("Guardar Cliente", fontWeight = FontWeight.Bold)
+                else Text(strings.saveClient, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss) { Text(strings.cancel) }
         },
         shape = CustomShapes.DialogShape
     )

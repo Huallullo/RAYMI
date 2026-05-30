@@ -34,6 +34,7 @@ import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.components.*
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
  * Pantalla Principal de Inventario (SaaS) - Versión Pulida.
@@ -50,6 +51,7 @@ fun ItemsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val strings = LocalRaymiStrings.current
     var showCategoryWarning by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -58,21 +60,20 @@ fun ItemsScreen(
             LargeTopAppBar(
                 title = { 
                     Column {
-                        Text("Inventario Global", fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp)
-                        Text("Gestión centralizada de activos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(strings.globalInventory, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp)
+                        Text(strings.centralizedManagement, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.search)
                     }
                 },
                 actions = {
-                    // Botón de Categorías más descriptivo en modo Senior
                     TextButton(onClick = onNavigateToCategorias) {
                         Icon(Icons.Default.FolderSpecial, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(4.dp))
-                        Text("Categorías", fontWeight = FontWeight.Bold)
+                        Text(strings.categories, fontWeight = FontWeight.Bold)
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -88,11 +89,11 @@ fun ItemsScreen(
                     }
                 },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Nuevo Ítem", fontWeight = FontWeight.Bold) },
+                text = { Text(strings.newItem, fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CustomShapes.CardShape,
-                modifier = Modifier.testTag("fab_add_item")   // ✅ AÑADIDO
+                modifier = Modifier.testTag("fab_add_item")
             )
         }
     ) { paddingValues ->
@@ -105,7 +106,7 @@ fun ItemsScreen(
             RaymiSearchBar(
                 query = uiState.queryBusqueda,
                 onQueryChange = { viewModel.buscar(it) },
-                placeholder = "Nombre, código o marca...",
+                placeholder = strings.searchPlaceholder,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
             )
 
@@ -122,7 +123,7 @@ fun ItemsScreen(
                         FilterChip(
                             selected = uiState.categoriaFiltro == null,
                             onClick = { viewModel.filtrarPorCategoria(null) },
-                            label = { Text("Todos") },
+                            label = { Text(strings.all) },
                             shape = CircleShape,
                             leadingIcon = { if (uiState.categoriaFiltro == null) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                         )
@@ -152,9 +153,9 @@ fun ItemsScreen(
                     uiState.itemsFiltrados.isEmpty() -> {
                         RaymiEmptyState(
                             icon = Icons.Default.Inventory,
-                            title = "Inventario Vacío",
-                            description = if (uiState.queryBusqueda.isEmpty()) "Comienza agregando los productos que alquilas." else "No hay resultados para tu búsqueda.",
-                            actionText = if (uiState.queryBusqueda.isEmpty()) "Registrar Ítem" else null,
+                            title = strings.emptyInventory,
+                            description = if (uiState.queryBusqueda.isEmpty()) strings.emptyInventoryDesc else strings.searchNoResults,
+                            actionText = if (uiState.queryBusqueda.isEmpty()) strings.newItem else null,
                             onActionClick = {
                                 if (uiState.categorias.isEmpty()) showCategoryWarning = true else onAddItem()
                             }
@@ -172,6 +173,7 @@ fun ItemsScreen(
                                 AnimatedItemEntry {
                                     ModernItemCard(
                                         item = item,
+                                        labelStock = strings.units,
                                         onClick = { onItemClick(item.id) }
                                     )
                                 }
@@ -181,7 +183,7 @@ fun ItemsScreen(
                                 item(span = { GridItemSpan(2) }) {
                                     Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                         TextButton(onClick = { viewModel.cargarMas() }) {
-                                            Text("Ver más productos", fontWeight = FontWeight.Bold)
+                                            Text(strings.showMoreProducts, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -200,18 +202,18 @@ fun ItemsScreen(
     if (showCategoryWarning) {
         AlertDialog(
             onDismissRequest = { showCategoryWarning = false },
-            title = { Text("Categoría Requerida", fontWeight = FontWeight.Black) },
-            text = { Text("Para registrar un producto, primero debes definir al menos una categoría (Ej: Vestidos, Herramientas, etc.).") },
+            title = { Text(strings.categoryRequiredTitle, fontWeight = FontWeight.Black) },
+            text = { Text(strings.categoryRequiredDesc) },
             confirmButton = {
                 Button(onClick = { 
                     showCategoryWarning = false
                     onNavigateToCategorias() 
                 }) {
-                    Text("Crear Categoría Ahora")
+                    Text(strings.createCategoryNow)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCategoryWarning = false }) { Text("Cancelar") }
+                TextButton(onClick = { showCategoryWarning = false }) { Text(strings.cancel) }
             },
             shape = MaterialTheme.shapes.extraLarge
         )
@@ -239,6 +241,7 @@ fun AnimatedItemEntry(content: @Composable () -> Unit) {
 @Composable
 fun ModernItemCard(
     item: Item,
+    labelStock: String,
     onClick: () -> Unit
 ) {
     Surface(
@@ -327,7 +330,7 @@ fun ModernItemCard(
                     shape = CircleShape
                 ) {
                     Text(
-                        text = "${item.cantidad} und.",
+                        text = "${item.cantidad} $labelStock",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.ExtraBold,

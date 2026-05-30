@@ -23,6 +23,7 @@ import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
  * Pantalla de Gestión de Alquileres (Contratos).
@@ -36,6 +37,7 @@ fun AlquileresScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val strings = LocalRaymiStrings.current
     var showFilters by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -43,20 +45,20 @@ fun AlquileresScreen(
             LargeTopAppBar(
                 title = { 
                     Column {
-                        Text("Alquileres", fontWeight = FontWeight.Black)
-                        Text("Control de préstamos y devoluciones", style = MaterialTheme.typography.bodySmall)
+                        Text(strings.rentalsManagement, fontWeight = FontWeight.Black)
+                        Text(strings.rentalDesc, style = MaterialTheme.typography.bodySmall)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 },
                 actions = {
                     IconButton(onClick = { showFilters = true }) {
                         Icon(
                             imageVector = Icons.Default.FilterList,
-                            contentDescription = "Filtrar",
+                            contentDescription = strings.filter,
                             tint = if (uiState.selectedEstado != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -67,7 +69,7 @@ fun AlquileresScreen(
             ExtendedFloatingActionButton(
                 onClick = onCreateAlquiler,
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Registrar Alquiler") },
+                text = { Text(strings.createRental) },
                 shape = CustomShapes.CardShape,
                 containerColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.testTag("fab_create_alquiler")
@@ -79,20 +81,20 @@ fun AlquileresScreen(
             RaymiSearchBar(
                 query = uiState.searchQuery,
                 onQueryChange = { viewModel.searchAlquileres(it) },
-                placeholder = "Cliente, producto o código...",
+                placeholder = strings.searchPlaceholder,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
 
             Box(modifier = Modifier.weight(1f)) {
                 when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = "Sincronizando contratos...")
+                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
                     uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadAlquileres() })
                     uiState.filteredAlquileres.isEmpty() -> {
                         RaymiEmptyState(
                             icon = Icons.AutoMirrored.Filled.ReceiptLong,
-                            title = "Sin Movimientos",
-                            description = "No hay alquileres que coincidan con la búsqueda.",
-                            actionText = "Nuevo Alquiler",
+                            title = strings.noMovements,
+                            description = strings.noMovementsDesc,
+                            actionText = strings.newRental,
                             onActionClick = onCreateAlquiler
                         )
                     }
@@ -122,10 +124,10 @@ fun AlquileresScreen(
     if (showFilters) {
         AlertDialog(
             onDismissRequest = { showFilters = false },
-            title = { Text("Filtrar por Estado") },
+            title = { Text(strings.filterByStatus) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterOption("Todos", uiState.selectedEstado == null) { viewModel.filterByEstado(null); showFilters = false }
+                    FilterOption(strings.all, uiState.selectedEstado == null) { viewModel.filterByEstado(null); showFilters = false }
                     EstadoAlquiler.entries.forEach { estado ->
                         FilterOption(estado.name, uiState.selectedEstado == estado) {
                             viewModel.filterByEstado(estado)
@@ -134,7 +136,7 @@ fun AlquileresScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showFilters = false }) { Text("Cerrar") } }
+            confirmButton = { TextButton(onClick = { showFilters = false }) { Text(strings.close) } }
         )
     }
 }

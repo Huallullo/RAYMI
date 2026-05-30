@@ -24,11 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.PlanType
 import android.app.Activity
+import com.raymi.app.core.lang.LocalRaymiStrings
 
-/**
- * Pantalla de Selección de Planes SaaS.
- * Diseño Senior: Comparativa clara entre FREE y PRO.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlansScreen(
@@ -38,14 +35,15 @@ fun PlansScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    val strings = LocalRaymiStrings.current
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Planes y Suscripción", fontWeight = FontWeight.Black) },
+                title = { Text(strings.subscription, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -61,7 +59,7 @@ fun PlansScreen(
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             Text(
-                "Potencia tu negocio con herramientas de nivel corporativo",
+                if (strings is com.raymi.app.core.lang.SpanishStrings) "Potencia tu negocio con herramientas de nivel corporativo" else "Power up your business with corporate-level tools",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -69,25 +67,31 @@ fun PlansScreen(
 
             // 1. Tarjeta Plan FREE
             PlanCard(
-                name = "Plan Inicial",
+                name = if (strings is com.raymi.app.core.lang.SpanishStrings) "Plan Inicial" else "Starter Plan",
                 price = "S/. ${uiState.freePrice}",
-                features = listOf(
+                features = if (strings is com.raymi.app.core.lang.SpanishStrings) listOf(
                     "Tickets Ilimitados (Locales)",
                     "Hasta 1 Negocio (Workspace)",
-                    "Hasta 50 Productos",
-                    "Clientes Ilimitados",
+                    "Hasta 30 Productos / Items",
+                    "Hasta 40 Clientes registrados",
                     "Incluye Anuncios"
+                ) else listOf(
+                    "Unlimited Tickets (Local)",
+                    "Up to 1 Business (Workspace)",
+                    "Up to 30 Products / Items",
+                    "Up to 40 Registered Clients",
+                    "Includes Ads"
                 ),
                 isSelected = uiState.currentPlan?.plan == PlanType.FREE,
-                buttonText = "Plan Actual",
+                buttonText = if (uiState.currentPlan?.plan == PlanType.FREE) (if (strings is com.raymi.app.core.lang.SpanishStrings) "Plan Actual" else "Current Plan") else "Select",
                 onAction = {}
             )
 
-            // 2. Tarjeta Plan PRO (La estrella)
+            // 2. Tarjeta Plan PRO
             PlanCard(
                 name = "Raymi Pro Business",
-                price = "S/. ${uiState.proPrice} /mes",
-                features = listOf(
+                price = "S/. ${uiState.proPrice} / $5.40 USD",
+                features = if (strings is com.raymi.app.core.lang.SpanishStrings) listOf(
                     "Boletas y Facturas Ilimitadas",
                     "Validez SUNAT (Nubefact/ApiPeru)",
                     "Negocios Ilimitados",
@@ -95,10 +99,18 @@ fun PlansScreen(
                     "Sin Anuncios",
                     "Reportes Financieros PDF",
                     "Soporte Prioritario WhatsApp"
+                ) else listOf(
+                    "Unlimited Bills & Invoices",
+                    "SUNAT Validity (Nubefact/ApiPeru)",
+                    "Unlimited Businesses",
+                    "Unlimited Products",
+                    "No Advertisements",
+                    "PDF Financial Reports",
+                    "Priority WhatsApp Support"
                 ),
                 isSelected = uiState.currentPlan?.plan == PlanType.PRO,
                 isPremium = true,
-                buttonText = if (uiState.currentPlan?.plan == PlanType.PRO) "Plan Actual" else "Subir a PRO",
+                buttonText = if (uiState.currentPlan?.plan == PlanType.PRO) (if (strings is com.raymi.app.core.lang.SpanishStrings) "Plan Actual" else "Current Plan") else strings.bePro,
                 onAction = { viewModel.startBillingFlow(context as Activity) },
                 isLoading = uiState.isLoading
             )
@@ -106,7 +118,7 @@ fun PlansScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                "Cancela en cualquier momento. Sin contratos forzosos.",
+                if (strings is com.raymi.app.core.lang.SpanishStrings) "Cancela en cualquier momento. Sin contratos forzosos." else "Cancel anytime. No forced contracts.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

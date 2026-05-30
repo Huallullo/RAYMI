@@ -24,6 +24,8 @@ import com.raymi.app.presentation.items.mantenimiento.MantenimientoScreen
 import com.raymi.app.presentation.plans.PlansScreen
 import com.raymi.app.presentation.profile.ProfileScreen
 import com.raymi.app.presentation.profile.edit.EditProfileScreen
+import com.raymi.app.presentation.profile.help.HelpCenterScreen
+import com.raymi.app.presentation.profile.security.SecurityScreen
 import com.raymi.app.presentation.settings.BusinessSettingsScreen
 import com.raymi.app.presentation.workspace.CreateWorkspaceScreen
 import com.raymi.app.presentation.workspace.WorkspaceSelectionScreen
@@ -86,6 +88,11 @@ fun RaymiNavGraph(
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
+                    }
+                },
+                onNavigateBack = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
                     }
                 }
             )
@@ -368,6 +375,13 @@ fun RaymiNavGraph(
                 onNavigateToPlans = { navController.navigate(Screen.Plans.route) },
                 onNavigateToSettings = { navController.navigate(Screen.BusinessSettings.route) },
                 onNavigateToEditProfile = { navController.navigate(Screen.EditProfile.route) },
+                onNavigateToSecurity = { navController.navigate(Screen.Security.route) },
+                onNavigateToHelpCenter = { navController.navigate(Screen.HelpCenter.route) },
+                onNavigateToWorkspaceSelection = {
+                    navController.navigate(Screen.WorkspaceSelection.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                    }
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -381,6 +395,24 @@ fun RaymiNavGraph(
          */
         composable(route = Screen.EditProfile.route) {
             EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        /**
+         * Pantalla de Centro de Ayuda
+         */
+        composable(route = Screen.HelpCenter.route) {
+            HelpCenterScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        /**
+         * Pantalla de Seguridad
+         */
+        composable(route = Screen.Security.route) {
+            SecurityScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

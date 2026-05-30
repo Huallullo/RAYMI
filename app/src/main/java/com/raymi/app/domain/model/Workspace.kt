@@ -11,8 +11,10 @@ data class Workspace(
     val direccion: String = "",
     val telefono: String = "",
     val descripcion: String = "",
+    val slogan: String = "",
     val tipoNegocio: String = "",
     val logoUrl: String? = null,
+    val sloganImageUrl: String? = null,
     val activo: Boolean = true,
     
     // Configuración

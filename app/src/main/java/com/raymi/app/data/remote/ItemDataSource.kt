@@ -50,12 +50,18 @@ class ItemDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
-            // 1. Eliminar el documento del ítem
+            // 1. LEER datos necesarios (Stats)
+            val statsSnap = transaction.get(statsRef)
+            val currentTotal = (statsSnap.get("totalItems") as? Number)?.toInt() ?: 0
+
+            // 2. ESCRIBIR cambios
             transaction.delete(itemRef)
-            // 2. Eliminar la entrada del índice de unicidad
             transaction.delete(codeIndexRef)
-            // 3. Decrementar contador global
-            transaction.update(statsRef, "totalItems", FieldValue.increment(-1))
+            
+            // Solo decrementar si es mayor a 0 para evitar el "-1"
+            if (currentTotal > 0) {
+                transaction.update(statsRef, "totalItems", FieldValue.increment(-1))
+            }
         }.await()
     }
 }

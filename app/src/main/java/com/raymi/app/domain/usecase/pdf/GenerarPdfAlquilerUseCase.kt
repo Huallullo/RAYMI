@@ -20,10 +20,10 @@ class GenerarPdfAlquilerUseCase @Inject constructor(
      * @param alquiler Datos del contrato.
      * @param workspace Información del negocio para el encabezado.
      */
-    fun generarPdf(alquiler: Alquiler, workspace: Workspace?): Flow<Resource<Uri>> = flow {
+    fun generarPdf(alquiler: Alquiler, workspace: Workspace?, pagos: List<com.raymi.app.domain.model.Pago> = emptyList()): Flow<Resource<Uri>> = flow {
         try {
             emit(Resource.Loading())
-            val result = pdfService.generarComprobanteAlquiler(alquiler, workspace)
+            val result = pdfService.generarComprobanteAlquiler(alquiler, workspace, pagos)
             emit(result)
         } catch (e: Exception) {
             emit(Resource.Error("Falla técnica al crear el PDF"))

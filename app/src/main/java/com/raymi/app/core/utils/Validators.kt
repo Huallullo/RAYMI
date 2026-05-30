@@ -61,14 +61,14 @@ object Validators {
     }
 
     /**
-     * Valida el teléfono
+     * Valida el teléfono (Solo 9 dígitos numéricos)
      */
     fun validateTelefono(telefono: String): ValidationResult {
         return when {
             telefono.isBlank() -> ValidationResult(false, "El teléfono es requerido")
-            telefono.length < Constants.MIN_PHONE_LENGTH -> ValidationResult(
+            telefono.length != 9 -> ValidationResult(
                 false,
-                "El teléfono debe tener al menos ${Constants.MIN_PHONE_LENGTH} dígitos"
+                "El teléfono debe tener exactamente 9 dígitos"
             )
             !telefono.all { it.isDigit() } -> ValidationResult(
                 false,

@@ -59,7 +59,7 @@ fun SplashScreen(
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        delay(2500)
+        delay(3000)
         onAnimationFinished()
     }
 
@@ -133,7 +133,7 @@ fun SplashScreen(
                 enter = fadeIn(animationSpec = tween(2000, delayMillis = 500))
             ) {
                 Text(
-                    text = "Gesti\u00f3n SaaS de Alquileres",
+                    text = "Gesti\u00f3n de Alquileres",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     letterSpacing = 2.sp

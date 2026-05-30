@@ -8,13 +8,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,6 +24,7 @@ import com.raymi.app.domain.model.Workspace
 import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
 import androidx.compose.ui.platform.testTag
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,19 +33,35 @@ fun WorkspaceSelectionScreen(
     onWorkspaceSelected: () -> Unit,
     onCreateWorkspace: () -> Unit,
     onNavigateToPlans: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val strings = LocalRaymiStrings.current
 
     LaunchedEffect(Unit) { viewModel.loadWorkspaces() }
     LaunchedEffect(uiState.workspaceSelected) { if (uiState.workspaceSelected) onWorkspaceSelected() }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { },
-                actions = { TextButton(onClick = { viewModel.logout { onLogout() } }) { Text("Cerrar Sesión") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
+                        }
+                    }
+                },
+                actions = { 
+                    TextButton(onClick = { viewModel.logout { onLogout() } }) { 
+                        Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cerrar Sesión" else "Logout") 
+                    } 
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         bottomBar = {
@@ -55,24 +72,24 @@ fun WorkspaceSelectionScreen(
             ) {
                 Icon(Icons.Default.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text("Registrar Nuevo Negocio", fontWeight = FontWeight.Bold)
+                Text(strings.registerNewBusiness, fontWeight = FontWeight.Bold)
             }
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Icon(painter = painterResource(id = R.drawable.ic_raymi_logo), contentDescription = "Logo", modifier = Modifier.size(70.dp), tint = Color.Unspecified)
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = "RAYMI", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary))
             Spacer(modifier = Modifier.height(32.dp))
-            Text(text = "Bienvenido", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp))
-            Text(text = "Selecciona tu negocio", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = strings.welcome, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp))
+            Text(text = strings.selectBusiness, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(24.dp))
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(strokeWidth = 3.dp) }
             } else if (uiState.workspaces.isEmpty()) {
-                EmptyWorkspacesView(onCreateWorkspace)
+                EmptyWorkspacesView(strings)
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 100.dp)) {
                     items(uiState.workspaces) { workspace ->
@@ -86,10 +103,10 @@ fun WorkspaceSelectionScreen(
     if (uiState.showLimitDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissLimitDialog() },
-            title = { Text("Límite Alcanzado") },
-            text = { Text("Tu plan actual solo permite un negocio activo. Actualiza a PLAN PRO para gestionar múltiples centros de alquiler de forma centralizada.") },
-            confirmButton = { Button(onClick = { viewModel.dismissLimitDialog(); onNavigateToPlans() }) { Text("Ver Planes PRO") } },
-            dismissButton = { TextButton(onClick = { viewModel.dismissLimitDialog() }) { Text("Cancelar") } }
+            title = { Text(strings.limitReachedTitle) },
+            text = { Text(strings.limitReachedDesc) },
+            confirmButton = { Button(onClick = { viewModel.dismissLimitDialog(); onNavigateToPlans() }) { Text(strings.viewProPlans) } },
+            dismissButton = { TextButton(onClick = { viewModel.dismissLimitDialog() }) { Text(strings.cancel) } }
         )
     }
 }
@@ -112,11 +129,11 @@ fun PremiumWorkspaceCard(workspace: Workspace, onClick: () -> Unit) {
 }
 
 @Composable
-fun EmptyWorkspacesView(onClick: () -> Unit) {
+fun EmptyWorkspacesView(strings: com.raymi.app.core.lang.RaymiStrings) {
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(Icons.Default.Storefront, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
         Spacer(modifier = Modifier.height(16.dp))
-        Text("No tienes negocios aún", fontWeight = FontWeight.Bold)
-        Text("Empieza a gestionar tus alquileres hoy mismo.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(strings.noBusinessesYet, fontWeight = FontWeight.Bold)
+        Text(strings.startManagingToday, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

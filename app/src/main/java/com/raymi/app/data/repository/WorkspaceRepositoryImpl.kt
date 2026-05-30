@@ -53,7 +53,13 @@ class WorkspaceRepositoryImpl @Inject constructor(
             emit(Resource.Success(id))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error al crear negocio: ${e.message}"))
+            val msg = e.localizedMessage ?: ""
+            val error = when {
+                msg.contains("PERMISSION_DENIED") -> "Error de permisos: No puedes crear más negocios o no tienes acceso. Verifica tu plan."
+                msg.contains("network") -> "Error de red: No se pudo conectar al servidor."
+                else -> "Error al crear negocio: ${e.message}"
+            }
+            emit(Resource.Error(error))
         }
     }
 

@@ -66,9 +66,10 @@ class CreateWorkspaceViewModel @Inject constructor(
                             )
                         }
                         is Resource.Error -> {
+                            val msg = result.message ?: ""
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                error = result.message
+                                error = msg // Ya viene traducido del repositorio
                             )
                         }
                     }

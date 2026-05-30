@@ -114,6 +114,10 @@ class CreateAlquilerViewModel @Inject constructor(
         recalcularFinanzas()
     }
 
+    fun onMetodoPagoChange(metodo: MetodoPago) {
+        _uiState.update { it.copy(metodoPago = metodo) }
+    }
+
     fun setEstadoInicial(estado: EstadoAlquiler) = _uiState.update { it.copy(estadoInicial = estado) }
 
     private fun recalcularFinanzas() {
@@ -178,6 +182,7 @@ class CreateAlquilerViewModel @Inject constructor(
                 precioTotal = state.precioTotal,
                 adelanto = state.adelanto.toDoubleOrNull() ?: 0.0,
                 saldo = state.saldo,
+                metodoPago = state.metodoPago.name,
                 garantia = state.garantia.toDoubleOrNull() ?: 0.0,
                 estado = state.estadoInicial,
                 observaciones = state.observaciones.trim()
@@ -251,6 +256,7 @@ data class CreateAlquilerUiState(
     val adelanto: String = "0.0",
     val garantia: String = "0.0",
     val saldo: Double = 0.0,
+    val metodoPago: MetodoPago = MetodoPago.EFECTIVO,
     val estadoInicial: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
     val showClienteDialog: Boolean = false,

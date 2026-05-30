@@ -22,7 +22,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +35,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
 import androidx.compose.ui.platform.testTag
+import com.raymi.app.core.lang.EnglishStrings
+import com.raymi.app.core.lang.LocalRaymiStrings
+import com.raymi.app.core.lang.SpanishStrings
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
@@ -50,6 +53,9 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
+    
+    val strings = LocalRaymiStrings.current
+    val isEnglish = strings is EnglishStrings
 
     // Gestión de navegación (Senior)
     LaunchedEffect(Unit) {
@@ -74,10 +80,17 @@ fun LoginScreen(
 
     LaunchedEffect(uiState.error, uiState.infoMessage) {
         uiState.error?.let {
+            val msg = when {
+                it.contains("formato válido") || it.contains("invalid email") -> strings.errorInvalidEmail
+                it.contains("incorrecta") || it.contains("wrong password") -> strings.errorWrongPassword
+                it.contains("red") || it.contains("network") -> strings.errorNetwork
+                it.contains("permiso") || it.contains("permission") -> strings.errorUnauthorized
+                else -> it
+            }
             snackbarHostState.showSnackbar(
-                message = it,
+                message = msg,
                 duration = SnackbarDuration.Long,
-                actionLabel = "Entendido"
+                actionLabel = "OK"
             )
             viewModel.clearError()
         }
@@ -88,6 +101,21 @@ fun LoginScreen(
     }
 
     Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {},
+                actions = {
+                    TextButton(onClick = { viewModel.setLanguage(if (isEnglish) "es" else "en") }) {
+                        Text(
+                            text = if (isEnglish) "ESPAÑOL 🇵🇪" else "ENGLISH 🇺🇸",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+            )
+        },
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
                 Snackbar(
@@ -100,56 +128,27 @@ fun LoginScreen(
             }
         }
     ) { paddingValues ->
-        // Diferenciación de fondo por modo (Senior UX)
         val backgroundColor by animateColorAsState(
             if (uiState.isRegisterMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             else MaterialTheme.colorScheme.background,
             label = "BgColorAnimation"
         )
 
-        Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
-            // Fondo Decorativo Premium que cambia según el modo (Senior Differentiation)
-            val gradientColors = if (uiState.isRegisterMode) {
-                listOf(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f), Color.Transparent)
-            } else {
-                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), Color.Transparent)
-            }
-
-            if (uiState.isRegisterMode) {
-                // Decoración única para Registro (Círculos flotantes o formas)
-                Box(
-                    modifier = Modifier
-                        .offset(x = (-50).dp, y = (-20).dp)
-                        .size(200.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (uiState.isRegisterMode) 400.dp else 300.dp)
-                    .background(Brush.verticalGradient(gradientColors))
-            )
-
+        Box(modifier = Modifier.fillMaxSize().background(backgroundColor).padding(paddingValues)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(50.dp))
+                Spacer(modifier = Modifier.height(30.dp))
 
-                // Logo con animación sutil de escala
                 val logoScale by animateFloatAsState(if (uiState.isLoading) 0.9f else 1f, label = "LogoScale")
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.scale(logoScale)
                 ) {
-                    // Cambiamos el icono sutilmente en registro para dar variedad visual
                     Icon(
                         painter = painterResource(id = R.drawable.ic_raymi_logo),
                         contentDescription = "Logo RAYMI",
@@ -158,10 +157,10 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "RAYMI",
+                        text = strings.appName,
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Black,
-                            letterSpacing = if (uiState.isRegisterMode) 6.sp else 4.sp,
+                            letterSpacing = 4.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
                     )
@@ -169,7 +168,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // Encabezado Dinámico
                 AnimatedContent(
                     targetState = uiState.isRegisterMode,
                     transitionSpec = {
@@ -180,7 +178,7 @@ fun LoginScreen(
                 ) { isRegister ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (isRegister) "Crea tu Cuenta" else "Bienvenido de nuevo",
+                            text = if (isRegister) strings.registerTitle else strings.loginTitle,
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = (-0.5).sp
@@ -188,7 +186,7 @@ fun LoginScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = if (isRegister) "Únete a la mejor gestión de alquileres" else "Accede a tu panel de control central",
+                            text = if (isRegister) strings.registerSubtitle else strings.loginSubtitle,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -198,18 +196,69 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(36.dp))
 
-                // Formulario
-                AuthForm(
+                AuthFormStrings(
                     uiState = uiState,
                     viewModel = viewModel,
                     focusManager = focusManager,
                     emailFocusRequester = emailFocusRequester,
-                    passwordFocusRequester = passwordFocusRequester
+                    passwordFocusRequester = passwordFocusRequester,
+                    strings = strings
                 )
+
+                // Bot Protection (Solo en Registro)
+                AnimatedVisibility(visible = uiState.isRegisterMode) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                            .clip(MaterialTheme.shapes.large)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = strings.botChallenge,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            val opLabel = when(uiState.botOp) {
+                                "+" -> strings.botOpPlus
+                                "-" -> strings.botOpMinus
+                                else -> strings.botOpMult
+                            }
+                            val num1Word = strings.numberWords.getOrElse(uiState.botNum1) { uiState.botNum1.toString() }
+                            val num2Word = strings.numberWords.getOrElse(uiState.botNum2) { uiState.botNum2.toString() }
+                            
+                            Text(
+                                text = strings.solveChallenge.format(num1Word, opLabel, num2Word),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            OutlinedTextField(
+                                value = uiState.botAnswer,
+                                onValueChange = viewModel::onBotAnswerChange,
+                                modifier = Modifier.width(85.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.medium,
+                                isError = uiState.botAnswer.isNotEmpty() && !uiState.isBotVerified
+                            )
+                            IconButton(onClick = { viewModel.refreshBotChallenge() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(20.dp))
+                            }
+                            if (uiState.isBotVerified) {
+                                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Botón de Acción Principal (Estilo SaaS Premium)
                 Button(
                     onClick = {
                         focusManager.clearFocus()
@@ -221,10 +270,10 @@ fun LoginScreen(
                         .testTag("login_button"),
                     shape = MaterialTheme.shapes.extraLarge,
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                    enabled = !uiState.isLoading
+                    enabled = !uiState.isLoading && (!uiState.isRegisterMode || uiState.isBotVerified)
                 ) {
                     Text(
-                        if (uiState.isRegisterMode) "COMENZAR AHORA" else "ENTRAR AL SISTEMA",
+                        if (uiState.isRegisterMode) strings.registerButton else strings.loginButton,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.sp
                     )
@@ -232,20 +281,19 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Switch de modo con animación
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        if (uiState.isRegisterMode) "¿Ya tienes cuenta?" else "¿No tienes un negocio?",
+                        if (uiState.isRegisterMode) strings.hasAccount else strings.noAccount,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     TextButton(onClick = viewModel::toggleAuthMode) {
                         Text(
-                            if (uiState.isRegisterMode) "Inicia Sesión" else "Regístrate aquí",
+                            if (uiState.isRegisterMode) strings.goToLogin else strings.goToRegister,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -256,14 +304,13 @@ fun LoginScreen(
                         onClick = viewModel::resetPassword,
                         modifier = Modifier.alpha(0.7f)
                     ) {
-                        Text("Recuperar mi contraseña", style = MaterialTheme.typography.labelMedium)
+                        Text(strings.forgotPassword, style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
-            // Pantalla de Carga (Overlay)
             if (uiState.isLoading) {
                 Box(
                     modifier = Modifier
@@ -276,7 +323,7 @@ fun LoginScreen(
                         CircularProgressIndicator(strokeWidth = 3.dp)
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Sincronizando con la nube...",
+                            strings.syncCloud,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -288,25 +335,23 @@ fun LoginScreen(
 }
 
 @Composable
-fun AuthForm(
+fun AuthFormStrings(
     uiState: LoginUiState,
     viewModel: LoginViewModel,
     focusManager: androidx.compose.ui.focus.FocusManager,
     emailFocusRequester: FocusRequester,
-    passwordFocusRequester: FocusRequester
+    passwordFocusRequester: FocusRequester,
+    strings: com.raymi.app.core.lang.RaymiStrings
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Campo Nombre del Negocio (Solo en Registro)
         AnimatedVisibility(visible = uiState.isRegisterMode) {
             OutlinedTextField(
                 value = uiState.businessName,
                 onValueChange = viewModel::onBusinessNameChange,
-                label = { Text("Nombre de tu Negocio") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("business_name_input"),
+                label = { Text(strings.businessNameLabel) },
+                modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                leadingIcon = { Icon(Icons.Default.Storefront, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Storefront, null) },
                 isError = uiState.businessNameError != null,
                 supportingText = uiState.businessNameError?.let { { Text(it) } },
                 keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words, imeAction = ImeAction.Next),
@@ -317,13 +362,10 @@ fun AuthForm(
         OutlinedTextField(
             value = uiState.email,
             onValueChange = viewModel::onEmailChange,
-            label = { Text("Correo Electrónico") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(emailFocusRequester)
-                .testTag("email_input"),
+            label = { Text(strings.emailLabel) },
+            modifier = Modifier.fillMaxWidth().focusRequester(emailFocusRequester),
             shape = MaterialTheme.shapes.large,
-            leadingIcon = { Icon(Icons.Default.Mail, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Mail, null) },
             isError = uiState.emailError != null,
             supportingText = uiState.emailError?.let { { Text(it) } },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
@@ -334,16 +376,13 @@ fun AuthForm(
         OutlinedTextField(
             value = uiState.password,
             onValueChange = viewModel::onPasswordChange,
-            label = { Text("Contraseña") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(passwordFocusRequester)
-                .testTag("password_input"),
+            label = { Text(strings.passwordLabel) },
+            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester),
             shape = MaterialTheme.shapes.large,
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Lock, null) },
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null)
+                    Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
                 }
             },
             isError = uiState.passwordError != null,

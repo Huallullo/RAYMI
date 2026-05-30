@@ -18,12 +18,20 @@ class RentalDataSource @Inject constructor(
         val monto = (pagoData["monto"] as? Number)?.toDouble() ?: 0.0
 
         firestore.runTransaction { transaction ->
-            val newPagoRef = pagosRef.document()
-            transaction.set(newPagoRef, pagoData + mapOf("id" to newPagoRef.id))
+            // 1. LEER datos necesarios
             val snapshot = transaction.get(alquilerRef)
             val saldoActual = (snapshot.get("saldo") as? Number)?.toDouble() ?: 0.0
             val adelantoActual = (snapshot.get("adelanto") as? Number)?.toDouble() ?: 0.0
-            transaction.update(alquilerRef, mapOf("saldo" to (saldoActual - monto).coerceAtLeast(0.0), "adelanto" to (adelantoActual + monto), "updatedAt" to FieldValue.serverTimestamp()))
+
+            // 2. ESCRIBIR cambios
+            val newPagoRef = pagosRef.document()
+            transaction.set(newPagoRef, pagoData + mapOf("id" to newPagoRef.id))
+            
+            transaction.update(alquilerRef, mapOf(
+                "saldo" to (saldoActual - monto).coerceAtLeast(0.0), 
+                "adelanto" to (adelantoActual + monto), 
+                "updatedAt" to FieldValue.serverTimestamp()
+            ))
             transaction.update(statsRef, "totalIngresos", FieldValue.increment(monto))
         }.await()
     }
@@ -36,14 +44,19 @@ class RentalDataSource @Inject constructor(
         val itemsList = (alquilerData["items"] as? List<Map<String, Any>>) ?: emptyList()
 
         return firestore.runTransaction { transaction ->
-            // 1. Verificar y Descontar Stock de cada ítem
+            // 1. LEER todos los ítems primero (Regla de Firestore)
+            val itemSnapshots = itemsList.mapNotNull { itemData ->
+                val id = itemData["itemId"] as? String ?: return@mapNotNull null
+                id to transaction.get(itemsRef.document(id))
+            }.toMap()
+
+            // 2. Realizar validaciones y ESCRIBIR
             itemsList.forEach { itemData ->
                 val itemId = itemData["itemId"] as? String ?: return@forEach
                 val cantidad = (itemData["cantidad"] as? Number)?.toInt() ?: 1
-                val itemRef = itemsRef.document(itemId)
-                val itemSnap = transaction.get(itemRef)
+                val itemSnap = itemSnapshots[itemId] ?: throw IllegalStateException("Ítem no encontrado: $itemId")
                 
-                if (!itemSnap.exists()) throw IllegalStateException("Ítem no encontrado: $itemId")
+                if (!itemSnap.exists()) throw IllegalStateException("Ítem no existe en DB: $itemId")
                 val stockTotal = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 0
                 val alquiladosActuales = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
                 
@@ -52,19 +65,34 @@ class RentalDataSource @Inject constructor(
                 }
                 
                 val nuevasUnidades = alquiladosActuales + cantidad
-                transaction.update(itemRef, mapOf(
+                transaction.update(itemsRef.document(itemId), mapOf(
                     "unidadesAlquiladas" to nuevasUnidades,
                     "estado" to if (nuevasUnidades >= stockTotal) "ALQUILADO" else "DISPONIBLE"
                 ))
             }
 
-            // 2. Guardar Alquiler
+            // Guardar Alquiler
             val newRef = alquileresRef.document()
             transaction.set(newRef, alquilerData + mapOf(
                 "id" to newRef.id,
                 "createdAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
             ))
+
+            // Registrar Pago Inicial
+            val adelanto = (alquilerData["adelanto"] as? Number)?.toDouble() ?: 0.0
+            if (adelanto > 0) {
+                val initialPagoRef = newRef.collection("pagos").document()
+                transaction.set(initialPagoRef, mapOf(
+                    "id" to initialPagoRef.id,
+                    "alquilerId" to newRef.id,
+                    "monto" to adelanto,
+                    "metodoPago" to (alquilerData["metodoPago"] ?: "EFECTIVO"),
+                    "referencia" to "Pago Inicial",
+                    "fecha" to FieldValue.serverTimestamp()
+                ))
+                transaction.update(statsRef, "totalIngresos", FieldValue.increment(adelanto))
+            }
 
             transaction.update(statsRef, "alquileresActivos", FieldValue.increment(1))
             newRef.id
@@ -89,13 +117,14 @@ class RentalDataSource @Inject constructor(
         val itemRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("items").document(itemId)
         val alquilerRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId)
         firestore.runTransaction { transaction ->
-            if (diff != 0) {
-                val itemSnap = transaction.get(itemRef)
-                if (itemSnap.exists()) {
-                    val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-                    val total = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
-                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current + diff), "estado" to if (current + diff >= total) "ALQUILADO" else "DISPONIBLE"))
-                }
+            // 1. LEER
+            val itemSnap = if (diff != 0) transaction.get(itemRef) else null
+            
+            // 2. ESCRIBIR
+            if (itemSnap != null && itemSnap.exists()) {
+                val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                val total = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
+                transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current + diff), "estado" to if (current + diff >= total) "ALQUILADO" else "DISPONIBLE"))
             }
             transaction.update(alquilerRef, newData)
         }.await()
@@ -107,20 +136,29 @@ class RentalDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
+            // 1. LEER Alquiler
             val snapshot = transaction.get(alqRef)
             if (!snapshot.exists()) return@runTransaction
             val items = (snapshot.get("items") as? List<Map<String, Any>>) ?: emptyList()
             val estado = snapshot.getString("estado") ?: "ACTIVO"
 
+            // 2. LEER todos los ítems asociados
+            val itemSnapshots = if (estado == "ACTIVO" || estado == "VENCIDO" || estado == "RESERVADO") {
+                items.mapNotNull { itemData ->
+                    val id = itemData["itemId"] as? String ?: return@mapNotNull null
+                    id to transaction.get(negocioRef.collection("items").document(id))
+                }.toMap()
+            } else emptyMap()
+
+            // 3. ESCRIBIR cambios
             if (estado == "ACTIVO" || estado == "VENCIDO" || estado == "RESERVADO") {
                 items.forEach { itemData ->
                     val id = itemData["itemId"] as? String ?: return@forEach
                     val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
-                    val itemRef = negocioRef.collection("items").document(id)
-                    val itemSnap = transaction.get(itemRef)
-                    if (itemSnap.exists()) {
+                    val itemSnap = itemSnapshots[id]
+                    if (itemSnap != null && itemSnap.exists()) {
                         val alq = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-                        transaction.update(itemRef, mapOf("unidadesAlquiladas" to (alq - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                        transaction.update(negocioRef.collection("items").document(id), mapOf("unidadesAlquiladas" to (alq - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
                     }
                 }
                 transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
@@ -135,28 +173,51 @@ class RentalDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
+            // 1. LEER Alquiler
             val alqSnap = transaction.get(alqRef)
             if (!alqSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
             val items = (alqSnap.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            
+            // 2. LEER todos los ítems (Indispensable leer ANTES de actualizar nada)
+            val itemSnapshots = items.mapNotNull { itemData ->
+                val id = itemData["itemId"] as? String ?: return@mapNotNull null
+                id to transaction.get(negocioRef.collection("items").document(id))
+            }.toMap()
+
+            // 3. ESCRIBIR cambios en Alquiler
             val gTotal = (alqSnap.get("garantia") as? Number)?.toDouble() ?: 0.0
             val infoG = if (montoGarantiaRetenida > 0) "\n[Garantía]: Retenida S/. $montoGarantiaRetenida de S/. $gTotal" else "\n[Garantía]: Devuelta íntegra"
             val prevObs = alqSnap.getString("observaciones") ?: ""
             val newObs = if (observaciones.isNotBlank()) "$prevObs\n[Devolución]: $observaciones$infoG" else "$prevObs$infoG"
 
-            transaction.update(alqRef, mapOf("estado" to "DEVUELTO", "penalidad" to (penalidad + montoGarantiaRetenida), "observaciones" to newObs, "garantiaDevuelta" to (montoGarantiaRetenida == 0.0), "fechaDevolucion" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
+            transaction.update(alqRef, mapOf(
+                "estado" to "DEVUELTO", 
+                "penalidad" to (penalidad + montoGarantiaRetenida), 
+                "observaciones" to newObs, 
+                "garantiaDevuelta" to (montoGarantiaRetenida == 0.0), 
+                "fechaDevolucion" to FieldValue.serverTimestamp(), 
+                "updatedAt" to FieldValue.serverTimestamp()
+            ))
             
+            // 4. ESCRIBIR cambios en Ítems (Stock)
             items.forEach { itemData ->
                 val id = itemData["itemId"] as? String ?: return@forEach
                 val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
-                val itemRef = negocioRef.collection("items").document(id)
-                val itemSnap = transaction.get(itemRef)
-                if (itemSnap.exists()) {
+                val itemSnap = itemSnapshots[id]
+                if (itemSnap != null && itemSnap.exists()) {
                     val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                    transaction.update(negocioRef.collection("items").document(id), mapOf(
+                        "unidadesAlquiladas" to (current - cant).coerceAtLeast(0), 
+                        "estado" to "DISPONIBLE"
+                    ))
                 }
             }
+
+            // 5. ESCRIBIR estadísticas
             transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
-            if (penalidad + montoGarantiaRetenida > 0) transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad + montoGarantiaRetenida))
+            if (penalidad + montoGarantiaRetenida > 0) {
+                transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad + montoGarantiaRetenida))
+            }
         }.await()
     }
 
@@ -166,9 +227,18 @@ class RentalDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
+            // 1. LEER Alquiler
             val snapshot = transaction.get(alqRef)
             if (!snapshot.exists()) throw IllegalStateException("Alquiler no encontrado")
             val items = (snapshot.get("items") as? List<Map<String, Any>>) ?: emptyList()
+
+            // 2. LEER todos los ítems asociados
+            val itemSnapshots = items.mapNotNull { itemData ->
+                val id = itemData["itemId"] as? String ?: return@mapNotNull null
+                id to transaction.get(negocioRef.collection("items").document(id))
+            }.toMap()
+
+            // 3. ESCRIBIR cambios
             val prevObs = snapshot.getString("observaciones") ?: ""
             val newObs = if (motivo.isNotBlank()) "$prevObs\n[Cancelado]: $motivo" else "$prevObs\n[Cancelado]"
 
@@ -177,11 +247,10 @@ class RentalDataSource @Inject constructor(
             items.forEach { itemData ->
                 val id = itemData["itemId"] as? String ?: return@forEach
                 val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
-                val itemRef = negocioRef.collection("items").document(id)
-                val itemSnap = transaction.get(itemRef)
-                if (itemSnap.exists()) {
+                val itemSnap = itemSnapshots[id]
+                if (itemSnap != null && itemSnap.exists()) {
                     val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-                    transaction.update(itemRef, mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
+                    transaction.update(negocioRef.collection("items").document(id), mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
                 }
             }
             transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))

@@ -35,5 +35,10 @@ interface UserPlanRepository {
      * Verifica si usuario puede agregar más items
      */
     suspend fun canAddMoreItems(userId: String, workspaceId: String): Boolean
+
+    /**
+     * Verifica si usuario puede agregar más clientes
+     */
+    suspend fun canAddMoreClients(userId: String, workspaceId: String): Boolean
 }
 

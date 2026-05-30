@@ -1,12 +1,13 @@
 package com.raymi.app.presentation.alquileres
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +35,7 @@ import com.raymi.app.presentation.clientes.ModernClienteItem
 import com.raymi.app.presentation.components.*
 import java.util.*
 import androidx.compose.ui.platform.testTag
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +46,7 @@ fun CreateAlquilerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
     val context = LocalContext.current
 
     LaunchedEffect(uiState.shouldShowInterstitial) {
@@ -70,10 +73,10 @@ fun CreateAlquilerScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Registrar Alquiler", fontWeight = FontWeight.Black) },
+                title = { Text(strings.createRental, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.search)
                     }
                 }
             )
@@ -84,11 +87,11 @@ fun CreateAlquilerScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             SelectionSection(
-                title = "Cliente",
+                title = strings.clients,
                 content = {
                     SelectionTile(
-                        label = "Cliente",
-                        value = uiState.selectedCliente?.nombreCompleto ?: "Seleccionar Cliente",
+                        label = strings.clients,
+                        value = uiState.selectedCliente?.nombreCompleto ?: strings.selectClient,
                         icon = Icons.Default.Person,
                         isSelected = uiState.selectedCliente != null,
                         onClick = { viewModel.showClienteDialog() },
@@ -98,7 +101,7 @@ fun CreateAlquilerScreen(
             )
 
             SelectionSection(
-                title = "Productos / Items",
+                title = strings.inventory,
                 content = {
                     uiState.selectedItems.forEachIndexed { index, item ->
                         Surface(
@@ -112,7 +115,7 @@ fun CreateAlquilerScreen(
                                     Text("Cant: ${item.cantidad} • Sub: S/. ${item.subtotal}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 IconButton(onClick = { viewModel.removerItem(index) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = strings.delete, tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -120,32 +123,32 @@ fun CreateAlquilerScreen(
                     TextButton(onClick = { viewModel.showItemDialog() }, modifier = Modifier.fillMaxWidth().testTag("alquiler_add_item")) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Agregar Item")
+                        Text(strings.selectItem)
                     }
                 }
             )
 
             SelectionSection(
-                title = "Periodo de Alquiler",
+                title = strings.rentalPeriod,
                 content = {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DatePickerField("Entrega", uiState.fechaInicio, Modifier.weight(1f)) { viewModel.setFechaInicio(it) }
-                        DatePickerField("Devolución", uiState.fechaFin, Modifier.weight(1f).testTag("alquiler_fecha_fin")) { viewModel.setFechaFin(it) }
+                        DatePickerField(strings.startDate, uiState.fechaInicio, Modifier.weight(1f)) { viewModel.setFechaInicio(it) }
+                        DatePickerField(strings.endDate, uiState.fechaFin, Modifier.weight(1f).testTag("alquiler_fecha_fin")) { viewModel.setFechaFin(it) }
                     }
                     if (uiState.diasAlquiler > 0) {
-                        Text("Duración: ${uiState.diasAlquiler} días", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text("${strings.rentals}: ${uiState.diasAlquiler} ${strings.all}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             )
 
             SelectionSection(
-                title = "Liquidación y Pagos",
+                title = strings.subscription, // Using subscription for lack of generic finance label
                 content = {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
                             value = String.format(Locale.getDefault(), "%.2f", uiState.precioTotal),
                             onValueChange = {},
-                            label = { Text("Total Alquiler") },
+                            label = { Text(strings.totalRental) },
                             modifier = Modifier.fillMaxWidth(),
                             readOnly = true,
                             prefix = { Text("S/. ") },
@@ -156,7 +159,7 @@ fun CreateAlquilerScreen(
                             OutlinedTextField(
                                 value = uiState.adelanto,
                                 onValueChange = viewModel::onAdelantoChange,
-                                label = { Text("Adelanto") },
+                                label = { Text(strings.advance) },
                                 modifier = Modifier.weight(1f).testTag("alquiler_adelanto_input"),
                                 prefix = { Text("S/. ") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -165,7 +168,7 @@ fun CreateAlquilerScreen(
                             OutlinedTextField(
                                 value = uiState.garantia,
                                 onValueChange = viewModel::onGarantiaChange,
-                                label = { Text("Garantía") },
+                                label = { Text(strings.guarantee) },
                                 modifier = Modifier.weight(1f),
                                 prefix = { Text("S/. ") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -174,7 +177,21 @@ fun CreateAlquilerScreen(
                         }
                         if (uiState.saldo > 0) {
                             Surface(color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f), shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
-                                Text("Saldo pendiente: S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.saldo)}", modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                                Text("${strings.balance}: S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.saldo)}", modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Text(strings.paymentMethod, style = MaterialTheme.typography.labelSmall)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            com.raymi.app.domain.model.MetodoPago.entries.forEach { metodo ->
+                                FilterChip(
+                                    selected = uiState.metodoPago == metodo,
+                                    onClick = { viewModel.onMetodoPagoChange(metodo) },
+                                    label = { Text(metodo.name) }
+                                )
                             }
                         }
                     }
@@ -182,7 +199,7 @@ fun CreateAlquilerScreen(
             )
 
             SelectionSection(
-                title = "Estado Inicial",
+                title = strings.initialStatus,
                 content = {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
@@ -201,28 +218,28 @@ fun CreateAlquilerScreen(
                 }
             )
 
-            OutlinedTextField(value = uiState.observaciones, onValueChange = viewModel::onObservacionesChange, label = { Text("Notas") }, modifier = Modifier.fillMaxWidth(), minLines = 2, shape = MaterialTheme.shapes.large)
+            OutlinedTextField(value = uiState.observaciones, onValueChange = viewModel::onObservacionesChange, label = { Text(strings.notes) }, modifier = Modifier.fillMaxWidth(), minLines = 2, shape = MaterialTheme.shapes.large)
             Button(onClick = { viewModel.crearAlquiler() }, modifier = Modifier.fillMaxWidth().height(58.dp).testTag("alquiler_confirmar_button"), shape = MaterialTheme.shapes.extraLarge, enabled = !uiState.isLoading) {
                 if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                else { Icon(Icons.Default.TaskAlt, null); Spacer(Modifier.width(12.dp)); Text("Confirmar Alquiler", fontWeight = FontWeight.Bold) }
+                else { Icon(Icons.Default.TaskAlt, null); Spacer(Modifier.width(12.dp)); Text(strings.confirmRental, fontWeight = FontWeight.Bold) }
             }
         }
     }
 
     if (uiState.showClienteDialog) {
-        GenericSelectionDialog("Seleccionar Cliente", uiState.clientes, { viewModel.hideClienteDialog() }) { cliente ->
+        GenericSelectionDialog(strings.selectClient, uiState.clientes, { viewModel.hideClienteDialog() }) { cliente ->
             ModernClienteItem(cliente = cliente, onClick = { viewModel.seleccionarCliente(cliente) })
         }
     }
 
     if (uiState.showItemDialog) {
         GenericSelectionDialog(
-            title = "Seleccionar Producto",
+            title = strings.selectItem,
             items = uiState.itemsDisponibles,
             onDismiss = { viewModel.hideItemDialog() },
             header = {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    item { FilterChip(selected = uiState.categoriaFiltro == null, onClick = { viewModel.filtrarPorCategoria(null) }, label = { Text("Todos") }) }
+                    item { FilterChip(selected = uiState.categoriaFiltro == null, onClick = { viewModel.filtrarPorCategoria(null) }, label = { Text(strings.all) }) }
                     items(uiState.categorias) { categoria -> FilterChip(selected = uiState.categoriaFiltro?.id == categoria.id, onClick = { viewModel.filtrarPorCategoria(categoria) }, label = { Text(categoria.nombre) }) }
                 }
             },
@@ -241,7 +258,7 @@ fun CreateAlquilerScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                             OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text("Cant") }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                             Spacer(Modifier.width(12.dp))
-                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { Text("Agregar") }
+                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { Text(strings.search) }
                         }
                     }
                 }
@@ -284,5 +301,5 @@ fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelect
 
 @Composable
 fun <T> GenericSelectionDialog(title: String, items: List<T>, onDismiss: () -> Unit, header: @Composable (() -> Unit)? = null, itemContent: @Composable (T) -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text("No hay elementos disponibles.", style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } })
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text("No items available.", style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
 }

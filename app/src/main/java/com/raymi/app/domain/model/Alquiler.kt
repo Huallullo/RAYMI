@@ -32,8 +32,9 @@ data class Alquiler(
     val precioTotal: Double = 0.0,
     val adelanto: Double = 0.0,
     val saldo: Double = 0.0,
-    val garantia: Double = 0.0,            // Depósito de seguridad
-    val penalidad: Double = 0.0,           // Por retraso o daño
+    val garantia: Double = 0.0,
+    val metodoPago: String = "EFECTIVO",
+    val penalidad: Double = 0.0,
     val estado: EstadoAlquiler = EstadoAlquiler.ACTIVO,
     val observaciones: String = "",
     val boletaId: String? = null,

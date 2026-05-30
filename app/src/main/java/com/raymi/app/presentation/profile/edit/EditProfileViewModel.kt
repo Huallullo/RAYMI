@@ -37,7 +37,11 @@ class EditProfileViewModel @Inject constructor(
     }
 
     fun onNombreChange(nombre: String) = _uiState.update { it.copy(nombre = nombre) }
-    fun onTelefonoChange(telefono: String) = _uiState.update { it.copy(telefono = telefono) }
+    fun onTelefonoChange(telefono: String) {
+        if (telefono.length <= 9 && telefono.all { it.isDigit() }) {
+            _uiState.update { it.copy(telefono = telefono) }
+        }
+    }
 
     fun saveProfile() {
         val nombre = _uiState.value.nombre.trim()

@@ -80,8 +80,9 @@ class UserPlanRepositoryImpl @Inject constructor(
             PlanType.FREE -> Resource.Success(mapOf(
                 "nombre" to "Plan Gratuito",
                 "precio" to PlanType.PRICE_FREE,
-                "items" to 50,
-                "workspaces" to 1
+                "items" to 30,
+                "workspaces" to 1,
+                "clientes" to 40
             ))
             PlanType.PRO -> Resource.Success(mapOf(
                 "nombre" to "Plan Pro Business",
@@ -117,6 +118,22 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val stats = statsDataSource.getStats(workspaceId)
                 val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
                 currentItems < plan.itemsLimit
+            } else false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override suspend fun canAddMoreClients(userId: String, workspaceId: String): Boolean {
+        return try {
+            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
+            if (planResult is Resource.Success) {
+                val plan = planResult.data ?: return false
+                if (plan.plan == PlanType.PRO) return true
+                
+                val stats = statsDataSource.getStats(workspaceId)
+                val currentClients = (stats?.get("totalClientes") as? Number)?.toInt() ?: 0
+                currentClients < plan.clientsLimit
             } else false
         } catch (_: Exception) {
             false

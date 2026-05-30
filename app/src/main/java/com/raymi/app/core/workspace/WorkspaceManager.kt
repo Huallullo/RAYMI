@@ -30,16 +30,22 @@ class WorkspaceManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val KEY_WORKSPACE_ID = stringPreferencesKey("current_workspace_id")
+    private val KEY_LANGUAGE = stringPreferencesKey("app_language")
 
     private val _currentWorkspace = MutableStateFlow<Workspace?>(null)
     val currentWorkspace: StateFlow<Workspace?> = _currentWorkspace.asStateFlow()
 
+    private val _currentLanguage = MutableStateFlow("es")
+    val currentLanguage: StateFlow<String> = _currentLanguage.asStateFlow()
+
     init {
-        // Restaurar workspaceID desde persistencia al iniciar
+        // Restaurar workspaceID e idioma desde persistencia al iniciar
         scope.launch {
-            val id = context.dataStore.data.map { prefs ->
-                prefs[KEY_WORKSPACE_ID]
-            }.first()
+            val prefs = context.dataStore.data.first()
+            val id = prefs[KEY_WORKSPACE_ID]
+            val lang = prefs[KEY_LANGUAGE] ?: "es"
+
+            _currentLanguage.value = lang
 
             if (id != null && _currentWorkspace.value == null) {
                 // Primero seteamos el ID básico para evitar UI vacía si es posible
@@ -76,6 +82,15 @@ class WorkspaceManager @Inject constructor(
      */
     fun getWorkspaceId(): String? {
         return _currentWorkspace.value?.id
+    }
+
+    fun setLanguage(lang: String) {
+        _currentLanguage.value = lang
+        scope.launch {
+            context.dataStore.edit { prefs ->
+                prefs[KEY_LANGUAGE] = lang
+            }
+        }
     }
 
     /**

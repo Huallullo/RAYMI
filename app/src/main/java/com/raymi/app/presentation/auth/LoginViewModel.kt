@@ -28,15 +28,17 @@ class LoginViewModel @Inject constructor(
 
     // Acciones de UI
     fun onEmailChange(email: String) {
+        val sanitized = email.lowercase().filter { !it.isWhitespace() }
         _uiState.value = _uiState.value.copy(
-            email = email,
+            email = sanitized,
             emailError = null
         )
     }
 
     fun onPasswordChange(password: String) {
+        val sanitized = password.filter { !it.isWhitespace() }
         _uiState.value = _uiState.value.copy(
-            password = password,
+            password = sanitized,
             passwordError = null
         )
     }
@@ -228,6 +230,39 @@ class LoginViewModel @Inject constructor(
     fun clearInfoMessage() {
         _uiState.value = _uiState.value.copy(infoMessage = null)
     }
+
+    fun setLanguage(lang: String) {
+        workspaceManager.setLanguage(lang)
+    }
+
+    fun onBotAnswerChange(answer: String) {
+        val state = _uiState.value
+        val expected = when (state.botOp) {
+            "+" -> state.botNum1 + state.botNum2
+            "-" -> state.botNum1 - state.botNum2
+            "x" -> state.botNum1 * state.botNum2
+            else -> 0
+        }
+        val verified = answer.toIntOrNull() == expected
+        _uiState.value = _uiState.value.copy(
+            botAnswer = answer,
+            isBotVerified = verified
+        )
+    }
+
+    fun refreshBotChallenge() {
+        val op = listOf("+", "-", "x").random()
+        val n1 = if (op == "x") (1..10).random() else (5..20).random()
+        val n2 = if (op == "x") (1..5).random() else (1..n1).random()
+        
+        _uiState.value = _uiState.value.copy(
+            botNum1 = n1,
+            botNum2 = n2,
+            botOp = op,
+            botAnswer = "",
+            isBotVerified = false
+        )
+    }
 }
 
 data class LoginUiState(
@@ -242,7 +277,14 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val infoMessage: String? = null,
-    val isLoginSuccessful: Boolean = false
+    val isLoginSuccessful: Boolean = false,
+    
+    // Bot Protection
+    val botNum1: Int = (1..15).random(),
+    val botNum2: Int = (1..10).random(),
+    val botOp: String = listOf("+", "-", "x").random(),
+    val botAnswer: String = "",
+    val isBotVerified: Boolean = false
 )
 
 sealed class NavigationEvent {

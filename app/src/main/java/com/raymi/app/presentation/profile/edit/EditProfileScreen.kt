@@ -8,8 +8,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.raymi.app.presentation.components.RaymiPhoneField
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,6 +21,7 @@ fun EditProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onNavigateBack()
@@ -35,10 +38,10 @@ fun EditProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Editar Perfil", fontWeight = FontWeight.Bold) },
+                title = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Editar Perfil" else "Edit Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -54,15 +57,14 @@ fun EditProfileScreen(
             OutlinedTextField(
                 value = uiState.nombre,
                 onValueChange = viewModel::onNombreChange,
-                label = { Text("Nombre") },
+                label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Nombre" else "Full Name") },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = uiState.telefono,
-                onValueChange = viewModel::onTelefonoChange,
-                label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth()
+            RaymiPhoneField(
+                phone = uiState.telefono,
+                onPhoneChange = viewModel::onTelefonoChange,
+                label = if (strings is com.raymi.app.core.lang.SpanishStrings) "Teléfono Personal" else "Personal Phone"
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -73,7 +75,7 @@ fun EditProfileScreen(
                 enabled = !uiState.isLoading
             ) {
                 if (uiState.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
-                else Text("Guardar Cambios")
+                else Text(strings.save)
             }
         }
     }

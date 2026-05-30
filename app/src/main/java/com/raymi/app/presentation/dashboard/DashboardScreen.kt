@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.raymi.app.core.ads.AdManager
 import com.raymi.app.presentation.components.*
+import com.raymi.app.core.navigation.*
+import com.raymi.app.core.lang.LocalRaymiStrings
+import androidx.compose.ui.window.Dialog
 import java.util.Locale
 
 /**
@@ -38,6 +41,8 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val strings = LocalRaymiStrings.current
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -58,13 +63,24 @@ fun DashboardScreen(
                             color = MaterialTheme.colorScheme.outline
                         )
                     }
+                },
+                actions = {
+                    IconButton(onClick = { showLanguageDialog = true }) {
+                        val currentLang = uiState.currentWorkspace?.idioma ?: "es"
+                        Text(
+                            text = if (currentLang == "es") "ES" else "EN",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             )
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (uiState.isLoading && uiState.estadisticas.totalClientes == 0) {
-                RaymiLoadingIndicator(message = "Analizando negocio...")
+                RaymiLoadingIndicator(message = strings.loading)
             } else {
                 Column(
                     modifier = Modifier
@@ -77,6 +93,8 @@ fun DashboardScreen(
                         ingresoMes = uiState.estadisticas.ingresosMes,
                         ingresoTotal = uiState.estadisticas.ingresosTotales,
                         variacion = uiState.variacionMensualPct,
+                        labelMes = strings.monthlyEarnings,
+                        labelTotal = strings.totalEarnings,
                         onExport = { viewModel.exportarResumenFinancieroPdf() }
                     )
 
@@ -84,20 +102,26 @@ fun DashboardScreen(
                     TodayOperationsRow(
                         entregas = uiState.estadisticas.entregasHoy,
                         devoluciones = uiState.estadisticas.devolucionesHoy,
-                        pagosPendientes = uiState.estadisticas.pagosPendientesCount
+                        pagosPendientes = uiState.estadisticas.pagosPendientesCount,
+                        labelEntregas = strings.todayDeliveries,
+                        labelRetornos = strings.todayReturns,
+                        labelCobros = strings.pendingPayments
                     )
 
                     if (uiState.actividadSemanal.isNotEmpty()) {
-                        Text("Actividad últimos 7 días", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.weeklyActivity, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         WeeklyActivityChart(uiState.actividadSemanal)
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Estado Operativo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.operationalStatus, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         OperationsGrid(
                             inventario = uiState.estadisticas.totalItems,
                             alquilados = uiState.estadisticas.alquileresActivos,
                             clientes = uiState.estadisticas.totalClientes,
+                            labelInventario = strings.inventory,
+                            labelAlquilados = strings.rented,
+                            labelClientes = strings.activeClients,
                             onInventoryClick = onNavigateToItems,
                             onRentalsClick = onNavigateToAlquileres,
                             onClientsClick = onNavigateToClientes
@@ -106,7 +130,9 @@ fun DashboardScreen(
 
                     QuickManagementRow(
                         onNewRental = onNavigateToAlquileres,
-                        onNewClient = onNavigateToClientes
+                        onNewClient = onNavigateToClientes,
+                        labelNewRental = strings.newRental,
+                        labelNewClient = strings.newClient
                     )
 
                     if (AdManager.debeMostrarAnuncios(uiState.currentPlan)) {
@@ -119,7 +145,7 @@ fun DashboardScreen(
                                 modifier = Modifier.padding(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Publicidad", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                                Text(strings.adTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                                 Spacer(Modifier.height(4.dp))
                                 AdBanner()
                             }
@@ -131,27 +157,45 @@ fun DashboardScreen(
             }
         }
     }
+
+    if (showLanguageDialog) {
+        LanguageSelectorDialog(
+            currentLang = uiState.currentWorkspace?.idioma ?: "es",
+            onDismiss = { showLanguageDialog = false },
+            onSelect = { lang ->
+                viewModel.cambiarIdioma(lang)
+                showLanguageDialog = false
+            }
+        )
+    }
 }
 
 @Composable
-fun TodayOperationsRow(entregas: Int, devoluciones: Int, pagosPendientes: Int) {
+fun TodayOperationsRow(
+    entregas: Int, 
+    devoluciones: Int, 
+    pagosPendientes: Int,
+    labelEntregas: String,
+    labelRetornos: String,
+    labelCobros: String
+) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TodayMetricChip(
-            label = "Entregas",
+            label = labelEntregas,
             count = entregas,
-            color = Color(0xFF3B82F6), // Blue
+            color = Color(0xFF3B82F6),
             modifier = Modifier.weight(1f)
         )
         TodayMetricChip(
-            label = "Retornos",
+            label = labelRetornos,
             count = devoluciones,
-            color = Color(0xFF10B981), // Emerald
+            color = Color(0xFF10B981),
             modifier = Modifier.weight(1f)
         )
         TodayMetricChip(
-            label = "Cobros",
+            label = labelCobros,
             count = pagosPendientes,
-            color = Color(0xFFEF4444), // Red
+            color = Color(0xFFEF4444),
             modifier = Modifier.weight(1f)
         )
     }
@@ -179,7 +223,8 @@ fun TodayMetricChip(label: String, count: Int, color: Color, modifier: Modifier)
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = color.copy(alpha = 0.8f)
+                color = color.copy(alpha = 0.8f),
+                maxLines = 1
             )
         }
     }
@@ -219,7 +264,14 @@ fun WeeklyActivityChart(actividad: Map<String, Int>) {
 }
 
 @Composable
-fun ExecutiveSummaryCard(ingresoMes: Double, ingresoTotal: Double, variacion: Double, onExport: () -> Unit) {
+fun ExecutiveSummaryCard(
+    ingresoMes: Double, 
+    ingresoTotal: Double, 
+    variacion: Double, 
+    labelMes: String,
+    labelTotal: String,
+    onExport: () -> Unit
+) {
     val isPositive = variacion >= 0
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -233,7 +285,7 @@ fun ExecutiveSummaryCard(ingresoMes: Double, ingresoTotal: Double, variacion: Do
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
-                    Text("Ingresos del Mes", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelLarge)
+                    Text(labelMes, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelLarge)
                     Text(
                         "S/. ${String.format(Locale.getDefault(), "%,.2f", ingresoMes)}",
                         style = MaterialTheme.typography.headlineLarge,
@@ -274,7 +326,7 @@ fun ExecutiveSummaryCard(ingresoMes: Double, ingresoTotal: Double, variacion: Do
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "Total histórico: S/. ${String.format(Locale.getDefault(), "%,.1f", ingresoTotal)}",
+                    "$labelTotal: S/. ${String.format(Locale.getDefault(), "%,.1f", ingresoTotal)}",
                     color = Color.White.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -288,6 +340,9 @@ fun OperationsGrid(
     inventario: Int, 
     alquilados: Int, 
     clientes: Int,
+    labelInventario: String,
+    labelAlquilados: String,
+    labelClientes: String,
     onInventoryClick: () -> Unit,
     onRentalsClick: () -> Unit,
     onClientsClick: () -> Unit
@@ -295,7 +350,7 @@ fun OperationsGrid(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             ModernKpiCard(
-                title = "Inventario",
+                title = labelInventario,
                 value = inventario.toString(),
                 icon = Icons.Default.Inventory2,
                 color = MaterialTheme.colorScheme.primary,
@@ -303,7 +358,7 @@ fun OperationsGrid(
                 onClick = onInventoryClick
             )
             ModernKpiCard(
-                title = "Alquilados",
+                title = labelAlquilados,
                 value = alquilados.toString(),
                 icon = Icons.Default.Key,
                 color = Color(0xFFF59E0B),
@@ -312,7 +367,7 @@ fun OperationsGrid(
             )
         }
         ModernKpiCard(
-            title = "Clientes Activos",
+            title = labelClientes,
             value = clientes.toString(),
             icon = Icons.Default.People,
             color = Color(0xFF8B5CF6),
@@ -351,10 +406,15 @@ fun ModernKpiCard(title: String, value: String, icon: ImageVector, color: Color,
 }
 
 @Composable
-fun QuickManagementRow(onNewRental: () -> Unit, onNewClient: () -> Unit) {
+fun QuickManagementRow(
+    onNewRental: () -> Unit, 
+    onNewClient: () -> Unit,
+    labelNewRental: String,
+    labelNewClient: String
+) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         QuickActionBtn(
-            text = "Nuevo Alquiler",
+            text = labelNewRental,
             icon = Icons.Default.Add,
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -362,7 +422,7 @@ fun QuickManagementRow(onNewRental: () -> Unit, onNewClient: () -> Unit) {
             onClick = onNewRental
         )
         QuickActionBtn(
-            text = "Nuevo Cliente",
+            text = labelNewClient,
             icon = Icons.Default.PersonAdd,
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -384,5 +444,69 @@ fun QuickActionBtn(text: String, icon: ImageVector, containerColor: Color, conte
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun LanguageSelectorDialog(
+    currentLang: String,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Seleccionar Idioma", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                Text("Select Language", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LanguageOption(
+                        label = "Español",
+                        flag = "🇵🇪",
+                        selected = currentLang == "es",
+                        onClick = { onSelect("es") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    LanguageOption(
+                        label = "English",
+                        flag = "🇺🇸",
+                        selected = currentLang == "en",
+                        onClick = { onSelect("en") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cerrar / Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LanguageOption(label: String, flag: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(flag, fontSize = 32.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }

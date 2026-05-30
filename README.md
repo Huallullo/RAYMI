@@ -1,247 +1,112 @@
-# RAYMI - Sistema de Gestión de Alquiler de Vestuarios
+# RAYMI - Sistema SaaS de Gestión de Alquileres (v2.0)
 
-## 📱 Descripción
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple.svg)
+![Hilt](https://img.shields.io/badge/Hilt-2.52-blue.svg)
+![Compose](https://img.shields.io/badge/Compose-2024.11.00-green.svg)
+![Firebase](https://img.shields.io/badge/Firebase-33.7.0-orange.svg)
 
-RAYMI es una aplicación móvil Android para la gestión de alquiler de vestuarios folklóricos peruanos. Desarrollada con Jetpack Compose y siguiendo los principios de Clean Architecture.
+## 📱 Descripción General
 
-## 🎯 Características
+**RAYMI** es una plataforma SaaS (Software as a Service) de alto rendimiento diseñada para la gestión centralizada de negocios de alquiler (vestuarios, equipos, vehículos, herramientas). Desarrollada bajo los estándares más modernos de Android, ofrece una arquitectura **Multi-tenancy** (múltiples negocios por usuario) y un sistema bilingüe dinámico.
 
-- ✅ Gestión de Clientes (Agregar, editar, buscar)
-- ✅ Gestión de Vestuarios (Catálogo, disponibilidad, estados)
-- ✅ Gestión de Alquileres (Crear, seguimiento, devolución)
-- ✅ Dashboard con estadísticas en tiempo real
-- ✅ Historial de operaciones
-- ✅ Autenticación con Firebase
-- ✅ Sincronización en la nube con Firestore
+## 🎯 Características Principales
 
-## 🏗️ Arquitectura
+### 🏗️ Arquitectura SaaS (Multi-Workspace)
+- **Gestión Multi-Negocio**: Los usuarios PRO pueden administrar infinitas sucursales o locales desde una sola cuenta.
+- **Aislamiento de Datos**: Cada negocio (Workspace) posee su propio inventario, clientes, finanzas y configuración de marca.
+- **Sincronización en la Nube**: Basado en Firebase Firestore con reglas de seguridad granulares.
 
-El proyecto sigue **Clean Architecture** con las siguientes capas:
+### 🌎 Internacionalización (i18n)
+- **Bilingüe Nativo**: Soporte completo para **Español (PE)** e **Inglés (US)**.
+- **Cambio en Tiempo Real**: Selector de idioma en Login y persistencia de preferencias por negocio.
+- **Validaciones Localizadas**: Errores técnicos y mensajes de éxito traducidos automáticamente.
+
+### 📦 Inventario Inteligente y Flexible
+- **Campos Dinámicos**: Define atributos personalizados según el rubro (Talla, Color, Marca, Serial).
+- **Control de Stock Atómico**: Gestión de disponibilidad mediante transacciones de Firestore para evitar sobre-alquileres.
+- **SKU & QR**: Generación automática de códigos y escáner integrado para búsqueda rápida.
+
+### 👥 Clientes y Validación
+- **Consulta RENIEC**: Integración con API de identidad para auto-completado de nombres mediante DNI.
+- **Ficha Maestra**: Historial de operaciones, saldos pendientes y contacto directo vía WhatsApp.
+
+### 💰 Finanzas y Facturación
+- **Ciclo de Pagos**: Soporte para adelantos, garantías reembolsables y saldos pendientes.
+- **PDF Profesional**: Generación de Tickets y Facturas con iText7, incluyendo códigos QR de validación y logotipos personalizados.
+- **Reportes Contables**: Exportación de movimientos a formato CSV.
+
+## 🛠️ Stack Tecnológico
+
+| Componente | Tecnología |
+|------------|------------|
+| **Lenguaje** | Kotlin 2.0.21 (Strongly Typed) |
+| **UI Framework** | Jetpack Compose (Material 3) |
+| **Inyección de Dependencias** | Dagger Hilt 2.52 |
+| **Base de Datos** | Firebase Firestore (Real-time) |
+| **Autenticación** | Firebase Auth |
+| **Almacenamiento** | Firebase Storage (Logos e Imágenes) |
+| **Programación Asíncrona** | Coroutines & Flow |
+| **Localización** | Custom `RaymiStrings` Interface |
+| **Generación de PDF** | iText7 for Android |
+
+## 🏗️ Estructura del Proyecto
 
 ```
 com.raymi.app/
-├── core/               # Configuración global
-│   ├── di/            # Inyección de dependencias (Hilt)
-│   ├── navigation/    # Navegación (Compose Navigation)
-│   ├── theme/         # Tema Material 3
-│   └── utils/         # Utilidades y extensiones
-│
-├── data/              # Capa de datos
-│   ├── model/dto/     # Data Transfer Objects
-│   ├── remote/        # Firebase DataSource
-│   └── repository/    # Implementaciones de repositorios
-│
-├── domain/            # Lógica de negocio
-│   ├── model/         # Modelos de dominio
-│   ├── repository/    # Interfaces de repositorios
-│   └── usecase/       # Casos de uso
-│
-└── presentation/      # Capa de presentación
-    ├── auth/          # Autenticación
-    ├── dashboard/     # Panel principal
-    ├── clientes/      # Gestión de clientes
-    ├── vestuarios/    # Gestión de vestuarios
-    ├── alquileres/    # Gestión de alquileres
-    ├── historial/     # Historial
-    └── components/    # Componentes reutilizables
+├── core/                # Configuración transversal
+│   ├── ads/            # Gestión de AdMob (Banners e Interstitials)
+│   ├── di/             # Módulos de Hilt (Singletons)
+│   ├── lang/           # Motor de traducción (Spanish/English)
+│   ├── theme/          # Sistema de diseño Material 3
+│   └── workspace/      # Gestor de sesión y local activo
+├── data/                # Implementación de datos
+│   ├── remote/         # DataSources (Firebase, Reniec API, Nubefact)
+│   ├── repository/     # Implementaciones de repositorios
+│   └── model/dto/      # Objetos de transferencia de datos
+├── domain/              # Lógica de negocio pura
+│   ├── model/          # Modelos de dominio
+│   ├── repository/     # Interfaces de repositorios
+│   └── usecase/        # Casos de uso atómicos
+└── presentation/        # Capa de UI (Compose)
+    ├── auth/           # Login bilingüe y registro SaaS
+    ├── workspace/      # Selector de negocios
+    ├── dashboard/      # Estadísticas y métricas
+    ├── alquileres/     # Ciclo de vida de contratos
+    └── profile/        # Gestión de cuenta y Manual de Usuario
 ```
 
-## 🛠️ Tecnologías
+## 💎 Modelos de Suscripción
 
-- **Kotlin** - Lenguaje principal
-- **Jetpack Compose** - UI declarativa
-- **Material 3** - Diseño moderno
-- **Firebase**
-  - Authentication - Autenticación
-  - Firestore - Base de datos en tiempo real
-- **Hilt** - Inyección de dependencias
-- **Coroutines & Flow** - Programación asíncrona
-- **Navigation Compose** - Navegación entre pantallas
+### Plan FREE
+- ✅ Hasta 1 Negocio (Workspace)
+- ✅ 30 Productos / Ítems
+- ✅ 40 Clientes registrados
+- ✅ Tickets locales ilimitados
+- ⚠️ Incluye Anuncios de Google
 
-## 📦 Dependencias Principales
+### Plan PRO (S/. 20.00 / $5.40 USD)
+- 🔥 **Negocios Ilimitados**
+- 🔥 **Productos y Clientes Ilimitados**
+- 🔥 **Facturación Electrónica** (SUNAT via Nubefact/ApiPeru)
+- 🔥 **Sin Publicidad**
+- 🔥 **Reportes PDF Avanzados**
+- 🔥 **Soporte Prioritario**
 
-```kotlin
-// Compose
-androidx.compose:compose-bom:2024.11.00
-androidx.compose.material3:material3
-androidx.navigation:navigation-compose:2.8.5
+## 🚀 Instalación y Desarrollo
 
-// Firebase
-com.google.firebase:firebase-bom:33.7.0
-com.google.firebase:firebase-auth
-com.google.firebase:firebase-firestore
-com.google.firebase:firebase-analytics
-
-// Hilt
-com.google.dagger:hilt-android:2.51.1
-androidx.hilt:hilt-navigation-compose:1.2.0
-
-// Coroutines
-org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0
-org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0
-```
-
-
-## 🧩 Notas Técnicas
-```md
-- Las operaciones de alquiler/devolución usan transacciones atómicas en Firestore para evitar inconsistencias.
-- Se implementó unicidad transaccional para:
-  - `clientes.dni`
-  - `vestuarios.codigo`
-  usando colecciones índice:
-  - `clientes_dni_index`
-  - `vestuarios_codigo_index`
-    ```
-
-## 🚀 Instalación
-1. **Clonar el repositorio**
-```bash
-git clone https://github.com/tu-usuario/raymi.git
-cd raymi
-```
-
-2. **Configurar Firebase**
-   - Crear un proyecto en [Firebase Console](https://console.firebase.google.com/)
-   - Descargar `google-services.json`
-   - Colocarlo en `app/`
-
-3. **Abrir en Android Studio**
-   - Android Studio Iguana o superior
-   - Gradle 8.13
-   - JDK 17+
-
-4. **Compilar y ejecutar**
-```bash
-./gradlew assembleDebug
-```
-
-## 🔥 Configuración de Firebase
-
-### Firestore - Colecciones
-
-```
-raymi-db/
-├── clientes/
-│   └── {clienteId}
-│       ├── dni: String
-│       ├── nombre: String
-│       ├── apellidos: String
-│       ├── telefono: String
-│       ├── email: String
-│       ├── direccion: String
-│       └── createdAt: Timestamp
-│
-├── vestuarios/
-│   └── {vestuarioId}
-│       ├── codigo: String
-│       ├── danza: String
-│       ├── departamento: String
-│       ├── descripcion: String
-│       ├── talla: String
-│       ├── precio: Double
-│       ├── estado: String (DISPONIBLE, ALQUILADO, MANTENIMIENTO, NO_DISPONIBLE)
-│       ├── imagenUrl: String
-│       └── createdAt: Timestamp
-│
-└── alquileres/
-    └── {alquilerId}
-        ├── clienteId: String
-        ├── clienteNombre: String
-        ├── vestuarioId: String
-        ├── vestuarioNombre: String
-        ├── vestuarioCodigo: String
-        ├── fechaInicio: Timestamp
-        ├── fechaFinPrevista: Timestamp
-        ├── fechaDevolucion: Timestamp?
-        ├── precioTotal: Double
-        ├── adelanto: Double
-        ├── saldo: Double
-        ├── estado: String (ACTIVO, DEVUELTO, VENCIDO, CANCELADO)
-        ├── observaciones: String
-        ├── createdAt: Timestamp
-        └── updatedAt: Timestamp
-```
-
-### Reglas de Seguridad (Firestore)
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Solo usuarios autenticados
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
-
-## 🎨 Diseño y Tema
-
-- **Colores**: Inspirados en la cultura Inca
-  - Primary: Oro Inca (#FFD700)
-  - Secondary: Rojo Inca (#D62828)
-  - Terracota, Azul Andino, Púrpura Real
-- **Tipografía**: Sistema Material 3
-- **Formas**: Bordes redondeados personalizados
-
-## 📱 Pantallas
-
-1. **Login** - Autenticación de usuarios
-2. **Dashboard** - Estadísticas y accesos rápidos
-3. **Clientes** - Lista y gestión de clientes
-4. **Vestuarios** - Catálogo de vestuarios
-5. **Alquileres** - Gestión de alquileres activos
-6. **Historial** - Registro de operaciones
-
-## 🧪 Testing
-
-### Estructura de pruebas
-
-- `app/src/test` → pruebas unitarias (JVM local)
-- `app/src/androidTest` → pruebas instrumentadas (emulador/dispositivo)
-
-### Ejecutar pruebas
-
-```bash
-# Unit tests
-./gradlew testDebugUnitTest
-
-# Instrumented tests (requiere emulador/dispositivo)
-./gradlew connectedAndroidTest
-```
-## ✅ Pre-lanzamiento
-
-Consulta el checklist de producción en `docs/PRODUCTION_CHECKLIST.md`.
-Plan de evolución SaaS escalable: `docs/SAAS_SCALING_PLAN.md`.
-Plantilla de firma release: `keystore.properties.example` (copiar a `keystore.properties` local).
-
-## 📝 Próximas Características
-
-- [x] Reportes PDF
-- [ ] Notificaciones push para alquileres vencidos
-- [ ] Subida de imágenes de vestuarios
-- [ ] Sistema de pagos
-- [ ] Modo offline completo
-
-## 👥 Contribución
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+1. **Requisitos**: Android Studio Ladybug+, JDK 17, Gradle 8.13.
+2. **Configuración**:
+   - Descargar `google-services.json` de Firebase.
+   - Configurar variables de entorno para APIs (Reniec, Nubefact) en `local.properties`.
+3. **Compilación**:
+   ```bash
+   ./gradlew assembleDebug
+   ```
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia Propia.
+Propiedad exclusiva de Abel Huallullo Matos. Prohibida la redistribución sin autorización.
 
-## 📞 Contacto
-
-Proyecto RAYMI - Sistema de Gestión de Alquiler de Vestuarios
-988461129 - Abel huallullo matos
 ---
-
-**Hecho con ❤️ en Perú **
+**Desarrollado con ❤️ para impulsar el emprendimiento peruano.**
+```

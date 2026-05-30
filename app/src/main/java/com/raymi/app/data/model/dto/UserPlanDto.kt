@@ -15,7 +15,8 @@ data class UserPlanDto(
     val idCompra: String? = null,
     val renovacionAutomatica: Boolean = false,
     val workspacesLimit: Int = 1,
-    val itemsLimit: Int = 50,
+    val itemsLimit: Int = 30,
+    val clientsLimit: Int = 50,
     val mostrarAnuncios: Boolean = true,
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
@@ -32,6 +33,7 @@ data class UserPlanDto(
         renovacionAutomatica = renovacionAutomatica,
         workspacesLimit = workspacesLimit,
         itemsLimit = itemsLimit,
+        clientsLimit = clientsLimit,
         mostrarAnuncios = mostrarAnuncios,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -50,6 +52,7 @@ data class UserPlanDto(
             renovacionAutomatica = domain.renovacionAutomatica,
             workspacesLimit = domain.workspacesLimit,
             itemsLimit = domain.itemsLimit,
+            clientsLimit = domain.clientsLimit,
             mostrarAnuncios = domain.mostrarAnuncios,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt
@@ -66,7 +69,8 @@ data class UserPlanDto(
             idCompra = map["idCompra"] as? String,
             renovacionAutomatica = map["renovacionAutomatica"] as? Boolean ?: false,
             workspacesLimit = (map["workspacesLimit"] as? Number)?.toInt() ?: 1,
-            itemsLimit = (map["itemsLimit"] as? Number)?.toInt() ?: 50,
+            itemsLimit = (map["itemsLimit"] as? Number)?.toInt() ?: 30,
+            clientsLimit = (map["clientsLimit"] as? Number)?.toInt() ?: 40,
             mostrarAnuncios = map["mostrarAnuncios"] as? Boolean ?: true,
             createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now(),
             updatedAt = map["updatedAt"] as? Timestamp ?: Timestamp.now()
@@ -84,6 +88,7 @@ data class UserPlanDto(
         "renovacionAutomatica" to renovacionAutomatica,
         "workspacesLimit" to workspacesLimit,
         "itemsLimit" to itemsLimit,
+        "clientsLimit" to clientsLimit,
         "mostrarAnuncios" to mostrarAnuncios,
         "createdAt" to createdAt,
         "updatedAt" to updatedAt

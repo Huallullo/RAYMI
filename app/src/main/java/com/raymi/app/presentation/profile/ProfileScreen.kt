@@ -33,10 +33,14 @@ fun ProfileScreen(
     onNavigateToPlans: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToEditProfile: () -> Unit,
+    onNavigateToSecurity: () -> Unit,
+    onNavigateToHelpCenter: () -> Unit,
+    onNavigateToWorkspaceSelection: () -> Unit,
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
 
     if (uiState.loggedOut) {
         LaunchedEffect(Unit) { onLogout() }
@@ -45,13 +49,13 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Mi Cuenta", fontWeight = FontWeight.Black) }
+                title = { Text(strings.profile, fontWeight = FontWeight.Black) }
             )
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (uiState.isLoading) {
-                RaymiLoadingIndicator(message = "Sincronizando perfil...")
+                RaymiLoadingIndicator(message = strings.loading)
             } else {
                 Column(
                     modifier = Modifier
@@ -63,7 +67,7 @@ fun ProfileScreen(
                 ) {
                     // 1. Identidad del Usuario (Avatar y Nombre)
                     UserIdentitySection(
-                        name = uiState.user?.displayName ?: "Usuario Raymi",
+                        name = uiState.user?.displayName ?: "User",
                         email = uiState.user?.email ?: ""
                     )
 
@@ -75,46 +79,53 @@ fun ProfileScreen(
 
                     // 3. Opciones de Cuenta y Seguridad
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Configuración", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         
                         AccountOptionItem(
-                            title = "Mi Negocio",
-                            subtitle = "Personaliza nombre, moneda y rubro",
+                            title = strings.myBusiness,
+                            subtitle = strings.myBusinessSub,
                             icon = Icons.Default.Store,
                             onClick = onNavigateToSettings
                         )
 
                         AccountOptionItem(
-                            title = "Datos Personales",
-                            subtitle = "Nombre, correo y teléfono",
+                            title = strings.changeBusiness,
+                            subtitle = strings.changeBusinessSub,
+                            icon = Icons.Default.SwitchAccount,
+                            onClick = onNavigateToWorkspaceSelection
+                        )
+
+                        AccountOptionItem(
+                            title = strings.personalData,
+                            subtitle = strings.personalDataSub,
                             icon = Icons.Default.Badge,
                             onClick = onNavigateToEditProfile
                         )
                         
                         AccountOptionItem(
-                            title = "Suscripción y Pagos",
-                            subtitle = "Gestiona tu plan PRO y facturas",
+                            title = strings.subscription,
+                            subtitle = strings.subscriptionSub,
                             icon = Icons.Default.CreditCard,
                             onClick = onNavigateToPlans
                         )
                         
                         AccountOptionItem(
-                            title = "Seguridad",
-                            subtitle = "Contraseña y autenticación",
+                            title = strings.security,
+                            subtitle = strings.securitySub,
                             icon = Icons.Default.Security,
-                            onClick = { /* Implementar cambio de clave */ }
+                            onClick = onNavigateToSecurity
                         )
                     }
 
                     // 4. Soporte y Ayuda
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Soporte", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.helpCenter, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                         AccountOptionItem(
-                            title = "Centro de Ayuda",
-                            subtitle = "Guías y tutoriales de uso",
+                            title = strings.helpCenter,
+                            subtitle = strings.helpCenterSub,
                             icon = Icons.AutoMirrored.Filled.HelpOutline,
-                            onClick = { /* Link a web externa */ }
+                            onClick = onNavigateToHelpCenter
                         )
                     }
 
@@ -128,7 +139,7 @@ fun ProfileScreen(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
-                        Text("Cerrar Sesión Segura", fontWeight = FontWeight.Bold)
+                        Text(strings.logout, fontWeight = FontWeight.Bold)
                     }
                     
                     Text(
@@ -161,6 +172,7 @@ fun UserIdentitySection(name: String, email: String) {
 @Composable
 fun SubscriptionStatusCard(planType: PlanType, onUpgradeClick: () -> Unit) {
     val isPro = planType == PlanType.PRO
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -174,12 +186,12 @@ fun SubscriptionStatusCard(planType: PlanType, onUpgradeClick: () -> Unit) {
         ) {
             Column {
                 Text(
-                    "ESTATUS DE CUENTA", 
+                    strings.statusAccount, 
                     style = MaterialTheme.typography.labelSmall, 
                     color = if (isPro) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    if (isPro) "PRO BUSINESS" else "PLAN BÁSICO", 
+                    if (isPro) strings.proBusiness else strings.basicPlan, 
                     style = MaterialTheme.typography.titleLarge, 
                     fontWeight = FontWeight.Black,
                     color = if (isPro) Color.White else MaterialTheme.colorScheme.primary
@@ -192,7 +204,7 @@ fun SubscriptionStatusCard(planType: PlanType, onUpgradeClick: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = MaterialTheme.shapes.large
                 ) {
-                    Text("Ser PRO", fontWeight = FontWeight.Bold)
+                    Text(strings.bePro, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))

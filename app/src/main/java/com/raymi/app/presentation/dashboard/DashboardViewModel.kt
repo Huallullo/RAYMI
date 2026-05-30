@@ -16,12 +16,15 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
 
+import com.raymi.app.domain.usecase.workspace.UpdateWorkspaceUseCase
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
     private val getWorkspaceStatsUseCase: GetWorkspaceStatsUseCase,
     private val generarPdfResumenFinancieroUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfResumenFinancieroUseCase,
+    private val updateWorkspaceUseCase: UpdateWorkspaceUseCase,
     private val userPlanRepository: UserPlanRepository,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -74,10 +77,10 @@ class DashboardViewModel @Inject constructor(
             val data = statsResult.data ?: emptyMap()
             updateEstadisticas {
                 copy(
-                    totalClientes = (data["totalClientes"] as? Number)?.toInt() ?: 0,
-                    totalItems = (data["totalItems"] as? Number)?.toInt() ?: 0,
-                    alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt() ?: 0,
-                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble() ?: 0.0
+                    totalClientes = (data["totalClientes"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                    totalItems = (data["totalItems"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                    alquileresActivos = (data["alquileresActivos"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
+                    ingresosTotales = (data["totalIngresos"] as? Number)?.toDouble()?.coerceAtLeast(0.0) ?: 0.0
                 )
             }
         }
@@ -202,6 +205,20 @@ class DashboardViewModel @Inject constructor(
                     }
                 } else if (result is Resource.Error) {
                     _uiState.update { it.copy(isExportingPdf = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun cambiarIdioma(lang: String) {
+        val workspace = _uiState.value.currentWorkspace ?: return
+        if (workspace.idioma == lang) return
+
+        val updated = workspace.copy(idioma = lang)
+        viewModelScope.launch {
+            updateWorkspaceUseCase(updated).collect { result ->
+                if (result is Resource.Success) {
+                    workspaceManager.setWorkspace(updated)
                 }
             }
         }

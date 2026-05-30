@@ -22,6 +22,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.testTag
 import com.raymi.app.presentation.components.*
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +34,7 @@ fun AddItemScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
     var showAttrDialog by remember { mutableStateOf(false) }
     var newAttrKey by remember { mutableStateOf("") }
     var isCatDropdownExpanded by remember { mutableStateOf(false) }
@@ -63,10 +65,10 @@ fun AddItemScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Nuevo Producto", fontWeight = FontWeight.ExtraBold) },
+                title = { Text(strings.addItem, fontWeight = FontWeight.ExtraBold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -86,25 +88,25 @@ fun AddItemScreen(
                 if (uiState.selectedImageUri != null) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text("Imagen lista", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
+                        Text(strings.imageReady, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
                     }
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(8.dp))
-                        Text("Añadir Foto del Producto", style = MaterialTheme.typography.labelLarge)
+                        Text(strings.addPhoto, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
 
-            Text("Categoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(strings.category, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             ExposedDropdownMenuBox(expanded = isCatDropdownExpanded, onExpandedChange = { isCatDropdownExpanded = it }) {
                 OutlinedTextField(
-                    value = uiState.categoriaSeleccionada?.nombre ?: "Sin Categoría",
+                    value = uiState.categoriaSeleccionada?.nombre ?: strings.all,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Selecciona una Categoría") },
+                    label = { Text(strings.selectCategory) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCatDropdownExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth().testTag("item_categoria_spinner"),
                     shape = MaterialTheme.shapes.large,
@@ -117,32 +119,55 @@ fun AddItemScreen(
                 }
             }
 
-            Text("Información Básica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = uiState.nombre, onValueChange = viewModel::onNombreChange, label = { Text("Nombre del Ítem") }, modifier = Modifier.fillMaxWidth().testTag("item_nombre_input"), shape = MaterialTheme.shapes.large)
+            Text(strings.basicInfo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            OutlinedTextField(value = uiState.nombre, onValueChange = viewModel::onNombreChange, label = { Text(strings.itemName) }, modifier = Modifier.fillMaxWidth().testTag("item_nombre_input"), shape = MaterialTheme.shapes.large)
 
+            // Campo de Código/SKU en su propia fila para evitar que se apriete
+            OutlinedTextField(
+                value = uiState.codigo,
+                onValueChange = { viewModel.onCodigoChange(it) },
+                label = { Text(strings.skuCode) },
+                trailingIcon = {
+                    Row(modifier = Modifier.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { showBarcodeScanner = true }) { 
+                            Icon(Icons.Default.QrCodeScanner, null, tint = MaterialTheme.colorScheme.primary) 
+                        }
+                        IconButton(onClick = { viewModel.onCodigoChange(com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem()) }) { 
+                            Icon(Icons.Default.Refresh, null, tint = MaterialTheme.colorScheme.primary) 
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().testTag("item_codigo_input"),
+                shape = MaterialTheme.shapes.large
+            )
+
+            // Fila para Precio y Stock
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
-                    value = uiState.codigo,
-                    onValueChange = { viewModel.onCodigoChange(it) },
-                    label = { Text("Código/SKU") },
-                    trailingIcon = {
-                        Row {
-                            IconButton(onClick = { showBarcodeScanner = true }) { Icon(Icons.Default.QrCodeScanner, null, tint = MaterialTheme.colorScheme.primary) }
-                            IconButton(onClick = { viewModel.onCodigoChange(com.raymi.app.core.utils.GeneradorCodigo.generarCodigoItem()) }) { Icon(Icons.Default.Refresh, null, tint = MaterialTheme.colorScheme.primary) }
-                        }
-                    },
-                    modifier = Modifier.weight(1.5f).testTag("item_codigo_input"),
+                    value = uiState.precio, 
+                    onValueChange = viewModel::onPrecioChange, 
+                    label = { Text(strings.price) }, 
+                    prefix = { Text("S/. ") }, 
+                    modifier = Modifier.weight(1f).testTag("item_precio_input"), 
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), 
                     shape = MaterialTheme.shapes.large
                 )
-                OutlinedTextField(value = uiState.precio, onValueChange = viewModel::onPrecioChange, label = { Text("Precio") }, prefix = { Text("S/. ") }, modifier = Modifier.weight(1f).testTag("item_precio_input"), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), shape = MaterialTheme.shapes.large)
+                OutlinedTextField(
+                    value = uiState.cantidad.toString(), 
+                    onValueChange = { if (it.all { c -> c.isDigit() }) viewModel.onCantidadChange(it.toIntOrNull() ?: 0) }, 
+                    label = { Text(strings.stock) }, 
+                    modifier = Modifier.weight(1f).testTag("item_stock_input"), 
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                    shape = MaterialTheme.shapes.large
+                )
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Especificaciones", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(strings.specifications, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 TextButton(onClick = { showAttrDialog = true }) {
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Añadir Campo")
+                    Text(strings.addField)
                 }
             }
 
@@ -152,14 +177,14 @@ fun AddItemScreen(
 
             Button(onClick = { viewModel.guardarItem() }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("item_guardar_button"), shape = MaterialTheme.shapes.extraLarge, enabled = !uiState.isLoading) {
                 if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                else Text("Guardar en Inventario", fontWeight = FontWeight.Bold)
+                else Text(strings.save, fontWeight = FontWeight.Bold)
             }
         }
     }
 
     if (showAttrDialog) {
         var isNumberType by remember { mutableStateOf(false) }
-        AlertDialog(onDismissRequest = { showAttrDialog = false }, title = { Text("Nuevo Campo") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { OutlinedTextField(value = newAttrKey, onValueChange = { newAttrKey = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth()); Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isNumberType, onCheckedChange = { isNumberType = it }); Text("Es numérico") } } }, confirmButton = { Button(onClick = { if (newAttrKey.isNotBlank()) { viewModel.onAtributoChange(if (isNumberType) "$newAttrKey(N)" else newAttrKey, ""); newAttrKey = ""; showAttrDialog = false } }) { Text("Añadir") } }, dismissButton = { TextButton(onClick = { showAttrDialog = false }) { Text("Cancelar") } })
+        AlertDialog(onDismissRequest = { showAttrDialog = false }, title = { Text(strings.newField) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { OutlinedTextField(value = newAttrKey, onValueChange = { newAttrKey = it }, label = { Text(strings.itemName) }, modifier = Modifier.fillMaxWidth()); Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isNumberType, onCheckedChange = { isNumberType = it }); Text(strings.isNumeric) } } }, confirmButton = { Button(onClick = { if (newAttrKey.isNotBlank()) { viewModel.onAtributoChange(if (isNumberType) "$newAttrKey(N)" else newAttrKey, ""); newAttrKey = ""; showAttrDialog = false } }) { Text(strings.add) } }, dismissButton = { TextButton(onClick = { showAttrDialog = false }) { Text(strings.cancel) } })
     }
 
     if (showBarcodeScanner) {

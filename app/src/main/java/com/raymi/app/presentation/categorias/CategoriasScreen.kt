@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.Categoria
 import com.raymi.app.presentation.components.RaymiEmptyState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,6 +27,7 @@ fun CategoriasScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
     
     var showAddDialog by remember { mutableStateOf(false) }
     var categoriaAEditar by remember { mutableStateOf<Categoria?>(null) }
@@ -42,29 +44,29 @@ fun CategoriasScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Categorías de Inventario", fontWeight = FontWeight.Black) },
+                title = { Text(strings.categories, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.cancel)
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Nueva Categoría")
+                Icon(Icons.Default.Add, contentDescription = strings.addItem)
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                uiState.isLoading -> RaymiLoadingIndicator(message = "Sincronizando...")
+                uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
                 uiState.categorias.isEmpty() -> {
                     RaymiEmptyState(
                         icon = Icons.Default.Category,
-                        title = "Sin Categorías",
-                        description = "Organiza tu inventario creando categorías.",
-                        actionText = "Crear Categoría",
+                        title = strings.categories,
+                        description = "No categories found.", // To translate
+                        actionText = "Create Now", // To translate
                         onActionClick = { showAddDialog = true }
                     )
                 }
@@ -81,7 +83,9 @@ fun CategoriasScreen(
                                     categoriaAEditar = categoria
                                     tempNombre = categoria.nombre
                                 },
-                                onDelete = { categoriaAEliminar = categoria }
+                                onDelete = { categoriaAEliminar = categoria },
+                                editLabel = strings.edit,
+                                deleteLabel = strings.delete
                             )
                         }
                     }
@@ -93,7 +97,7 @@ fun CategoriasScreen(
     // Diálogo Añadir
     if (showAddDialog) {
         CategoryDialog(
-            title = "Nueva Categoría",
+            title = strings.newItem,
             nombre = tempNombre,
             onNombreChange = { tempNombre = it },
             onDismiss = { showAddDialog = false; tempNombre = "" },
@@ -101,14 +105,16 @@ fun CategoriasScreen(
                 viewModel.agregarCategoria(tempNombre)
                 showAddDialog = false
                 tempNombre = ""
-            }
+            },
+            saveLabel = strings.save,
+            cancelLabel = strings.cancel
         )
     }
 
     // Diálogo Editar
     if (categoriaAEditar != null) {
         CategoryDialog(
-            title = "Editar Categoría",
+            title = strings.edit,
             nombre = tempNombre,
             onNombreChange = { tempNombre = it },
             onDismiss = { categoriaAEditar = null; tempNombre = "" },
@@ -116,7 +122,9 @@ fun CategoriasScreen(
                 viewModel.editarCategoria(categoriaAEditar!!, tempNombre)
                 categoriaAEditar = null
                 tempNombre = ""
-            }
+            },
+            saveLabel = strings.save,
+            cancelLabel = strings.cancel
         )
     }
 
@@ -124,8 +132,8 @@ fun CategoriasScreen(
     if (categoriaAEliminar != null) {
         AlertDialog(
             onDismissRequest = { categoriaAEliminar = null },
-            title = { Text("¿Eliminar categoría?") },
-            text = { Text("Se eliminará '${categoriaAEliminar?.nombre}'. Los ítems en esta categoría no se borrarán, pero quedarán sin clasificación.") },
+            title = { Text(strings.delete + "?") },
+            text = { Text("Are you sure? Items in this category will become unclassified.") }, // To translate
             confirmButton = {
                 Button(
                     onClick = {
@@ -133,9 +141,9 @@ fun CategoriasScreen(
                         categoriaAEliminar = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Eliminar") }
+                ) { Text(strings.delete) }
             },
-            dismissButton = { TextButton(onClick = { categoriaAEliminar = null }) { Text("Cancelar") } }
+            dismissButton = { TextButton(onClick = { categoriaAEliminar = null }) { Text(strings.cancel) } }
         )
     }
 }
@@ -144,7 +152,9 @@ fun CategoriasScreen(
 fun CategoryCard(
     categoria: Categoria,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    editLabel: String,
+    deleteLabel: String
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -162,10 +172,10 @@ fun CategoryCard(
             Spacer(modifier = Modifier.weight(1f))
             
             IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Edit, contentDescription = editLabel, modifier = Modifier.size(20.dp))
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.DeleteOutline, contentDescription = deleteLabel, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -177,7 +187,9 @@ fun CategoryDialog(
     nombre: String,
     onNombreChange: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    saveLabel: String,
+    cancelLabel: String
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -186,14 +198,14 @@ fun CategoryDialog(
             OutlinedTextField(
                 value = nombre,
                 onValueChange = onNombreChange,
-                label = { Text("Nombre") },
+                label = { Text("Name") }, // To translate
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
         },
         confirmButton = {
-            Button(onClick = onConfirm, enabled = nombre.isNotBlank()) { Text("Guardar") }
+            Button(onClick = onConfirm, enabled = nombre.isNotBlank()) { Text(saveLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(cancelLabel) } }
     )
 }

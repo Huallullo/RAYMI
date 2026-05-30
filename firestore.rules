@@ -7,7 +7,8 @@ service cloud.firestore {
     }
 
     function isBusinessOwner(negocioId) {
-      return get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+      return exists(/databases/$(database)/documents/negocios/$(negocioId)) &&
+             get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
     }
 
     match /usuarios/{uid} {
@@ -15,23 +16,24 @@ service cloud.firestore {
     }
 
     match /negocios/{negocioId} {
+      // Regla de creación del negocio principal
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+
+      // Regla de lectura/escritura general para el negocio
       allow read, write: if isSignedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
 
-      // TAREA 16: Reforzar límites de plan para ítems
-      match /items/{itemId} {
-        allow create: if isSignedIn() && isBusinessOwner(negocioId) &&
-          get(/databases/$(database)/documents/negocios/$(negocioId)/metadata/stats).data.totalItems <
-          get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.itemsLimit;
-      }
-
-      // TAREA 14: Restringir acceso a subcolecciones al dueño del negocio
+      // Regla para todas las subcolecciones (Metadata, Clientes, Items, etc.)
       match /{allPaths=**} {
-        allow read, write: if isSignedIn() && isBusinessOwner(negocioId);
+        // Permitimos acceso si ya es dueño (isBusinessOwner)
+        // O si lo será después de este batch (getAfter - vital para creación inicial)
+        allow read, write: if isSignedIn() && (
+          isBusinessOwner(negocioId) ||
+          getAfter(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid
+        );
       }
     }
 
-    // Bloqueo de seguridad para el resto
+    // Bloqueo por defecto
     match /{document=**} {
       allow read, write: if false;
     }

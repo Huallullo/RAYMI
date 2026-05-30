@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
+import com.raymi.app.core.lang.LocalRaymiStrings
 import java.util.Locale
 
 /**
@@ -35,6 +36,7 @@ fun HistorialScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -46,21 +48,21 @@ fun HistorialScreen(
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Historial Contable", fontWeight = FontWeight.Black) },
+                title = { Text(strings.accountingHistory, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.exportarCSV() }) {
-                        Icon(Icons.Default.Download, contentDescription = "Exportar CSV")
+                        Icon(Icons.Default.Download, contentDescription = strings.exportCsv)
                     }
                     IconButton(onClick = { viewModel.exportarInventario() }) {
-                        Icon(Icons.Default.Inventory, contentDescription = "Exportar Inventario")
+                        Icon(Icons.Default.Inventory, contentDescription = strings.exportInventory)
                     }
                     IconButton(onClick = { viewModel.cargarHistorial() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                        Icon(Icons.Default.Refresh, contentDescription = strings.update)
                     }
                 }
             )
@@ -69,25 +71,30 @@ fun HistorialScreen(
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             
             // 1. Panel de Resumen Histórico (Diseño Senior)
-            SummaryHeader(recaudado = uiState.totalRecaudado, totalTransacciones = uiState.allAlquileres.size)
+            SummaryHeader(
+                recaudado = uiState.totalRecaudado, 
+                totalTransacciones = uiState.allAlquileres.size,
+                labelRevenue = strings.totalRevenue,
+                labelMovements = strings.movements
+            )
 
             // 2. Buscador en tiempo real
             RaymiSearchBar(
                 query = uiState.query,
                 onQueryChange = { viewModel.filtrar(it) },
-                placeholder = "Buscar en el historial...",
+                placeholder = strings.searchHistory,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = "Compilando registros...")
+                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.compilingRecords)
                     uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.cargarHistorial() })
                     uiState.filteredAlquileres.isEmpty() -> {
                         RaymiEmptyState(
                             icon = Icons.Default.HistoryEdu,
-                            title = "Sin Registros",
-                            description = "No se encontraron movimientos cerrados."
+                            title = strings.noRecords,
+                            description = strings.noRecordsDesc
                         )
                     }
                     else -> {
@@ -108,7 +115,7 @@ fun HistorialScreen(
 }
 
 @Composable
-fun SummaryHeader(recaudado: Double, totalTransacciones: Int) {
+fun SummaryHeader(recaudado: Double, totalTransacciones: Int, labelRevenue: String, labelMovements: String) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         shape = MaterialTheme.shapes.extraLarge,
@@ -120,7 +127,7 @@ fun SummaryHeader(recaudado: Double, totalTransacciones: Int) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("RECAUDACIÓN TOTAL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(labelRevenue, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Text(
                     "S/. ${String.format(Locale.getDefault(), "%,.2f", recaudado)}",
                     style = MaterialTheme.typography.headlineSmall,
@@ -128,7 +135,7 @@ fun SummaryHeader(recaudado: Double, totalTransacciones: Int) {
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("MOVIMIENTOS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(labelMovements, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("$totalTransacciones oper.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
