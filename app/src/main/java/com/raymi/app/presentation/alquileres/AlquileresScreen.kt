@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.raymi.app.core.ads.AdManager
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
@@ -26,6 +28,7 @@ import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
  * Pantalla de Gestión de Alquileres (Contratos).
+ * Optimizada para SaaS (Snapshots + Pull-to-refresh) para ahorro de costos.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +57,9 @@ fun AlquileresScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.refreshAlquileres() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = strings.update)
+                    }
                     IconButton(onClick = { showFilters = true }) {
                         Icon(
                             imageVector = Icons.Default.FilterList,
@@ -75,47 +81,53 @@ fun AlquileresScreen(
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            
-            RaymiSearchBar(
-                query = uiState.searchQuery,
-                onQueryChange = { viewModel.searchAlquileres(it) },
-                placeholder = strings.searchPlaceholder,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-            )
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshAlquileres() },
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                
+                RaymiSearchBar(
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.searchAlquileres(it) },
+                    placeholder = strings.searchPlaceholder,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
 
-            Box(modifier = Modifier.weight(1f)) {
-                when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
-                    uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadAlquileres() })
-                    uiState.filteredAlquileres.isEmpty() -> {
-                        RaymiEmptyState(
-                            icon = Icons.AutoMirrored.Filled.ReceiptLong,
-                            title = strings.noMovements,
-                            description = strings.noMovementsDesc,
-                            actionText = strings.newRental,
-                            onActionClick = onCreateAlquiler
-                        )
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 100.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(uiState.filteredAlquileres, key = { it.id }) { alquiler ->
-                                PremiumAlquilerCard(
-                                    alquiler = alquiler,
-                                    onClick = { onAlquilerClick(alquiler.id) }
-                                )
+                Box(modifier = Modifier.weight(1f)) {
+                    when {
+                        uiState.isLoading && uiState.alquileres.isEmpty() -> RaymiLoadingIndicator(message = strings.loading)
+                        uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.refreshAlquileres() })
+                        uiState.filteredAlquileres.isEmpty() -> {
+                            RaymiEmptyState(
+                                icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                                title = strings.noMovements,
+                                description = strings.noMovementsDesc,
+                                actionText = strings.newRental,
+                                onActionClick = onCreateAlquiler
+                            )
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 100.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(uiState.filteredAlquileres, key = { it.id }) { alquiler ->
+                                    PremiumAlquilerCard(
+                                        alquiler = alquiler,
+                                        onClick = { onAlquilerClick(alquiler.id) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (viewModel.debeMostrarAnuncios()) {
-                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                if (viewModel.debeMostrarAnuncios()) {
+                    AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
         }
     }

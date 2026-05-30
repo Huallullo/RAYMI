@@ -36,6 +36,17 @@ class ItemRepositoryImpl @Inject constructor(
             }
     }
 
+    override suspend fun getItemsByWorkspaceOnce(workspaceId: String, limit: Long): Resource<List<Item>> {
+        return try {
+            val docs = dataSource.getAllBusinessDocumentsOrderedLimited("items", "nombre", false, limit)
+            val list = docs.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+            Resource.Success(list)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error("Error al cargar inventario: ${e.message}")
+        }
+    }
+
     override suspend fun getItemById(workspaceId: String, itemId: String): Flow<Resource<Item>> = flow {
         emit(Resource.Loading())
         try {

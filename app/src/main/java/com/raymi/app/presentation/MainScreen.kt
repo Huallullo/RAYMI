@@ -29,6 +29,7 @@ import com.raymi.app.core.lang.EnglishStrings
 import com.raymi.app.core.lang.LocalRaymiStrings
 import com.raymi.app.core.lang.SpanishStrings
 import com.raymi.app.core.navigation.*
+import com.raymi.app.core.ads.AdInterstitialManager
 
 /**
  * Pantalla contenedora principal (Scaffold Maestro).
@@ -37,6 +38,7 @@ import com.raymi.app.core.navigation.*
 @Composable
 fun MainScreen(
     workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
+    adInterstitialManager: AdInterstitialManager, // Pasado desde MainActivity
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -57,8 +59,6 @@ fun MainScreen(
                          route == Screen.WorkspaceSelection.route ||
                          route == Screen.WorkspaceCreate.route
 
-        // En flujo de entrada (Auth), mandamos el selector manual
-        // En Dashboard, mandamos el idioma del negocio cargado
         val finalLang = if (isAuthFlow) currentLanguage else (currentWorkspace?.idioma ?: currentLanguage)
         if (finalLang == "en") EnglishStrings() else SpanishStrings()
     }
@@ -94,7 +94,8 @@ fun MainScreen(
             Box(modifier = Modifier.padding(paddingValues)) {
                 RaymiNavGraph(
                     navController = navController,
-                    startDestination = Screen.Login.route
+                    startDestination = Screen.Login.route,
+                    adInterstitialManager = adInterstitialManager
                 )
             }
         }

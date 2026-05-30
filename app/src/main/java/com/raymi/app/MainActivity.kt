@@ -12,8 +12,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 /**
- * Activity principal de la aplicación
- * Maneja la inicialización y navegación global
+ * Activity principal de la aplicación.
+ * Maneja la inicialización y navegación global con inyección de dependencias optimizada.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Inicialización Maestro de Publicidad
+        // Inicialización de Servicios (Singleton Inyectados)
         adManager.inicializar()
         adInterstitialManager.loadAd()
 
@@ -51,15 +51,11 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     MainScreen(
-                        workspaceManager = workspaceManager
+                        workspaceManager = workspaceManager,
+                        adInterstitialManager = adInterstitialManager
                     )
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        // Eliminado auth.signOut() para permitir persistencia de sesión móvil estándar
     }
 }

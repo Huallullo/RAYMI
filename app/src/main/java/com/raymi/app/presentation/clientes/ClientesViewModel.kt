@@ -6,22 +6,21 @@ import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.usecase.cliente.AddClienteUseCase
 import com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase
-import com.raymi.app.domain.usecase.cliente.GetClientesUseCase
+import com.raymi.app.domain.usecase.cliente.GetClientesOnceUseCase
 import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
 import com.raymi.app.domain.usecase.reniec.ConsultarReniecUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel para la gestión inteligente de clientes.
- * Diseño Senior: Soporta filtrado por deuda, ordenamiento avanzado y búsqueda optimizada.
+ * ViewModel para la gestión inteligente de clientes optimizado para SaaS.
+ * Uso de Snapshots para ahorro de costos y búsqueda local.
  */
 @HiltViewModel
 class ClientesViewModel @Inject constructor(
-    private val getClientesUseCase: GetClientesUseCase,
+    private val getClientesOnceUseCase: GetClientesOnceUseCase,
     private val addClienteUseCase: AddClienteUseCase,
     private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: DeleteClienteUseCase,
@@ -35,12 +34,12 @@ class ClientesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
 
+    private var allClientes = emptyList<Cliente>()
+
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
-    private var observeJob: Job? = null
-
     init {
-        loadClientes()
+        refreshClientes()
         loadUserPlan()
     }
 
@@ -56,34 +55,31 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    fun loadClientes() {
-        observeJob?.cancel()
-        observeJob = viewModelScope.launch {
-            getClientesUseCase().collect { result ->
-                when (result) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
-                    is Resource.Success -> {
-                        val data = result.data ?: emptyList()
-                        _uiState.update { state ->
-                            val filtrados = aplicarLogicaFiltro(data, state.searchQuery, state.orden)
-                            state.copy(
-                                clientes = data,
-                                filteredClientes = filtrados,
-                                visibleClientes = filtrados.take(state.visibleLimit),
-                                hasMoreClientes = filtrados.size > state.visibleLimit,
-                                isLoading = false
-                            )
-                        }
-                    }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+    fun refreshClientes() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = getClientesOnceUseCase()
+            if (result is Resource.Success) {
+                allClientes = result.data ?: emptyList()
+                _uiState.update { state ->
+                    val filtrados = aplicarLogicaFiltro(allClientes, state.searchQuery, state.orden)
+                    state.copy(
+                        clientes = allClientes,
+                        filteredClientes = filtrados,
+                        visibleClientes = filtrados.take(state.visibleLimit),
+                        hasMoreClientes = filtrados.size > state.visibleLimit,
+                        isLoading = false
+                    )
                 }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = result.message) }
             }
         }
     }
 
     fun searchClientes(query: String) {
         _uiState.update { state ->
-            val filtrados = aplicarLogicaFiltro(state.clientes, query, state.orden)
+            val filtrados = aplicarLogicaFiltro(allClientes, query, state.orden)
             state.copy(
                 searchQuery = query,
                 filteredClientes = filtrados,
@@ -95,7 +91,7 @@ class ClientesViewModel @Inject constructor(
 
     fun cambiarOrden(nuevoOrden: OrdenCliente) {
         _uiState.update { state ->
-            val filtrados = aplicarLogicaFiltro(state.clientes, state.searchQuery, nuevoOrden)
+            val filtrados = aplicarLogicaFiltro(allClientes, state.searchQuery, nuevoOrden)
             state.copy(
                 orden = nuevoOrden,
                 filteredClientes = filtrados,
@@ -116,7 +112,6 @@ class ClientesViewModel @Inject constructor(
         }
     }
 
-    // --- Métodos de CRUD y DIÁLOGOS (Manteniendo lógica existente) ---
     fun showAddClienteDialog() = _uiState.update { it.copy(showAddDialog = true) }
     fun hideAddClienteDialog() = _uiState.update { it.copy(showAddDialog = false) }
     fun addCliente(cliente: Cliente) {
@@ -129,13 +124,12 @@ class ClientesViewModel @Inject constructor(
                 return@launch
             }
 
-            // --- REGLA PLAN FREE: Limitar Clientes ---
             val userId = auth.uid ?: return@launch
             val canAdd = userPlanRepository.canAddMoreClients(userId, currentWorkspaceId)
             if (!canAdd) {
                 _uiState.update { it.copy(
                     isLoading = false, 
-                    error = "🔒 Límite de clientes alcanzado en Plan FREE (Máx 50). Pásate a PRO para clientes ilimitados."
+                    error = "Límite de clientes alcanzado en Plan FREE."
                 ) }
                 return@launch
             }
@@ -149,16 +143,13 @@ class ClientesViewModel @Inject constructor(
             addClienteUseCase(clienteConWorkspace).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        _uiState.update { it.copy(
-                            showAddDialog = false, 
-                            isLoading = false,
-                            successMessage = "¡Cliente registrado con éxito!"
-                        ) }
+                        _uiState.update { it.copy(showAddDialog = false, isLoading = false, successMessage = "Cliente registrado") }
+                        refreshClientes()
                     }
                     is Resource.Error -> {
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
-                    is Resource.Loading -> { }
+                    else -> {}
                 }
             }
         }
@@ -167,7 +158,10 @@ class ClientesViewModel @Inject constructor(
     fun updateCliente(cliente: Cliente) {
         viewModelScope.launch {
             updateClienteUseCase(cliente).collect { result ->
-                if (result is Resource.Success) _uiState.update { it.copy(successMessage = "Actualizado") }
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(successMessage = "Actualizado") }
+                    refreshClientes()
+                }
             }
         }
     }
@@ -178,15 +172,13 @@ class ClientesViewModel @Inject constructor(
             deleteClienteUseCase(clienteId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        _uiState.update { it.copy(
-                            isLoading = false,
-                            successMessage = "Cliente eliminado permanentemente"
-                        ) }
+                        _uiState.update { it.copy(isLoading = false, successMessage = "Cliente eliminado") }
+                        refreshClientes()
                     }
                     is Resource.Error -> {
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
-                    is Resource.Loading -> { }
+                    else -> {}
                 }
             }
         }

@@ -41,6 +41,11 @@ interface AlquilerRepository {
     suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>>
 
     /**
+     * Obtiene alquileres filtrados por rango de fecha de creación (Optimizado para Dashboard)
+     */
+    suspend fun getAlquileresByDateRange(workspaceId: String, start: com.google.firebase.Timestamp, end: com.google.firebase.Timestamp): Flow<Resource<List<Alquiler>>>
+
+    /**
      * Crea un nuevo alquiler
      */
     suspend fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>>

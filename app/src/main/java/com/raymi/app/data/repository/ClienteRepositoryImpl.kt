@@ -40,6 +40,17 @@ class ClienteRepositoryImpl @Inject constructor(
             }
     }
 
+    override suspend fun getClientesOnce(): Resource<List<Cliente>> {
+        return try {
+            val docs = dataSource.getAllBusinessDocumentsOrderedLimited("clientes", "createdAt", true, 100)
+            val list = docs.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
+            Resource.Success(list)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Resource.Error("Error al cargar clientes: ${e.message}")
+        }
+    }
+
     override suspend fun getClienteById(id: String): Flow<Resource<Cliente>> = flow {
         emit(Resource.Loading())
         try {

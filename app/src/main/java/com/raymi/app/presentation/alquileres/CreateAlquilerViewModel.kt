@@ -31,9 +31,14 @@ class CreateAlquilerViewModel @Inject constructor(
     savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
+    @Inject
+    lateinit var adManager: com.raymi.app.core.ads.AdManager
+
     private val preselectedItemId: String? = savedStateHandle["itemId"]
     private val _uiState = MutableStateFlow(CreateAlquilerUiState())
     val uiState: StateFlow<CreateAlquilerUiState> = _uiState.asStateFlow()
+
+    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
     init {
         cargarDatosIniciales()
@@ -220,7 +225,7 @@ class CreateAlquilerViewModel @Inject constructor(
                 userPlanRepository.getUserPlan(uid).collect { result ->
                     if (result is Resource.Success) {
                         val plan = result.data
-                        if (AdManager.debeMostrarAnuncios(plan)) {
+                        if (debeMostrarAnuncios(plan)) {
                             _uiState.update { it.copy(shouldShowInterstitial = true) }
                         }
                     }

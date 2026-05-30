@@ -185,6 +185,24 @@ class FirebaseDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
+    suspend fun queryBusinessDocumentsRange(
+        collection: String,
+        field: String,
+        start: Any,
+        end: Any,
+        limit: Long = DEFAULT_QUERY_LIMIT,
+        negocioId: String? = null
+    ): List<Pair<String, Map<String, Any>>> {
+        val targetNegocioId = negocioId ?: getCurrentBusinessId()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(targetNegocioId).collection(collection)
+            .whereGreaterThanOrEqualTo(field, start)
+            .whereLessThanOrEqualTo(field, end)
+            .limit(limit)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
+    }
+
     suspend fun queryBusinessArrayContainsLimited(
         collection: String,
         field: String,

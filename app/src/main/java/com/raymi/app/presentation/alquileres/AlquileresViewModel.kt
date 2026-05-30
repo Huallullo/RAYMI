@@ -20,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AlquileresViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
+    private val getAlquileresOnceUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresOnceUseCase,
     private val alquilerRepository: com.raymi.app.domain.repository.AlquilerRepository,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
@@ -35,52 +36,54 @@ class AlquileresViewModel @Inject constructor(
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     init {
-        loadAlquileres()
+        refreshAlquileres()
+        loadUserPlan()
+    }
+
+    private fun loadUserPlan() {
+        viewModelScope.launch {
+            auth.uid?.let { uid ->
+                userPlanRepository.getUserPlan(uid).collect { result ->
+                    if (result is Resource.Success) {
+                        _uiState.update { it.copy(userPlan = result.data) }
+                    }
+                }
+            }
+        }
     }
 
     /**
-     * Carga los alquileres del negocio actual.
+     * Carga los alquileres del negocio actual (Snapshot para ahorro de costos).
      */
-    fun loadAlquileres() {
-        observeJob?.cancel()
-        observeJob = viewModelScope.launch {
+    fun refreshAlquileres() {
+        viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId()
                 if (workspaceId == null) {
-                    _uiState.update { it.copy(isLoading = false, alquileres = emptyList(), filteredAlquileres = emptyList()) }
+                    _uiState.update { it.copy(isLoading = false, error = "Negocio no seleccionado") }
                     return@launch
                 }
                 
-                launch {
-                    auth.uid?.let { uid ->
-                        userPlanRepository.getUserPlan(uid).collect { result ->
-                            if (result is Resource.Success) {
-                                _uiState.update { it.copy(userPlan = result.data) }
-                            }
+                _uiState.update { it.copy(isLoading = true) }
+                
+                val result = getAlquileresOnceUseCase(workspaceId)
+                when (result) {
+                    is Resource.Success -> {
+                        val data = result.data ?: emptyList()
+                        _uiState.update { 
+                            it.copy(
+                                alquileres = data,
+                                filteredAlquileres = filterAlquileres(data, it.searchQuery, it.selectedEstado),
+                                isLoading = false 
+                            )
                         }
+                        verificarVencidos(data)
                     }
-                }
-
-                getAlquileresUseCase(workspaceId).collect { result ->
-                    when (result) {
-                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
-                        is Resource.Success -> {
-                            val data = result.data ?: emptyList()
-                            _uiState.update { 
-                                it.copy(
-                                    alquileres = data,
-                                    filteredAlquileres = filterAlquileres(data, it.searchQuery, it.selectedEstado),
-                                    isLoading = false 
-                                )
-                            }
-                            // Re-chequeo de vencidos asíncrono
-                            verificarVencidos(data)
-                        }
-                        is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    else -> {}
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "No se pudo identificar el negocio activo") }
+                _uiState.update { it.copy(isLoading = false, error = "Fallo de conexión") }
             }
         }
     }

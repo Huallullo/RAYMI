@@ -36,10 +36,12 @@ import com.raymi.app.presentation.components.*
 import java.util.*
 import androidx.compose.ui.platform.testTag
 import com.raymi.app.core.lang.LocalRaymiStrings
+import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAlquilerScreen(
+    adInterstitialManager: com.raymi.app.core.ads.AdInterstitialManager,
     viewModel: CreateAlquilerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
@@ -53,7 +55,7 @@ fun CreateAlquilerScreen(
         if (uiState.shouldShowInterstitial) {
             val activity = context as? android.app.Activity
             activity?.let {
-                AdInterstitialManager.showAd(it) {
+                adInterstitialManager.showAd(it) {
                     viewModel.onInterstitialShown()
                 }
             }

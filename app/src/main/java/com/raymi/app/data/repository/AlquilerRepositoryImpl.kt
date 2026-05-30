@@ -124,6 +124,28 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getAlquileresByDateRange(
+        workspaceId: String,
+        start: Timestamp,
+        end: Timestamp
+    ): Flow<Resource<List<Alquiler>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val docs = dataSource.queryBusinessDocumentsRange(
+                collection = "alquileres",
+                field = "createdAt",
+                start = start,
+                end = end,
+                negocioId = workspaceId
+            )
+            val list = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            emit(Resource.Success(list))
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Error en rango: ${e.message}"))
+        }
+    }
+
     override suspend fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {

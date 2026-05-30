@@ -22,6 +22,7 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val getAlquileresOnceUseCase: GetAlquileresOnceUseCase,
     private val getWorkspaceStatsUseCase: GetWorkspaceStatsUseCase,
+    private val alquilerRepository: com.raymi.app.domain.repository.AlquilerRepository,
     private val generarPdfResumenFinancieroUseCase: com.raymi.app.domain.usecase.pdf.GenerarPdfResumenFinancieroUseCase,
     private val updateWorkspaceUseCase: UpdateWorkspaceUseCase,
     private val userPlanRepository: UserPlanRepository,
@@ -64,7 +65,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             
-            // 1. Cargar Estadísticas base
+            // 1. Cargar Estadísticas base (lectura de 1 documento)
             launch {
                 getWorkspaceStatsUseCase(workspaceId).collect { result ->
                     if (result is Resource.Success) {
@@ -73,11 +74,20 @@ class DashboardViewModel @Inject constructor(
                 }
             }
 
-            // 2. Cargar Alquileres para métricas (Una sola lectura)
-            val alquileresResult = getAlquileresOnceUseCase(workspaceId)
-            handleAlquileresResult(alquileresResult)
-            
-            _uiState.update { it.copy(isLoading = false) }
+            // 2. Cargar solo Alquileres de los últimos 60 días para métricas (Ahorro masivo de lecturas)
+            val cal = java.util.Calendar.getInstance()
+            val end = com.google.firebase.Timestamp(cal.time)
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -60)
+            val start = com.google.firebase.Timestamp(cal.time)
+
+            alquilerRepository.getAlquileresByDateRange(workspaceId, start, end).collect { result ->
+                if (result is Resource.Success) {
+                    handleAlquileresResult(result)
+                    _uiState.update { it.copy(isLoading = false) }
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
+            }
         }
     }
 

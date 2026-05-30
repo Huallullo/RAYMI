@@ -34,6 +34,14 @@ interface ItemRepository {
     suspend fun updateItem(item: Item): Flow<Resource<Unit>>
     
     /**
+     * Obtiene los ítems de un negocio (Snapshot - Ahorro de costos)
+     */
+    suspend fun getItemsByWorkspaceOnce(
+        workspaceId: String,
+        limit: Long = 100
+    ): Resource<List<Item>>
+    
+    /**
      * Elimina un ítem del workspace limpiando sus índices
      */
     suspend fun deleteItem(workspaceId: String, itemId: String, codigo: String): Flow<Resource<Unit>>

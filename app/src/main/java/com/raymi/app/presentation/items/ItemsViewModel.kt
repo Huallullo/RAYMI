@@ -8,66 +8,92 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.UserPlan
 import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
-import com.raymi.app.domain.usecase.item.GetItemsUseCase
+import com.raymi.app.domain.usecase.item.GetItemsByWorkspaceOnceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel para la gestión de ítems con flujo reactivo optimizado.
+ * ViewModel para la gestión de ítems optimizado para SaaS.
+ * Usa Snapshots para reducir lecturas de Firestore y filtrado local para fluidez.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ItemsViewModel @Inject constructor(
-    private val getItemsUseCase: GetItemsUseCase,
+    private val getItemsByWorkspaceOnceUseCase: GetItemsByWorkspaceOnceUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
     private val adManager: com.raymi.app.core.ads.AdManager,
-    workspaceManager: WorkspaceManager
+    private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ItemsUiState(isLoading = true))
+    val uiState: StateFlow<ItemsUiState> = _uiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     private val _selectedCategoria = MutableStateFlow<Categoria?>(null)
     private val _limit = MutableStateFlow(100L)
 
-    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
+    private var allItems = emptyList<Item>()
 
-    val uiState: StateFlow<ItemsUiState> = workspaceManager.currentWorkspace
-        .filterNotNull()
-        .flatMapLatest { workspace ->
-            val userPlanFlow = auth.uid?.let { userPlanRepository.getUserPlan(it) } ?: flowOf(Resource.Success(null))
-            
-            combine(
-                _limit.flatMapLatest { getItemsUseCase(workspace.id, limit = it) },
-                getCategoriasUseCase(workspace.id),
-                userPlanFlow,
-                _searchQuery,
-                _selectedCategoria,
-                _limit
-            ) { args: Array<Any?> ->
-                val itemsRes = args[0] as Resource<List<Item>>
-                val catsRes = args[1] as Resource<List<Categoria>>
-                val planRes = args[2] as Resource<UserPlan?>
-                val query = args[3] as String
-                val cat = args[4] as Categoria?
-                val currentLimit = args[5] as Long
+    init {
+        refreshItems()
+        loadUserPlan()
+        
+        // Búsqueda y filtrado local (Reactividad instantánea sin costo adicional)
+        _searchQuery.combine(_selectedCategoria) { query, cat ->
+            aplicarFiltros(allItems, query, cat)
+        }.onEach { filtrados ->
+            _uiState.update { it.copy(itemsFiltrados = filtrados) }
+        }.launchIn(viewModelScope)
+    }
 
-                ItemsUiState(
-                    items = itemsRes.data ?: emptyList(),
-                    categorias = catsRes.data ?: emptyList(),
-                    itemsFiltrados = aplicarFiltros(itemsRes.data ?: emptyList(), query, cat),
-                    queryBusqueda = query,
-                    categoriaFiltro = cat,
-                    userPlan = planRes.data,
-                    hasMore = (itemsRes.data?.size ?: 0) >= currentLimit.toInt(),
-                    isLoading = itemsRes is Resource.Loading || catsRes is Resource.Loading,
-                    error = itemsRes.message ?: catsRes.message
-                )
+    private fun loadUserPlan() {
+        viewModelScope.launch {
+            auth.uid?.let { uid ->
+                userPlanRepository.getUserPlan(uid).collect { result ->
+                    if (result is Resource.Success) {
+                        _uiState.update { it.copy(userPlan = result.data) }
+                    }
+                }
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ItemsUiState(isLoading = true))
+    }
+
+    fun refreshItems() {
+        viewModelScope.launch {
+            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+            _uiState.update { it.copy(isLoading = true) }
+            
+            // 1. Cargar Categorías (Liviano)
+            launch {
+                getCategoriasUseCase(workspaceId).collect { res ->
+                    _uiState.update { it.copy(categorias = res.data ?: emptyList()) }
+                }
+            }
+
+            // 2. Cargar Ítems (Snapshot - 1 sola lectura por ítem)
+            val res = getItemsByWorkspaceOnceUseCase(workspaceId, _limit.value)
+            if (res is Resource.Success) {
+                allItems = res.data ?: emptyList()
+                _uiState.update { 
+                    it.copy(
+                        items = allItems,
+                        itemsFiltrados = aplicarFiltros(allItems, _searchQuery.value, _selectedCategoria.value),
+                        isLoading = false,
+                        hasMore = allItems.size >= _limit.value.toInt()
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = res.message) }
+            }
+        }
+    }
+
+    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
     fun buscar(query: String) {
         _searchQuery.value = query
@@ -79,6 +105,7 @@ class ItemsViewModel @Inject constructor(
 
     fun cargarMas() {
         _limit.value += 100
+        refreshItems()
     }
 
     private fun aplicarFiltros(items: List<Item>, query: String, categoria: Categoria?): List<Item> {
@@ -91,7 +118,7 @@ class ItemsViewModel @Inject constructor(
         }
     }
 
-    fun limpiarError() { }
+    fun limpiarError() { _uiState.update { it.copy(error = null) } }
 }
 
 data class ItemsUiState(
