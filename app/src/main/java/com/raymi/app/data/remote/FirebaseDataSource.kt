@@ -203,6 +203,35 @@ class FirebaseDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { doc -> doc.data?.let { doc.id to it } }
     }
 
+    suspend fun getBusinessDocumentsPaged(
+        collection: String,
+        limit: Long = 20,
+        lastDocumentId: String? = null,
+        negocioId: String? = null
+    ): List<Pair<String, Map<String, Any>>> {
+        val targetNegocioId = negocioId ?: getCurrentBusinessId()
+        var query = firestore.collection(COLLECTION_NEGOCIOS)
+            .document(targetNegocioId)
+            .collection(collection)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit)
+        
+        if (lastDocumentId != null) {
+            val lastDoc = firestore.collection(COLLECTION_NEGOCIOS)
+                .document(targetNegocioId)
+                .collection(collection)
+                .document(lastDocumentId)
+                .get().await()
+            if (lastDoc.exists()) {
+                query = query.startAfter(lastDoc)
+            }
+        }
+        
+        return query.get().await()
+            .documents
+            .mapNotNull { doc -> doc.data?.let { doc.id to it } }
+    }
+
     suspend fun queryBusinessArrayContainsLimited(
         collection: String,
         field: String,

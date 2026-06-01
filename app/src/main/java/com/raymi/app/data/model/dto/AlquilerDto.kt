@@ -53,6 +53,7 @@ data class AlquilerDto(
                 itemNombre = it["itemNombre"] as? String ?: "",
                 itemCodigo = it["itemCodigo"] as? String ?: "",
                 cantidad = (it["cantidad"] as? Number)?.toInt() ?: 0,
+                unidadesDevueltas = (it["unidadesDevueltas"] as? Number)?.toInt() ?: 0,
                 precioUnitario = (it["precioUnitario"] as? Number)?.toDouble() ?: 0.0,
                 subtotal = (it["subtotal"] as? Number)?.toDouble() ?: 0.0
             )
@@ -91,6 +92,7 @@ data class AlquilerDto(
                     "itemNombre" to it.itemNombre,
                     "itemCodigo" to it.itemCodigo,
                     "cantidad" to it.cantidad,
+                    "unidadesDevueltas" to it.unidadesDevueltas,
                     "precioUnitario" to it.precioUnitario,
                     "subtotal" to it.subtotal
                 )

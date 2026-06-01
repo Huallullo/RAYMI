@@ -68,7 +68,7 @@ object Validators {
             telefono.isBlank() -> ValidationResult(false, "El teléfono es requerido")
             telefono.length != 9 -> ValidationResult(
                 false,
-                "El teléfono debe tener exactamente 9 dígitos"
+                "El teléfono debe tener al menos 9 dígitos"
             )
             !telefono.all { it.isDigit() } -> ValidationResult(
                 false,

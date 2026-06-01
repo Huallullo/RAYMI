@@ -15,4 +15,8 @@ class UpdateWorkspaceUseCase @Inject constructor(
     suspend operator fun invoke(workspace: Workspace): Flow<Resource<Unit>> {
         return repository.updateWorkspace(workspace)
     }
+
+    suspend fun updateStats(workspaceId: String, data: Map<String, Any>) {
+        repository.updateStats(workspaceId, data)
+    }
 }

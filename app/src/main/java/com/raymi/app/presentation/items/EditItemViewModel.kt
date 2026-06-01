@@ -19,7 +19,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * ViewModel para editar ítems existentes.
+ * ViewModel para editar ítems existentes con optimización de Storage.
  */
 @HiltViewModel
 class EditItemViewModel @Inject constructor(
@@ -45,7 +45,6 @@ class EditItemViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
 
-            // Cargar categorías y el ítem
             launch {
                 getCategoriasUseCase(workspaceId).collect { result ->
                     if (result is Resource.Success) {
@@ -109,7 +108,18 @@ class EditItemViewModel @Inject constructor(
                 var imageUrl = original.imagenUrl
                 state.newImageUri?.let { uri ->
                     val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Sin sesión")
-                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.jpg"
+                    
+                    // 1. Borrar imagen anterior si existe (Ahorro de espacio)
+                    original.imagenUrl?.let { oldUrl ->
+                        if (oldUrl.isNotBlank()) {
+                            storageDataSource.getPathFromUrl(oldUrl)?.let { path ->
+                                storageDataSource.deleteFile(path)
+                            }
+                        }
+                    }
+
+                    // 2. Subir nueva imagen (Auto-comprimida en StorageDataSource)
+                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.webp"
                     imageUrl = storageDataSource.uploadFile(path, uri)
                 }
 

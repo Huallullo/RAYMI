@@ -56,12 +56,14 @@ class WorkspaceManager @Inject constructor(
                 // Primero seteamos el ID básico para evitar UI vacía si es posible
                 _currentWorkspace.value = Workspace(id = id)
                 
-                // Cargar datos completos desde el repositorio
+                // Cargar datos completos desde el repositorio (Lectura única al iniciar)
                 try {
-                    workspaceRepositoryProvider.get().getWorkspaceById(id).collect { resource ->
-                        if (resource is Resource.Success) {
-                            _currentWorkspace.value = resource.data
-                        }
+                    val resource = workspaceRepositoryProvider.get().getWorkspaceById(id)
+                        .filter { it !is Resource.Loading }
+                        .first()
+                    
+                    if (resource is Resource.Success) {
+                        _currentWorkspace.value = resource.data
                     }
                 } catch (_: Exception) {
                     // Si falla la carga remota, nos quedamos con el ID parcial

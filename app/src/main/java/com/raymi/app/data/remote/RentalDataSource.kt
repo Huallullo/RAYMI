@@ -32,7 +32,16 @@ class RentalDataSource @Inject constructor(
                 "adelanto" to (adelantoActual + monto), 
                 "updatedAt" to FieldValue.serverTimestamp()
             ))
-            transaction.update(statsRef, "totalIngresos", FieldValue.increment(monto))
+
+            // ACTUALIZAR ESTADÍSTICAS MENSUALES Y TOTALES
+            val cal = java.util.Calendar.getInstance()
+            val mesKey = "ingresos_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.MONTH)}"
+            
+            transaction.update(statsRef, mapOf(
+                "totalIngresos" to FieldValue.increment(monto),
+                "totalSaldoPendiente" to FieldValue.increment(-monto),
+                mesKey to FieldValue.increment(monto)
+            ))
         }.await()
     }
 
@@ -94,7 +103,19 @@ class RentalDataSource @Inject constructor(
                 transaction.update(statsRef, "totalIngresos", FieldValue.increment(adelanto))
             }
 
-            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(1))
+            // Actualizar Estadísticas extendidas
+            val cal = java.util.Calendar.getInstance()
+            val mesKey = "ingresos_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.MONTH)}"
+            val hoyKey = "operaciones_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.DAY_OF_YEAR)}"
+
+            transaction.update(statsRef, mapOf(
+                "alquileresActivos" to FieldValue.increment(1),
+                "totalAlquileres" to FieldValue.increment(1), // Histórico
+                "totalIngresos" to FieldValue.increment(adelanto),
+                "totalSaldoPendiente" to FieldValue.increment(alquilerData["saldo"] as? Double ?: 0.0),
+                mesKey to FieldValue.increment(adelanto),
+                "$hoyKey.entregas" to FieldValue.increment(1)
+            ))
             newRef.id
         }.await()
     }
@@ -102,6 +123,16 @@ class RentalDataSource @Inject constructor(
     suspend fun getPagos(workspaceId: String, alquilerId: String): List<Map<String, Any>> {
         val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId).collection("alquileres").document(alquilerId).collection("pagos").orderBy("fecha", com.google.firebase.firestore.Query.Direction.DESCENDING).get().await()
         return snapshot.documents.mapNotNull { it.data }
+    }
+
+    suspend fun getPagosDeAlquileres(workspaceId: String, alquileres: List<String>): List<Map<String, Any>> {
+        val pagos = mutableListOf<Map<String, Any>>()
+        for (id in alquileres) {
+            val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+                .collection("alquileres").document(id).collection("pagos").get().await()
+            pagos.addAll(snapshot.documents.mapNotNull { it.data })
+        }
+        return pagos
     }
 
     suspend fun getAlquiler(workspaceId: String, alquilerId: String): Map<String, Any>? {
@@ -167,7 +198,14 @@ class RentalDataSource @Inject constructor(
         }.await()
     }
 
-    suspend fun registrarDevolucionTransactional(workspaceId: String, alquilerId: String, penalidad: Double = 0.0, observaciones: String = "", montoGarantiaRetenida: Double = 0.0) {
+    suspend fun registrarDevolucionTransactional(
+        workspaceId: String, 
+        alquilerId: String, 
+        penalidad: Double = 0.0, 
+        observaciones: String = "", 
+        montoGarantiaRetenida: Double = 0.0,
+        unidadesARetornar: Int = 0 // 0 significa devolver TODO
+    ) {
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val alqRef = negocioRef.collection("alquileres").document(alquilerId)
         val statsRef = negocioRef.collection("metadata").document("stats")
@@ -176,48 +214,90 @@ class RentalDataSource @Inject constructor(
             // 1. LEER Alquiler
             val alqSnap = transaction.get(alqRef)
             if (!alqSnap.exists()) throw IllegalStateException("Alquiler no encontrado")
-            val items = (alqSnap.get("items") as? List<Map<String, Any>>) ?: emptyList()
             
-            // 2. LEER todos los ítems (Indispensable leer ANTES de actualizar nada)
-            val itemSnapshots = items.mapNotNull { itemData ->
+            val itemsOriginales = (alqSnap.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            val totalCantidadAlquilada = (alqSnap.get("cantidad") as? Number)?.toInt() ?: 1
+            
+            // 2. Determinar cuántas unidades se están devolviendo realmente
+            val esDevolucionParcial = unidadesARetornar > 0 && unidadesARetornar < totalCantidadAlquilada
+            val cantidadADevolverEfectiva = if (unidadesARetornar <= 0) totalCantidadAlquilada else unidadesARetornar
+
+            // 3. LEER todos los ítems (Indispensable leer ANTES de actualizar nada)
+            val itemSnapshots = itemsOriginales.mapNotNull { itemData ->
                 val id = itemData["itemId"] as? String ?: return@mapNotNull null
                 id to transaction.get(negocioRef.collection("items").document(id))
             }.toMap()
 
-            // 3. ESCRIBIR cambios en Alquiler
+            // 4. ESCRIBIR cambios en Alquiler
             val gTotal = (alqSnap.get("garantia") as? Number)?.toDouble() ?: 0.0
             val infoG = if (montoGarantiaRetenida > 0) "\n[Garantía]: Retenida S/. $montoGarantiaRetenida de S/. $gTotal" else "\n[Garantía]: Devuelta íntegra"
             val prevObs = alqSnap.getString("observaciones") ?: ""
-            val newObs = if (observaciones.isNotBlank()) "$prevObs\n[Devolución]: $observaciones$infoG" else "$prevObs$infoG"
+            val statusTag = if (esDevolucionParcial) "[Devolución Parcial ($cantidadADevolverEfectiva)]" else "[Devolución Total]"
+            val newObs = if (observaciones.isNotBlank()) "$prevObs\n$statusTag: $observaciones$infoG" else "$prevObs\n$statusTag$infoG"
+
+            // Si es parcial, actualizamos el campo 'items' con las nuevas unidades devueltas
+            val nuevosItems = itemsOriginales.map { itemData ->
+                val actualDevueltas = (itemData["unidadesDevueltas"] as? Number)?.toInt() ?: 0
+                // En esta lógica simplificada (asumiendo 1 item principal por ahora o prorrateo):
+                itemData + mapOf("unidadesDevueltas" to (actualDevueltas + cantidadADevolverEfectiva))
+            }
+
+            val todasDevueltas = nuevosItems.all { 
+                ((it["unidadesDevueltas"] as? Number)?.toInt() ?: 0) >= ((it["cantidad"] as? Number)?.toInt() ?: 0) 
+            }
 
             transaction.update(alqRef, mapOf(
-                "estado" to "DEVUELTO", 
-                "penalidad" to (penalidad + montoGarantiaRetenida), 
+                "estado" to if (todasDevueltas) "DEVUELTO" else "ACTIVO", 
+                "items" to nuevosItems,
+                "penalidad" to FieldValue.increment(penalidad + montoGarantiaRetenida), 
                 "observaciones" to newObs, 
-                "garantiaDevuelta" to (montoGarantiaRetenida == 0.0), 
-                "fechaDevolucion" to FieldValue.serverTimestamp(), 
+                "fechaDevolucion" to if (todasDevueltas) FieldValue.serverTimestamp() else alqSnap.get("fechaDevolucion"), 
                 "updatedAt" to FieldValue.serverTimestamp()
             ))
+
+            // ACTUALIZAR TOTAL PENDIENTE EN STATS
+            val saldoActual = (alqSnap.get("saldo") as? Number)?.toDouble() ?: 0.0
+            if (todasDevueltas) {
+                 transaction.update(statsRef, mapOf("totalSaldoPendiente" to FieldValue.increment(-saldoActual)))
+            }
             
-            // 4. ESCRIBIR cambios en Ítems (Stock)
-            items.forEach { itemData ->
+            // 5. ESCRIBIR cambios en Ítems (Liberar Stock)
+            itemsOriginales.forEach { itemData ->
                 val id = itemData["itemId"] as? String ?: return@forEach
-                val cant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
                 val itemSnap = itemSnapshots[id]
                 if (itemSnap != null && itemSnap.exists()) {
-                    val current = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                    val currentAlquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
                     transaction.update(negocioRef.collection("items").document(id), mapOf(
-                        "unidadesAlquiladas" to (current - cant).coerceAtLeast(0), 
+                        "unidadesAlquiladas" to (currentAlquiladas - cantidadADevolverEfectiva).coerceAtLeast(0), 
                         "estado" to "DISPONIBLE"
                     ))
                 }
             }
 
-            // 5. ESCRIBIR estadísticas
-            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
-            if (penalidad + montoGarantiaRetenida > 0) {
-                transaction.update(statsRef, "totalIngresos", FieldValue.increment(penalidad + montoGarantiaRetenida))
+            // 6. ESCRIBIR estadísticas y registrar Penalidad como Pago si existe
+            val cal = java.util.Calendar.getInstance()
+            val mesKey = "ingresos_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.MONTH)}"
+            val hoyKey = "operaciones_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.DAY_OF_YEAR)}"
+            val extraIngreso = penalidad + montoGarantiaRetenida
+
+            if (extraIngreso > 0) {
+                val penaltyPagoRef = alqRef.collection("pagos").document()
+                transaction.set(penaltyPagoRef, mapOf(
+                    "id" to penaltyPagoRef.id,
+                    "alquilerId" to alquilerId,
+                    "monto" to extraIngreso,
+                    "metodoPago" to "EFECTIVO",
+                    "referencia" to "Penalidad/Garantía Retenida",
+                    "fecha" to FieldValue.serverTimestamp()
+                ))
             }
+
+            transaction.update(statsRef, mapOf(
+                "alquileresActivos" to if (todasDevueltas) FieldValue.increment(-1) else FieldValue.increment(0),
+                "totalIngresos" to FieldValue.increment(extraIngreso),
+                mesKey to FieldValue.increment(extraIngreso),
+                "$hoyKey.devoluciones" to FieldValue.increment(1)
+            ))
         }.await()
     }
 

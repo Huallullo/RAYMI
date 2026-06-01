@@ -24,41 +24,41 @@ class CategoriaRepositoryImpl @Inject constructor(
 
     override suspend fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
         emit(Resource.Loading())
-        try {
+        
+        val result = try {
             if (workspaceId.isBlank()) {
-                emit(Resource.Error("ID de negocio no válido"))
-                return@flow
+                Resource.Error("ID de negocio no válido")
+            } else {
+                val cache = getCacheFor(workspaceId)
+                val cached = cache.get()
+                if (cached != null) {
+                    Resource.Success(cached)
+                } else {
+                    val response = dataSource.queryBusinessDocuments(
+                        collection = "categorias",
+                        field = "activa",
+                        value = true,
+                        negocioId = workspaceId
+                    )
+                    val categorias = response
+                        .map { (id, data) -> CategoriaDto.fromMap(id, data).toDomain() }
+                        .sortedBy { it.orden }
+
+                    cache.set(categorias, ttlMs = 60 * 60 * 1000) // 1 hora
+                    Resource.Success(categorias)
+                }
             }
-
-            // Primero intenta el caché (30 min TTL)
-            val cache = getCacheFor(workspaceId)
-            val cached = cache.get()
-            if (cached != null) {
-                emit(Resource.Success(cached))
-                return@flow
-            }
-
-            // Solo llama a Firestore si el caché expiró
-            val response = dataSource.queryBusinessDocuments(
-                collection = "categorias",
-                field = "activa",
-                value = true,
-                negocioId = workspaceId
-            )
-            val categorias = response
-                .map { (id, data) -> CategoriaDto.fromMap(id, data).toDomain() }
-                .sortedBy { it.orden }
-
-            cache.set(categorias, ttlMs = 30 * 60 * 1000) // 30 minutos
-            emit(Resource.Success(categorias))
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val errorMsg = if (e.message?.contains("PERMISSION_DENIED") == true) {
                 "Acceso denegado: Revisa tus permisos en Firebase."
             } else {
                 "Error al cargar categorías: ${e.localizedMessage}"
             }
-            emit(Resource.Error(errorMsg))
+            Resource.Error(errorMsg)
         }
+        
+        emit(result)
     }
 
     override suspend fun addCategoria(categoria: Categoria): Flow<Resource<String>> = flow {

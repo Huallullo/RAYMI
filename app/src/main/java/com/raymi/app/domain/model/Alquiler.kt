@@ -74,6 +74,7 @@ data class Alquiler(
     val estaVencido: Boolean
         get() = (estado == EstadoAlquiler.ACTIVO || estado == EstadoAlquiler.RESERVADO) && diasRestantes < 0
 
+    val createdAtFormatted: String get() = formatDate(createdAt.toDate())
     val fechaInicioFormatted: String get() = formatDate(fechaInicio.toDate())
     val fechaFinFormatted: String get() = formatDate(fechaFinPrevista.toDate())
     

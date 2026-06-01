@@ -23,34 +23,38 @@ class UserPlanRepositoryImpl @Inject constructor(
 
     override suspend fun getUserPlan(userId: String): Flow<Resource<UserPlan>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val data = dataSource.getDocument(COLLECTION_USUARIOS, userId)
             if (data != null) {
                 val plan = UserPlanDto.fromMap(userId, data).toDomain()
-                emit(Resource.Success(plan))
+                Resource.Success(plan)
             } else {
-                emit(Resource.Success(UserPlan(userId = userId, plan = PlanType.FREE)))
+                Resource.Success(UserPlan(userId = userId, plan = PlanType.FREE))
             }
         } catch (e: Exception) {
-            emit(Resource.Error("Error al obtener plan: ${e.localizedMessage}"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error("Error al obtener plan: ${e.localizedMessage}")
         }
+        emit(result)
     }
 
     override suspend fun createFreeUserPlan(userId: String): Flow<Resource<UserPlan>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val newPlan = UserPlan(userId = userId, plan = PlanType.FREE)
             val dto = UserPlanDto.fromDomain(newPlan)
             dataSource.updateDocument(COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
-            emit(Resource.Success(newPlan))
-        } catch (_: Exception) {
-            emit(Resource.Error("Error al crear plan inicial"))
+            Resource.Success(newPlan)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error("Error al crear plan inicial")
         }
+        emit(result)
     }
 
     override suspend fun upgradeToPro(userId: String): Flow<Resource<UserPlan>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val proPlan = UserPlan(
                 userId = userId, 
                 plan = PlanType.PRO, 
@@ -60,10 +64,12 @@ class UserPlanRepositoryImpl @Inject constructor(
             )
             val dto = UserPlanDto.fromDomain(proPlan)
             dataSource.updateDocument(COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
-            emit(Resource.Success(proPlan))
-        } catch (_: Exception) {
-            emit(Resource.Error("Error al subir a PRO"))
+            Resource.Success(proPlan)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error("Error al subir a PRO")
         }
+        emit(result)
     }
 
     override suspend fun getPlanDetails(planType: PlanType): Resource<Map<String, Any>> {
@@ -102,9 +108,9 @@ class UserPlanRepositoryImpl @Inject constructor(
                 
                 val ownedWorkspaces = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
                 ownedWorkspaces.size < plan.workspacesLimit
-            } else false
+            } else true
         } catch (_: Exception) {
-            false
+            true
         }
     }
 
@@ -118,25 +124,33 @@ class UserPlanRepositoryImpl @Inject constructor(
                 val stats = statsDataSource.getStats(workspaceId)
                 val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
                 currentItems < plan.itemsLimit
-            } else false
+            } else true
         } catch (_: Exception) {
-            false
+            true
         }
     }
 
     override suspend fun canAddMoreClients(userId: String, workspaceId: String): Boolean {
         return try {
             val planResult = getUserPlan(userId).first { it !is Resource.Loading }
-            if (planResult is Resource.Success) {
-                val plan = planResult.data ?: return false
-                if (plan.plan == PlanType.PRO) return true
-                
-                val stats = statsDataSource.getStats(workspaceId)
-                val currentClients = (stats?.get("totalClientes") as? Number)?.toInt() ?: 0
-                currentClients < plan.clientsLimit
-            } else false
-        } catch (_: Exception) {
-            false
+            val plan = if (planResult is Resource.Success) planResult.data else null
+            
+            val stats = statsDataSource.getStats(workspaceId)
+            val currentClients = (stats?.get("totalClientes") as? Number)?.toInt() ?: 0
+            
+            // SI TIENE 0 CLIENTES, PERMITIR SIEMPRE (Unblock inmediato)
+            if (currentClients <= 0) return true
+            
+            if (plan == null || plan.plan == PlanType.PRO) return true
+
+            val limit = if (plan.clientsLimit > 0) plan.clientsLimit else 40
+            
+            android.util.Log.d("UserPlanRepo", "Validación: $currentClients / $limit")
+            
+            currentClients < limit
+        } catch (e: Exception) {
+            android.util.Log.e("UserPlanRepo", "Error en canAddMoreClients: ${e.message}")
+            true // En caso de duda, dejar trabajar al usuario
         }
     }
 }

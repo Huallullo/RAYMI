@@ -24,7 +24,7 @@ import android.net.Uri
 import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
- * Manual de Usuario Detallado - RAYMI SaaS Master Guide.
+ * Manual de Usuario Detallado - RAYMI v2.5.
  * Proporciona instrucciones paso a paso para el dominio total de la plataforma.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,126 +66,90 @@ fun HelpCenterScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                if (isSpanish) "Guía Maestra de RAYMI" else "RAYMI Master Guide",
+                if (isSpanish) "Guía Maestra RAYMI v2.5" else "RAYMI Master Guide v2.5",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary
             )
             
             Text(
-                if (isSpanish) "Sigue estas instrucciones detalladas para maximizar la eficiencia de tu negocio." 
-                else "Follow these detailed instructions to maximize your business efficiency.",
+                if (isSpanish) "Sigue estas instrucciones detalladas para maximizar la eficiencia y seguridad de tu negocio." 
+                else "Follow these detailed instructions to maximize your business efficiency and security.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(8.dp))
 
-            // 1. DASHBOARD
+            // 1. SEGURIDAD Y ACCESO (Identidad Verificada)
             HelpCategory(
-                title = if (isSpanish) "1. Dashboard (Panel de Control)" else "1. Dashboard (Control Panel)",
-                icon = Icons.Default.Dashboard,
-                description = if (isSpanish) "Interpretación de métricas en tiempo real." else "Interpreting real-time metrics.",
+                title = if (isSpanish) "1. Seguridad y Validación RENIEC" else "1. Security & RENIEC Validation",
+                icon = Icons.Default.Security,
+                description = if (isSpanish) "Protección y registro seguro de clientes." else "Protection and secure client registration.",
                 details = if (isSpanish) listOf(
-                    "Actividad Semanal: Gráfico de barras que muestra el volumen de transacciones diarias. Ideal para identificar tus días de mayor demanda.",
-                    "Entregas de Hoy: Lista prioritaria de clientes que deben recoger productos hoy. Pulsa el botón para ver el contrato rápido.",
-                    "Retornos Esperados: Indica cuántos artículos deben reingresar al inventario hoy para evitar quiebres de stock.",
-                    "Estado Operativo: (Inventario) Total de ítems registrados. (Alquilados) Ítems fuera de tienda. (Clientes) Base de datos activa.",
-                    "Ingresos: El resumen financiero muestra 'Ingresos del Mes' (Efectivo real cobrado) vs 'Total Histórico'."
+                    "Búsqueda por DNI: Al registrar un cliente, simplemente ingresa su número de DNI y toca el icono de la lupa. RAYMI se conectará con los servidores de RENIEC para obtener nombres y apellidos exactos automáticamente.",
+                    "Soporte Offline: Si pierdes la conexión, verás un banner amarillo. Puedes seguir trabajando; RAYMI guardará los datos localmente y los subirá a la nube apenas recuperes internet.",
+                    "Fotos de Respaldo: Recomendamos tomar fotos del DNI frontal y posterior. Estas se guardan de forma privada y encriptada en tu espacio de trabajo.",
+                    "Aislamiento de Datos: Cada negocio (Workspace) es una caja fuerte independiente. Tus clientes y productos jamás se mezclarán con los de otros usuarios."
                 ) else listOf(
-                    "Weekly Activity: Bar chart showing daily transaction volume. Great for identifying peak demand days.",
-                    "Today's Deliveries: Priority list of customers picking up items today. Click for quick contract view.",
-                    "Expected Returns: Shows items due back today to prevent stock shortages.",
-                    "Operational Status: (Inventory) Total registered items. (Rented) Items out of shop. (Clients) Active database.",
-                    "Earnings: Financial summary shows 'Monthly Income' (Actual cash collected) vs 'Total Historical'."
+                    "DNI Search: When registering a client, just enter their DNI and tap the magnifying glass. RAYMI connects to RENIEC servers to get exact names and surnames automatically.",
+                    "Offline Support: If you lose connection, a yellow banner appears. You can keep working; RAYMI saves data locally and uploads to the cloud as soon as internet is restored.",
+                    "Backup Photos: We recommend taking photos of the DNI (front and back). These are stored privately and encrypted in your workspace.",
+                    "Data Isolation: Each business (Workspace) is an independent safe. Your clients and products will never mix with those of other users."
                 )
             )
 
-            // 2. GESTIÓN DE CLIENTES
+            // 2. DASHBOARD Y FINANZAS (Caja Real)
             HelpCategory(
-                title = if (isSpanish) "2. Clientes y Validación" else "2. Customers & Validation",
-                icon = Icons.Default.People,
-                description = if (isSpanish) "Registro profesional con consulta RENIEC." else "Professional registration with ID lookup.",
+                title = if (isSpanish) "2. Dashboard y Control de Caja" else "2. Dashboard & Cash Control",
+                icon = Icons.Default.MonetizationOn,
+                description = if (isSpanish) "Entiende tus números y el flujo de dinero." else "Understand your numbers and money flow.",
                 details = if (isSpanish) listOf(
-                    "Búsqueda Inteligente: Filtra por Nombre o DNI desde la barra superior. El sistema busca mientras escribes.",
-                    "Consulta RENIEC: En el formulario de 'Nuevo Cliente', ingresa los 8 dígitos del DNI y toca la LUPA. Los nombres se cargarán automáticamente.",
-                    "Validación de Contacto: El número de teléfono debe tener 9 dígitos. Esto permite que el botón de WhatsApp funcione correctamente.",
-                    "Ficha de Cliente: Al entrar a un cliente, verás su historial completo de alquileres pasados y deudas pendientes."
+                    "Ingresos del Mes: Este número refleja el dinero que ha entrado físicamente a tu caja HOY o en este mes, sin importar cuándo empiece el alquiler.",
+                    "Por Cobrar (Saldo Pendiente): Es la suma de todo el dinero que tus clientes aún te deben por alquileres activos. Aparece resaltado a la derecha en tu tarjeta principal.",
+                    "Auto-Auditoría: Si ves que tus números no cuadran (ej: dice S/ 0.00 pero tienes alquileres), desliza la pantalla hacia abajo para 'Refrescar'. RAYMI hará un recuento automático de todos tus recibos y corregirá los totales.",
+                    "Estado Operativo: Conteo rápido de ítems en almacén (Inventario) vs ítems que están con clientes (Alquilados)."
                 ) else listOf(
-                    "Smart Search: Filter by Name or ID from the top bar. Results appear as you type.",
-                    "ID Lookup (Peru): In the 'New Client' form, enter the 8-digit ID and tap the MAGNIFYING GLASS to auto-fill names.",
-                    "Contact Validation: Phone numbers must be 9 digits. This ensures the WhatsApp integration works perfectly.",
-                    "Client File: View complete rental history and any outstanding balances for specific customers."
+                    "Monthly Income: This number reflects the money that physically entered your cash box TODAY or this month, regardless of when the rental starts.",
+                    "To Collect (Balance): Sum of all money clients still owe you for active rentals. It appears highlighted on the right of your main card.",
+                    "Auto-Audit: If numbers don't match (e.g., shows $0.00 but you have rentals), swipe down to 'Refresh'. RAYMI will recount all your receipts and fix the totals.",
+                    "Operational Status: Quick count of items in stock (Inventory) vs items with clients (Rented)."
                 )
             )
 
-            // 3. INVENTARIO FLEXIBLE
+            // 3. GESTIÓN DE ALQUILERES (Precios y Devoluciones)
             HelpCategory(
-                title = if (isSpanish) "3. Inventario y Atributos" else "3. Inventory & Attributes",
+                title = if (isSpanish) "3. Alquileres, Precios y Penalidades" else "3. Rentals, Pricing & Penalties",
+                icon = Icons.Default.Receipt,
+                description = if (isSpanish) "Lógica de cobros, devoluciones y mora." else "Pricing, returns, and penalty logic.",
+                details = if (isSpanish) listOf(
+                    "Lógica de Precio: El precio se calcula por CANTIDAD de prendas (Precio x Unidades). No multiplicamos por días a menos que tú lo ajustes manualmente, para darte flexibilidad.",
+                    "Devoluciones Parciales: Si un cliente lleva 25 prendas y solo devuelve 10, puedes registrarlo. El alquiler seguirá 'ACTIVO' y el stock de las 10 prendas regresará al inventario automáticamente.",
+                    "Penalidad Automática: Al devolver, si el cliente llega tarde, RAYMI calculará una sugerencia de mora del 3% diario. Verás el monto en azul para que decidas si cobrarlo o no.",
+                    "Ticket VIP WhatsApp: Al terminar, puedes reenviar un recibo profesional por WhatsApp con un solo toque, incluyendo el link de Google Maps de tu local."
+                ) else listOf(
+                    "Pricing Logic: Price is calculated by QUANTITY of items (Price x Units). We don't multiply by days unless you manually adjust it, giving you flexibility.",
+                    "Partial Returns: If a client takes 25 items and only returns 10, you can register it. The rental stays 'ACTIVE' and the stock for those 10 items returns to inventory automatically.",
+                    "Automatic Penalty: Upon return, if the client is late, RAYMI calculates a 3% daily late fee suggestion. You'll see the amount in blue to decide whether to charge it.",
+                    "WhatsApp VIP Ticket: Once finished, you can resend a professional receipt via WhatsApp with one tap, including your business Google Maps link."
+                )
+            )
+
+            // 4. INVENTARIO E INTELIGENCIA (Categorías)
+            HelpCategory(
+                title = if (isSpanish) "4. Inventario y Categorización" else "4. Inventory & Categorization",
                 icon = Icons.Default.Inventory,
-                description = if (isSpanish) "Configuración de productos y stock." else "Setting up products and stock.",
+                description = if (isSpanish) "Organiza tus activos por tipo y marca." else "Organize your assets by type and brand.",
                 details = if (isSpanish) listOf(
-                    "Categorías: Debes crear al menos una categoría (ej: 'Vestidos') antes de agregar productos.",
-                    "Código SKU/QR: Cada producto tiene un código único. Puedes usar el generador automático o escanear una etiqueta física.",
-                    "Atributos Dinámicos: Si alquilas vestuarios, añade 'Talla' o 'Color'. Si alquilas equipos, añade 'Marca' o 'Serial'.",
-                    "Control de Cantidad: Si tienes 10 unidades de un mismo código, el sistema controlará la disponibilidad automáticamente."
+                    "Importancia de Categorías: Antes de crear productos, crea categorías (ej: Vestidos, Ternos). Esto activa los filtros rápidos en el inventario.",
+                    "Stock Inteligente: Verás una barra que dice '15 / 25 und.'. El primer número es lo disponible para alquilar hoy, el segundo es tu inversión total.",
+                    "QR del Ítem: Cada producto genera un código único. Puedes imprimirlo o mostrarlo desde el celular para que el cliente sepa que está llevando el ítem correcto.",
+                    "Optimización de Fotos: RAYMI reduce el peso de tus fotos automáticamente al subirlas, consumiendo menos de tus datos móviles y cargando más rápido."
                 ) else listOf(
-                    "Categories: You must create at least one category (e.g., 'Dresses') before adding products.",
-                    "SKU/QR Code: Each product has a unique code. Use the auto-generator or scan a physical label.",
-                    "Dynamic Attributes: For clothing, add 'Size' or 'Color'. For equipment, add 'Brand' or 'Serial'.",
-                    "Quantity Control: If you have 10 units of the same code, the system manages availability automatically."
-                )
-            )
-
-            // 4. EL CICLO DE ALQUILER
-            HelpCategory(
-                title = if (isSpanish) "4. Ciclo de Operación" else "4. Operational Cycle",
-                icon = Icons.Default.ShoppingCart,
-                description = if (isSpanish) "Desde la reserva hasta la liquidación." else "From reservation to settlement.",
-                details = if (isSpanish) listOf(
-                    "Creación de Alquiler: 1. Selecciona Cliente. 2. Añade productos. 3. Define fechas. El sistema calcula días y total.",
-                    "Adelanto y Saldo: Registra cuánto paga el cliente al inicio. El sistema calculará el 'Saldo Pendiente' automáticamente.",
-                    "Garantía: Registra el monto de seguridad. Este monto no cuenta como ingreso, es reembolsable.",
-                    "Estado Reserva vs Activo: Usa 'RESERVA' si el cliente aún no se lleva el producto. Cámbialo a 'ACTIVO' en la entrega."
-                ) else listOf(
-                    "Creating a Rental: 1. Select Client. 2. Add products. 3. Set dates. System calculates days and total.",
-                    "Advance & Balance: Record initial payment. The system calculates 'Balance Due' automatically.",
-                    "Security Deposit: Record the safety amount. This is not counted as income; it's refundable.",
-                    "Reserved vs Active: Use 'RESERVED' if the item is still in shop. Switch to 'ACTIVE' upon delivery."
-                )
-            )
-
-            // 5. COMPROBANTES Y PAGOS
-            HelpCategory(
-                title = if (isSpanish) "5. Pagos y Comprobantes" else "5. Payments & Receipts",
-                icon = Icons.Default.Description,
-                description = if (isSpanish) "Gestión financiera y facturación." else "Financial management and billing.",
-                details = if (isSpanish) listOf(
-                    "Registro de Abonos: Puedes recibir múltiples pagos (Yape, Efectivo, etc.) hasta que el saldo sea S/. 0.00.",
-                    "Generación de PDF: Crea Tickets o Facturas profesionales con código QR de validación.",
-                    "Compartir por WhatsApp: Al generar un PDF, toca 'Compartir' para enviarlo al instante sin guardar el archivo.",
-                    "Penalidades: En la devolución, si hay retraso o daño, añade una 'Penalidad' para ajustar el cobro final."
-                ) else listOf(
-                    "Recording Payments: Accept multiple partial payments (Cash, App transfer, etc.) until balance is zero.",
-                    "PDF Generation: Create professional Tickets or Invoices with QR validation codes.",
-                    "WhatsApp Sharing: Once a PDF is generated, tap 'Share' to send it instantly without saving the file.",
-                    "Penalties: Upon return, if there is a delay or damage, add a 'Penalty' to adjust the final charge."
-                )
-            )
-
-            // 6. MULTI-NEGOCIO (PRO)
-            HelpCategory(
-                title = if (isSpanish) "6. Multi-Negocio (SaaS PRO)" else "6. Multi-Business (SaaS PRO)",
-                icon = Icons.Default.BusinessCenter,
-                description = if (isSpanish) "Gestión de múltiples sucursales." else "Managing multiple branches.",
-                details = if (isSpanish) listOf(
-                    "Cambiar Negocio: Accede desde Perfil -> Cambiar Negocio para ver tus locales.",
-                    "Inventarios Independientes: Cada negocio tiene sus propios clientes, productos y finanzas.",
-                    "Límites: El Plan FREE permite 1 negocio. El Plan PRO permite ilimitados locales de forma centralizada."
-                ) else listOf(
-                    "Switch Business: Access via Profile -> Switch Business to view your locations.",
-                    "Independent Inventories: Each business has its own clients, products, and finances.",
-                    "Limits: FREE Plan allows 1 business. PRO Plan allows unlimited locations centrally managed."
+                    "Importance of Categories: Before creating products, create categories (e.g., Dresses, Suits). This activates quick filters in the inventory.",
+                    "Smart Stock: You'll see a bar saying '15 / 25 units'. The first number is available to rent today, the second is your total investment.",
+                    "Item QR: Each product generates a unique code. You can print it or show it from your phone so the client knows they are taking the correct item.",
+                    "Photo Optimization: RAYMI automatically reduces the weight of your photos upon upload, using less of your mobile data and loading faster."
                 )
             )
 
@@ -248,9 +212,9 @@ fun HelpCategory(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.bodyLarge)
+                    Text(title, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                     if (!expanded) {
-                        Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                        Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                 }
                 Icon(

@@ -413,25 +413,92 @@ class PdfService @Inject constructor(
         }
     }
     
-    suspend fun generarPdfResumenFinanciero(alquileres: List<Alquiler>, year: Int): Resource<Uri> =
+    suspend fun generarPdfResumenFinanciero(alquileres: List<Alquiler>, pagos: List<Pago>, year: Int): Resource<Uri> =
         withContext(Dispatchers.IO) {
             try {
-                val pdfUri = crearArchivo("Reporte_Anual_$year")
-                buildFinancialReportPdf(pdfUri, alquileres, year)
+                val cal = Calendar.getInstance()
+                val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es", "PE"))?.uppercase() ?: "MES"
+                val pdfUri = crearArchivo("Reporte_${monthName}_$year")
+                buildDetailedFinancialReportPdf(pdfUri, alquileres, pagos, year, monthName)
                 finalizarArchivo(pdfUri)
                 Resource.Success(pdfUri)
             } catch (e: Exception) {
+                Log.e("PdfService", "Error reporte financiero", e)
                 Resource.Error("Falla al generar Reporte Financiero")
             }
         }
 
-    private fun buildFinancialReportPdf(uri: Uri, alquileres: List<Alquiler>, year: Int) {
+    private fun buildDetailedFinancialReportPdf(uri: Uri, alquileres: List<Alquiler>, pagos: List<Pago>, year: Int, monthName: String) {
         context.contentResolver.openOutputStream(uri)?.use { os ->
             PdfWriter(os).use { writer ->
                 PdfDocument(writer).use { pdf ->
                     Document(pdf).use { doc ->
-                        doc.add(Paragraph("REPORTE $year").setBold().setFontSize(22f))
-                        doc.add(Paragraph("Total: S/. ${alquileres.sumOf { it.precioTotal }}"))
+                        doc.setMargins(40f, 40f, 40f, 40f)
+
+                        // 1. Título y Periodo
+                        doc.add(Paragraph("REPORTE FINANCIERO EJECUTIVO")
+                            .setBold().setFontSize(20f).setFontColor(primaryColor).setTextAlignment(TextAlignment.CENTER))
+                        doc.add(Paragraph("Periodo: $monthName $year")
+                            .setFontSize(12f).setTextAlignment(TextAlignment.CENTER).setMarginBottom(20f))
+
+                        // 2. KPIs de Resumen (Basados en Pagos Reales)
+                        val kpiTable = Table(UnitValue.createPercentArray(floatArrayOf(33f, 33f, 34f))).useAllAvailableWidth()
+                        
+                        val cal = Calendar.getInstance()
+                        val mesActual = cal.get(Calendar.MONTH)
+                        val anioActual = cal.get(Calendar.YEAR)
+
+                        val recaudadoMes = pagos.filter {
+                            val c = Calendar.getInstance().apply { time = it.fecha.toDate() }
+                            c.get(Calendar.YEAR) == anioActual && c.get(Calendar.MONTH) == mesActual
+                        }.sumOf { it.monto }
+
+                        val totalHistorico = pagos.sumOf { it.monto }
+                        val porCobrar = alquileres.filter { it.estado != EstadoAlquiler.DEVUELTO && it.estado != EstadoAlquiler.CANCELADO }
+                            .sumOf { it.saldoPendienteReal }
+                        
+                        kpiTable.addCell(Cell().add(Paragraph("RECAUDADO ESTE MES").setFontSize(8f).setFontColor(ColorConstants.GRAY))
+                            .add(Paragraph("S/. ${String.format(Locale.US, "%,.2f", recaudadoMes)}").setBold().setFontSize(12f).setFontColor(DeviceRgb(16, 185, 129)))
+                            .setBorder(Border.NO_BORDER).setBackgroundColor(lightGray).setPadding(8f))
+                            
+                        kpiTable.addCell(Cell().add(Paragraph("POR COBRAR (SALDO)").setFontSize(8f).setFontColor(ColorConstants.GRAY))
+                            .add(Paragraph("S/. ${String.format(Locale.US, "%,.2f", porCobrar)}").setBold().setFontSize(12f).setFontColor(ColorConstants.RED))
+                            .setBorder(Border.NO_BORDER).setBackgroundColor(lightGray).setPadding(8f))
+
+                        kpiTable.addCell(Cell().add(Paragraph("HISTÓRICO TOTAL").setFontSize(8f).setFontColor(ColorConstants.GRAY))
+                            .add(Paragraph("S/. ${String.format(Locale.US, "%,.2f", totalHistorico)}").setBold().setFontSize(12f).setFontColor(primaryColor))
+                            .setBorder(Border.NO_BORDER).setBackgroundColor(lightGray).setPadding(8f))
+                        
+                        doc.add(kpiTable)
+                        doc.add(Paragraph("\n"))
+
+                        // 3. Tabla de Auditoría (Movimientos de este mes)
+                        doc.add(Paragraph("HISTORIAL DE PAGOS DEL MES").setBold().setFontSize(10f).setFontColor(primaryColor))
+                        
+                        val mainTable = Table(UnitValue.createPercentArray(floatArrayOf(15f, 30f, 25f, 15f, 15f))).useAllAvailableWidth()
+                        mainTable.addHeaderCell(Cell().add(Paragraph("FECHA").setBold().setFontSize(8f).setFontColor(ColorConstants.WHITE)).setBackgroundColor(primaryColor))
+                        mainTable.addHeaderCell(Cell().add(Paragraph("CLIENTE").setBold().setFontSize(8f).setFontColor(ColorConstants.WHITE)).setBackgroundColor(primaryColor))
+                        mainTable.addHeaderCell(Cell().add(Paragraph("PRODUCTO").setBold().setFontSize(8f).setFontColor(ColorConstants.WHITE)).setBackgroundColor(primaryColor))
+                        mainTable.addHeaderCell(Cell().add(Paragraph("MÉTODO").setBold().setFontSize(8f).setFontColor(ColorConstants.WHITE)).setBackgroundColor(primaryColor))
+                        mainTable.addHeaderCell(Cell().add(Paragraph("MONTO").setBold().setFontSize(8f).setFontColor(ColorConstants.WHITE)).setBackgroundColor(primaryColor).setTextAlignment(TextAlignment.RIGHT))
+
+                        pagos.filter {
+                            val c = Calendar.getInstance().apply { time = it.fecha.toDate() }
+                            c.get(Calendar.YEAR) == anioActual && c.get(Calendar.MONTH) == mesActual
+                        }.sortedByDescending { it.fecha }.forEach { pago ->
+                            val alq = alquileres.find { it.id == pago.alquilerId }
+                            mainTable.addCell(Cell().add(Paragraph(SimpleDateFormat("dd/MM/yy", Locale.US).format(pago.fecha.toDate())).setFontSize(8f)))
+                            mainTable.addCell(Cell().add(Paragraph(alq?.clienteNombre ?: "N/A").setFontSize(8f)))
+                            mainTable.addCell(Cell().add(Paragraph(alq?.itemNombre ?: "Varios").setFontSize(8f)))
+                            mainTable.addCell(Cell().add(Paragraph(pago.metodoPago.name).setFontSize(8f)))
+                            mainTable.addCell(Cell().add(Paragraph("S/. ${String.format(Locale.US, "%.2f", pago.monto)}")).setTextAlignment(TextAlignment.RIGHT).setFontSize(8f))
+                        }
+
+                        doc.add(mainTable)
+
+                        // 4. Pie de página
+                        doc.add(Paragraph("\nReporte generado por RAYMI SaaS el ${dateFormat.format(Date())}")
+                            .setFontSize(7f).setItalic().setFontColor(ColorConstants.GRAY).setTextAlignment(TextAlignment.RIGHT))
                     }
                 }
             }

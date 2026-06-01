@@ -15,6 +15,7 @@ data class Workspace(
     val tipoNegocio: String = "",
     val logoUrl: String? = null,
     val sloganImageUrl: String? = null,
+    val googleMapsUrl: String = "",
     val activo: Boolean = true,
     
     // Configuración

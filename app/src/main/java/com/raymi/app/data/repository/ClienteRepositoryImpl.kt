@@ -1,5 +1,6 @@
 package com.raymi.app.data.repository
 
+import com.raymi.app.core.cache.SmartCache
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.data.model.dto.ClienteDto
 import com.raymi.app.data.remote.ClientDataSource
@@ -11,7 +12,9 @@ import com.raymi.app.domain.repository.ClienteRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class ClienteRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val clientDataSource: ClientDataSource,
@@ -19,31 +22,29 @@ class ClienteRepositoryImpl @Inject constructor(
     private val workspaceManager: WorkspaceManager
 ) : ClienteRepository {
 
+    // Cache segmentada por Workspace (Multi-tenancy Fix)
+    private val cacheMap = mutableMapOf<String, SmartCache<List<Cliente>>>()
+    private val TTL_10_MIN = 10 * 60 * 1000L
+
+    private fun getCacheFor(workspaceId: String) = cacheMap.getOrPut(workspaceId) { SmartCache() }
+
     private fun getWorkspaceId() = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
 
     override suspend fun getClientes(): Flow<Resource<List<Cliente>>> {
-        return observerDataSource.observeBusinessCollection(
-            workspaceId = getWorkspaceId(),
-            collection = "clientes",
-            orderByField = "createdAt",
-            descending = true,
-            limit = 50
-        )
-            .map { documents ->
-                val clientes = documents.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-                Resource.Success(clientes) as Resource<List<Cliente>>
-            }
-            .onStart { emit(Resource.Loading()) }
-            .catch { e ->
-                if (e is CancellationException) throw e
-                emit(Resource.Error("Error al obtener clientes: ${e.message}"))
-            }
+        return flow {
+            emit(Resource.Loading())
+            emit(getClientesOnce(getWorkspaceId()))
+        }
     }
 
-    override suspend fun getClientesOnce(): Resource<List<Cliente>> {
+    override suspend fun getClientesOnce(workspaceId: String): Resource<List<Cliente>> {
+        val cache = getCacheFor(workspaceId)
+        cache.get()?.let { return Resource.Success(it) }
+
         return try {
-            val docs = dataSource.getAllBusinessDocumentsOrderedLimited("clientes", "createdAt", true, 100)
+            val docs = dataSource.getBusinessDocumentsPaged("clientes", limit = 25)
             val list = docs.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
+            cache.set(list, TTL_10_MIN)
             Resource.Success(list)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -53,22 +54,23 @@ class ClienteRepositoryImpl @Inject constructor(
 
     override suspend fun getClienteById(id: String): Flow<Resource<Cliente>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val data = dataSource.getBusinessDocument("clientes", id, getWorkspaceId())
             if (data != null) {
-                emit(Resource.Success(ClienteDto.fromMap(id, data).toDomain()))
+                Resource.Success(ClienteDto.fromMap(id, data).toDomain())
             } else {
-                emit(Resource.Error("Cliente no encontrado"))
+                Resource.Error("Cliente no encontrado")
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error al obtener cliente: ${e.message}"))
+            Resource.Error("Error al obtener cliente: ${e.message}")
         }
+        emit(result)
     }
 
     override suspend fun searchClienteByDni(dni: String): Flow<Resource<Cliente?>> = flow {
         emit(Resource.Loading())
-        try {
+        val result: Resource<Cliente?> = try {
             val workspaceId = getWorkspaceId()
             val document = dataSource.getBusinessDocument("clientes_dni_index", dni, workspaceId)
             if (document != null) {
@@ -76,74 +78,77 @@ class ClienteRepositoryImpl @Inject constructor(
                 if (clienteId != null) {
                     val clienteData = dataSource.getBusinessDocument("clientes", clienteId, workspaceId)
                     if (clienteData != null) {
-                        emit(Resource.Success(ClienteDto.fromMap(clienteId, clienteData).toDomain()))
-                        return@flow
-                    }
-                }
-            }
-            emit(Resource.Success(null))
+                        Resource.Success(ClienteDto.fromMap(clienteId, clienteData).toDomain())
+                    } else Resource.Success(null)
+                } else Resource.Success(null)
+            } else Resource.Success(null)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error al buscar: ${e.message}"))
+            Resource.Error("Error al buscar: ${e.message}")
         }
+        emit(result)
     }
 
     override suspend fun addCliente(cliente: Cliente): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val dto = ClienteDto.fromDomain(cliente)
             val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             val id = clientDataSource.addClienteTransactional(cliente.workspaceId, data, cliente.dni)
-            emit(Resource.Success(id))
+            getCacheFor(cliente.workspaceId).invalidate()
+            Resource.Success(id)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error(e.message ?: "Error al agregar"))
+            Resource.Error(e.message ?: "Error al agregar")
         }
+        emit(result)
     }
 
     override suspend fun updateCliente(cliente: Cliente): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val dto = ClienteDto.fromDomain(cliente)
             val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             dataSource.updateBusinessDocument("clientes", cliente.id, data, cliente.workspaceId)
-            emit(Resource.Success(Unit))
+            getCacheFor(cliente.workspaceId).invalidate()
+            Resource.Success(Unit)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error al actualizar: ${e.message}"))
+            Resource.Error("Error al actualizar: ${e.message}")
         }
+        emit(result)
     }
 
     override suspend fun deleteCliente(clienteId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        try {
-            // Necesitamos el DNI para borrar el índice. 
-            // Podríamos obtener el cliente primero o cambiar el parámetro.
-            // Para simplicidad en esta interfaz vieja, asumimos que el DNI no es necesario si el repo lo busca.
+        val result = try {
             val workspaceId = getWorkspaceId()
             val data = dataSource.getBusinessDocument("clientes", clienteId, workspaceId)
             val dni = data?.get("dni") as? String ?: ""
             clientDataSource.deleteClienteTransactional(workspaceId, clienteId, dni)
-            emit(Resource.Success(Unit))
+            getCacheFor(workspaceId).invalidate()
+            Resource.Success(Unit)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error al eliminar: ${e.message}"))
+            Resource.Error("Error al eliminar: ${e.message}")
         }
+        emit(result)
     }
 
     override suspend fun searchClientes(query: String): Flow<Resource<List<Cliente>>> = flow {
         emit(Resource.Loading())
-        try {
+        val result = try {
             val documents = if (query.isBlank()) {
-                dataSource.getAllBusinessDocumentsOrderedLimited("clientes", "createdAt", true, 50)
+                dataSource.getBusinessDocumentsPaged("clientes", limit = 25)
             } else {
-                dataSource.queryBusinessArrayContainsLimited("clientes", "searchTerms", query.lowercase().trim())
+                dataSource.queryBusinessArrayContainsLimited("clientes", "searchTerms", query.lowercase().trim(), limit = 25)
             }
             val clientes = documents.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-            emit(Resource.Success(clientes))
+            Resource.Success(clientes)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error("Error en búsqueda: ${e.message}"))
+            Resource.Error("Error en búsqueda: ${e.message}")
         }
+        emit(result)
     }
 }

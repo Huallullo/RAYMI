@@ -22,7 +22,8 @@ data class Item(
     val categoriaId: String = "",              // Referencia a Categoria
     val descripcion: String = "",
     val precio: Double = 0.0,
-    val cantidad: Int = 1,                     // Cuántos items iguales tienes
+    val cantidad: Int = 1,                     // Cuántos items iguales tienes (STOCK TOTAL)
+    val unidadesAlquiladas: Int = 0,           // Cuántos de esos items están fuera ahora
     val estado: String = "DISPONIBLE",         // DISPONIBLE|ALQUILADO|MANTENIMIENTO|NO_DISPONIBLE
     
     // Atributos dinámicos - El usuario define según su tipo de negocio

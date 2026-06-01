@@ -16,6 +16,13 @@ val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
+
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties()
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
 android {
     namespace = "com.raymi.app"
     compileSdk = 35
@@ -34,19 +41,19 @@ android {
         }
 
         // RENIEC API Configuration
-        buildConfigField("String", "RENIEC_API_URL", "\"${project.findProperty("RENIEC_API_URL") ?: ""}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN", "\"${project.findProperty("RENIEC_API_TOKEN") ?: ""}\"")
-        buildConfigField("String", "RENIEC_API_URL_FALLBACK", "\"${project.findProperty("RENIEC_API_URL_FALLBACK") ?: ""}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK") ?: ""}\"")
-        buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${project.findProperty("RENIEC_API_URL_FALLBACK2") ?: ""}\"")
-        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${project.findProperty("RENIEC_API_TOKEN_FALLBACK2") ?: ""}\"")
-        buildConfigField("String", "ADMOB_APP_ID", "\"${project.findProperty("ADMOB_APP_ID") ?: ""}\"")
-        buildConfigField("String", "NUBEFACT_URL", "\"${project.findProperty("NUBEFACT_URL") ?: ""}\"")
-        buildConfigField("String", "NUBEFACT_TOKEN", "\"${project.findProperty("NUBEFACT_TOKEN") ?: ""}\"")
-        buildConfigField("String", "APIPERU_URL", "\"${project.findProperty("APIPERU_URL") ?: ""}\"")
-        buildConfigField("String", "APIPERU_TOKEN", "\"${project.findProperty("APIPERU_TOKEN") ?: ""}\"")
-        buildConfigField("String", "MIAPI_URL", "\"${project.findProperty("MIAPI_URL") ?: ""}\"")
-        buildConfigField("String", "MIAPI_TOKEN", "\"${project.findProperty("MIAPI_TOKEN") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_URL", "\"${localProperties.getProperty("RENIEC_API_URL") ?: project.findProperty("RENIEC_API_URL") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN", "\"${localProperties.getProperty("RENIEC_API_TOKEN") ?: project.findProperty("RENIEC_API_TOKEN") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK", "\"${localProperties.getProperty("RENIEC_API_URL_FALLBACK") ?: project.findProperty("RENIEC_API_URL_FALLBACK") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK", "\"${localProperties.getProperty("RENIEC_API_TOKEN_FALLBACK") ?: project.findProperty("RENIEC_API_TOKEN_FALLBACK") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_URL_FALLBACK2", "\"${localProperties.getProperty("RENIEC_API_URL_FALLBACK2") ?: project.findProperty("RENIEC_API_URL_FALLBACK2") ?: ""}\"")
+        buildConfigField("String", "RENIEC_API_TOKEN_FALLBACK2", "\"${localProperties.getProperty("RENIEC_API_TOKEN_FALLBACK2") ?: project.findProperty("RENIEC_API_TOKEN_FALLBACK2") ?: ""}\"")
+        buildConfigField("String", "ADMOB_APP_ID", "\"${localProperties.getProperty("ADMOB_APP_ID") ?: project.findProperty("ADMOB_APP_ID") ?: ""}\"")
+        buildConfigField("String", "NUBEFACT_URL", "\"${localProperties.getProperty("NUBEFACT_URL") ?: project.findProperty("NUBEFACT_URL") ?: ""}\"")
+        buildConfigField("String", "NUBEFACT_TOKEN", "\"${localProperties.getProperty("NUBEFACT_TOKEN") ?: project.findProperty("NUBEFACT_TOKEN") ?: ""}\"")
+        buildConfigField("String", "APIPERU_URL", "\"${localProperties.getProperty("APIPERU_URL") ?: project.findProperty("APIPERU_URL") ?: ""}\"")
+        buildConfigField("String", "APIPERU_TOKEN", "\"${localProperties.getProperty("APIPERU_TOKEN") ?: project.findProperty("APIPERU_TOKEN") ?: ""}\"")
+        buildConfigField("String", "MIAPI_URL", "\"${localProperties.getProperty("MIAPI_URL") ?: project.findProperty("MIAPI_URL") ?: ""}\"")
+        buildConfigField("String", "MIAPI_TOKEN", "\"${localProperties.getProperty("MIAPI_TOKEN") ?: project.findProperty("MIAPI_TOKEN") ?: ""}\"")
         buildConfigField("String", "ADMOB_BANNER_ID", "\"${project.findProperty("ADMOB_BANNER_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\"")
         buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"${project.findProperty("ADMOB_INTERSTITIAL_ID") ?: "ca-app-pub-3940256099942544/1033173712"}\"")
     }
@@ -114,6 +121,7 @@ dependencies {
 
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
@@ -148,6 +156,9 @@ dependencies {
     kapt(libs.hilt.compiler)
     kapt(libs.androidx.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+
+    // Google Services
+    implementation(libs.google.location)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

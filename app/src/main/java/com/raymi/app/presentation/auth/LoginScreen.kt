@@ -119,11 +119,12 @@ fun LoginScreen(
 
     LaunchedEffect(uiState.error, uiState.infoMessage) {
         uiState.error?.let {
+            val lowerError = it.lowercase()
             val msg = when {
-                it.contains("formato válido") || it.contains("invalid email") -> strings.errorInvalidEmail
-                it.contains("incorrecta") || it.contains("wrong password") -> strings.errorWrongPassword
-                it.contains("red") || it.contains("network") -> strings.errorNetwork
-                it.contains("permiso") || it.contains("permission") -> strings.errorUnauthorized
+                lowerError.contains("contraseña") || lowerError.contains("password") || lowerError.contains("incorrect") -> strings.errorWrongPassword
+                lowerError.contains("formato") || lowerError.contains("email") -> strings.errorInvalidEmail
+                lowerError.contains("red") || lowerError.contains("network") || lowerError.contains("conexión") -> strings.errorNetwork
+                lowerError.contains("permiso") || lowerError.contains("permission") || lowerError.contains("denegado") -> strings.errorUnauthorized
                 else -> it
             }
             snackbarHostState.showSnackbar(

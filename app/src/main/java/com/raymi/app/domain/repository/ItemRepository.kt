@@ -55,4 +55,9 @@ interface ItemRepository {
      * Obtiene ítems filtrados por categoría
      */
     suspend fun getItemsByCategoria(workspaceId: String, categoriaId: String): Flow<Resource<List<Item>>>
+
+    /**
+     * Limpia la cache local del workspace
+     */
+    fun invalidateCache(workspaceId: String)
 }

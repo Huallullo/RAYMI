@@ -8,6 +8,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,38 +67,57 @@ fun MainScreen(
 
     CompositionLocalProvider(LocalRaymiStrings provides strings) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 if (!isConnected) {
                     Surface(
-                        color = Color(0xFFFFF176),
-                        modifier = Modifier.fillMaxWidth().statusBarsPadding()
+                        color = Color(0xFFFFF7ED), // Ambar muy claro
+                        modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFED7AA))
                     ) {
-                        Text(
-                            text = if (strings is SpanishStrings) "Sin conexión - Datos locales" else "Offline - Local data",
-                            modifier = Modifier.padding(8.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.Black,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                        Row(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(14.dp), tint = Color(0xFFC2410C))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (strings is SpanishStrings) "Modo sin conexión" else "Offline mode",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFC2410C),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-                }
-            },
-            bottomBar = {
-                if (showBottomBar) {
-                    FuturisticBottomBar(
-                        navController = navController,
-                        currentDestination = currentDestination,
-                        strings = strings
-                    )
                 }
             }
         ) { paddingValues ->
-            Box(modifier = Modifier.padding(paddingValues)) {
-                RaymiNavGraph(
-                    navController = navController,
-                    startDestination = Screen.Login.route,
-                    adInterstitialManager = adInterstitialManager
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                // 1. EL CONTENIDO OCUPA TODO EL ESPACIO (Pasa por debajo de la barra)
+                Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding())) {
+                    RaymiNavGraph(
+                        navController = navController,
+                        startDestination = Screen.Login.route,
+                        adInterstitialManager = adInterstitialManager
+                    )
+                }
+                
+                // 2. LA BARRA ES UNA CÁPSULA FLOTANTE MINIMALISTA (Overlay Real)
+                if (showBottomBar) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.navigationBars) // Solo el espacio de los botones del sistema
+                            .padding(bottom = 4.dp) // Pegado al borde inferior del sistema para ganar espacio
+                    ) {
+                        FuturisticBottomBar(
+                            navController = navController,
+                            currentDestination = currentDestination,
+                            strings = strings
+                        )
+                    }
+                }
             }
         }
     }
@@ -108,56 +129,49 @@ fun FuturisticBottomBar(
     currentDestination: androidx.navigation.NavDestination?,
     strings: com.raymi.app.core.lang.RaymiStrings
 ) {
-    Box(
+    Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 20.dp) // Margen lateral de la cápsula para que flote
+            .shadow(16.dp, shape = CircleShape)
+            .clip(CircleShape),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+        tonalElevation = 0.dp
     ) {
-        Surface(
+        Row(
             modifier = Modifier
-                .shadow(12.dp, shape = MaterialTheme.shapes.extraLarge)
-                .clip(MaterialTheme.shapes.extraLarge),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-            tonalElevation = 8.dp
+                .padding(horizontal = 6.dp, vertical = 4.dp) // Reducción de grosor
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                bottomNavItems.forEach { item ->
-                    val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                    
-                    val title = when(item) {
-                        BottomNavItem.Dashboard -> strings.dashboard
-                        BottomNavItem.Clientes -> strings.clients
-                        BottomNavItem.Items -> strings.inventory
-                        BottomNavItem.Alquileres -> strings.rentals
-                        BottomNavItem.Historial -> strings.history
-                        BottomNavItem.Profile -> strings.profile
-                    }
+            bottomNavItems.forEach { item ->
+                val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                
+                val title = when(item) {
+                    BottomNavItem.Dashboard -> strings.dashboard
+                    BottomNavItem.Clientes -> strings.clients
+                    BottomNavItem.Items -> strings.inventory
+                    BottomNavItem.Alquileres -> strings.rentals
+                    BottomNavItem.Historial -> strings.history
+                    BottomNavItem.Profile -> strings.profile
+                }
 
-                    FuturisticNavItem(
-                        item = item,
-                        title = title,
-                        selected = isSelected,
-                        onClick = {
-                            if (!isSelected) {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                FuturisticNavItem(
+                    item = item,
+                    title = title,
+                    selected = isSelected,
+                    onClick = {
+                        if (!isSelected) {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }
@@ -186,11 +200,11 @@ fun FuturisticNavItem(
 
     Box(
         modifier = Modifier
-            .height(48.dp)
+            .height(40.dp) // Más delgado
             .clip(CircleShape)
             .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp), // Menos padding lateral
         contentAlignment = Alignment.Center
     ) {
         Row(

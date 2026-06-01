@@ -5,7 +5,8 @@ import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.EstadoCliente
 
 /**
- * DTO para transferencia de datos de Cliente con Firebase
+ * DTO para transferencia de datos de Cliente con Firebase.
+ * Incluye campos para respaldo de identidad (Fotos DNI y Rostro).
  */
 data class ClienteDto(
     val id: String = "",
@@ -22,6 +23,9 @@ data class ClienteDto(
     val totalGastado: Double = 0.0,
     val deudaTotal: Double = 0.0,
     val ultimoAlquiler: Timestamp? = null,
+    val fotoDniFrontUrl: String? = null,
+    val fotoDniBackUrl: String? = null,
+    val fotoRostroUrl: String? = null,
     val createdAt: Timestamp = Timestamp.now()
 ) {
     fun toDomain(): Cliente = Cliente(
@@ -39,6 +43,9 @@ data class ClienteDto(
         totalGastado = totalGastado,
         deudaTotal = deudaTotal,
         ultimoAlquiler = ultimoAlquiler,
+        fotoDniFrontUrl = fotoDniFrontUrl,
+        fotoDniBackUrl = fotoDniBackUrl,
+        fotoRostroUrl = fotoRostroUrl,
         createdAt = createdAt
     )
 
@@ -58,6 +65,9 @@ data class ClienteDto(
             totalGastado = cliente.totalGastado,
             deudaTotal = cliente.deudaTotal,
             ultimoAlquiler = cliente.ultimoAlquiler,
+            fotoDniFrontUrl = cliente.fotoDniFrontUrl,
+            fotoDniBackUrl = cliente.fotoDniBackUrl,
+            fotoRostroUrl = cliente.fotoRostroUrl,
             createdAt = cliente.createdAt
         )
 
@@ -76,6 +86,9 @@ data class ClienteDto(
             totalGastado = (map["totalGastado"] as? Number)?.toDouble() ?: 0.0,
             deudaTotal = (map["deudaTotal"] as? Number)?.toDouble() ?: 0.0,
             ultimoAlquiler = map["ultimoAlquiler"] as? Timestamp,
+            fotoDniFrontUrl = map["fotoDniFrontUrl"] as? String,
+            fotoDniBackUrl = map["fotoDniBackUrl"] as? String,
+            fotoRostroUrl = map["fotoRostroUrl"] as? String,
             createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now()
         )
 
@@ -109,6 +122,9 @@ data class ClienteDto(
         "totalGastado" to totalGastado,
         "deudaTotal" to deudaTotal,
         "ultimoAlquiler" to ultimoAlquiler,
+        "fotoDniFrontUrl" to fotoDniFrontUrl,
+        "fotoDniBackUrl" to fotoDniBackUrl,
+        "fotoRostroUrl" to fotoRostroUrl,
         "createdAt" to createdAt,
         "searchTerms" to buildSearchTerms(dni, nombre, apellidos)
     )

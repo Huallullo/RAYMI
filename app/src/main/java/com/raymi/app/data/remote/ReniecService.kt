@@ -54,55 +54,67 @@ class ReniecService @Inject constructor() {
      * Intenta con 3 APIs en cascada: apisperu → decolecta → consultasperu
      */
     suspend fun consultarPorDni(dni: String): Resource<ReniecData> {
+        android.util.Log.d("ReniecService", "Iniciando consulta para DNI: $dni")
+        
         if (dni.length != 8 || !dni.all { it.isDigit() }) {
             return Resource.Error("El DNI debe tener exactamente 8 dígitos numéricos")
         }
 
-        // Si ningún token está configurado, ir directo al mock para no hacer requests inútiles
-        if (RENIEC_API_TOKEN.isBlank() && RENIEC_API_TOKEN_FALLBACK.isBlank() && RENIEC_API_TOKEN_FALLBACK2.isBlank()) {
-            return getMockResource(dni)
+        // Detectar si estamos en modo desarrollo (sin tokens configurados)
+        val noTokens = RENIEC_API_TOKEN.isBlank() && 
+                       RENIEC_API_TOKEN_FALLBACK.isBlank() && 
+                       RENIEC_API_TOKEN_FALLBACK2.isBlank()
+
+        if (noTokens) {
+            android.util.Log.d("ReniecService", "Usando datos MOCK (sin tokens configurados)")
+            val mockResult = getMockResource(dni)
+            return if (mockResult is Resource.Error) {
+                Resource.Error("Modo Demo: Solo funcionan los DNI de prueba (ej: 12345678). Configura los tokens reales en local.properties.")
+            } else mockResult
         }
 
         return withContext(Dispatchers.IO) {
+            // ... (resto del código igual) ...
             // 1️⃣ Intentar con la API principal (apisperu.com)
             if (RENIEC_API_TOKEN.isNotBlank()) {
+                android.util.Log.d("ReniecService", "Intentando API Principal...")
                 val resultado = consultarConApi(
                     dni,
                     RENIEC_API_BASE_URL,
                     RENIEC_API_TOKEN,
                     "apisperu.com (API Principal)"
                 )
-                if (resultado !is Resource.Error) {
-                    return@withContext resultado
-                }
+                if (resultado !is Resource.Error) return@withContext resultado
+                android.util.Log.w("ReniecService", "API Principal falló: ${resultado.message}")
             }
 
             // 2️⃣ Intentar con la primera API fallback (decolecta.com)
             if (RENIEC_API_TOKEN_FALLBACK.isNotBlank()) {
+                android.util.Log.d("ReniecService", "Intentando API Fallback 1 (Decolecta)...")
                 val resultado = consultarConApiDecolecta(
                     dni,
                     RENIEC_API_BASE_URL_FALLBACK,
                     RENIEC_API_TOKEN_FALLBACK
                 )
-                if (resultado !is Resource.Error) {
-                    return@withContext resultado
-                }
+                if (resultado !is Resource.Error) return@withContext resultado
+                android.util.Log.w("ReniecService", "API Fallback 1 falló: ${resultado.message}")
             }
 
             // 3️⃣ Intentar con la segunda API fallback (consultasperu.com)
             if (RENIEC_API_TOKEN_FALLBACK2.isNotBlank()) {
+                android.util.Log.d("ReniecService", "Intentando API Fallback 2 (ConsultasPeru)...")
                 val resultado = consultarConApiConsultasPeru(
                     dni,
                     RENIEC_API_BASE_URL_FALLBACK2,
                     RENIEC_API_TOKEN_FALLBACK2
                 )
-                if (resultado !is Resource.Error) {
-                    return@withContext resultado
-                }
+                if (resultado !is Resource.Error) return@withContext resultado
+                android.util.Log.w("ReniecService", "API Fallback 2 falló: ${resultado.message}")
             }
 
             // Si todas las APIs fallan, devolver error final
-            Resource.Error("❌ No se pudo consultar el DNI en ninguno de los 3 servidores disponibles. Intenta más tarde.")
+            android.util.Log.e("ReniecService", "Todas las APIs fallaron.")
+            Resource.Error("❌ No se pudo conectar con RENIEC. Verifica tu conexión o intenta más tarde.")
         }
     }
 
@@ -128,6 +140,7 @@ class ReniecService @Inject constructor() {
                  requestMethod = "GET"
                  setRequestProperty("Content-Type", "application/json")
                  setRequestProperty("Accept", "application/json")
+                 setRequestProperty("Authorization", "Bearer $token")
                  setRequestProperty("User-Agent", "Mozilla/5.0 (Android) RAYMI-App/1.0")
                  connectTimeout = 15000
                  readTimeout = 15000
@@ -135,21 +148,25 @@ class ReniecService @Inject constructor() {
              }
 
              val responseCode = connection.responseCode
+             val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+             val responseBody = responseStream?.bufferedReader()?.use { it.readText() } ?: ""
+             
+             android.util.Log.d("ReniecService", "Respuesta de $nombreApi: Code $responseCode - Body: $responseBody")
+
              when (responseCode) {
                  HttpURLConnection.HTTP_OK -> {
-                     val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
                      val apiResponse: ReniecApiResponse = json.decodeFromString(responseBody)
                      
                      if (apiResponse.success == false) {
-                         return Resource.Error(apiResponse.message ?: "No se encontraron resultados en $nombreApi")
+                         return Resource.Error(apiResponse.message ?: "DNI no encontrado")
                      }
                      
-                     val nombres = apiResponse.nombres?.trim() ?: apiResponse.name?.trim() ?: ""
-                     val apPat = apiResponse.apellidoPaterno?.trim() ?: apiResponse.fatherSurname?.trim() ?: ""
-                     val apMat = apiResponse.apellidoMaterno?.trim() ?: apiResponse.motherSurname?.trim() ?: ""
+                     val nombres = (apiResponse.nombres ?: apiResponse.name ?: "").trim()
+                     val apPat = (apiResponse.apellidoPaterno ?: apiResponse.fatherSurname ?: "").trim()
+                     val apMat = (apiResponse.apellidoMaterno ?: apiResponse.motherSurname ?: "").trim()
 
                      if (nombres.isBlank() && apPat.isBlank()) {
-                         Resource.Error("DNI $dni no encontrado en $nombreApi")
+                         Resource.Error("DNI $dni no encontrado")
                      } else {
                          Resource.Success(
                              ReniecData(
@@ -161,15 +178,15 @@ class ReniecService @Inject constructor() {
                          )
                      }
                  }
-                 HttpURLConnection.HTTP_NOT_FOUND -> Resource.Error("DNI $dni no encontrado en $nombreApi")
+                 HttpURLConnection.HTTP_NOT_FOUND -> Resource.Error("DNI no registrado")
                  HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN -> 
-                     Resource.Error("❌ Token inválido en $nombreApi")
-                 429 -> Resource.Error("⏳ Límite de consultas excedido en $nombreApi")
-                 500, 502, 503 -> Resource.Error("🔴 Servidor de $nombreApi fuera de servicio")
-                 else -> Resource.Error("Error en $nombreApi (código $responseCode)")
+                     Resource.Error("Error de autenticación (Token)")
+                 429 -> Resource.Error("Demasiadas consultas. Intenta en unos minutos.")
+                 else -> Resource.Error("Servidor temporalmente ocupado ($responseCode)")
              }
          } catch (e: Exception) {
-             Resource.Error("❌ Error conectando con $nombreApi: ${e.message}")
+             android.util.Log.e("ReniecService", "Excepción en $nombreApi", e)
+             Resource.Error("Error de conexión con RENIEC")
          }
      }
 
@@ -199,17 +216,19 @@ class ReniecService @Inject constructor() {
             }
 
             val responseCode = connection.responseCode
+            val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            val responseBody = responseStream?.bufferedReader()?.use { it.readText() } ?: ""
+
             when (responseCode) {
                 HttpURLConnection.HTTP_OK -> {
-                    val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
                     val apiResponse: DecolectaApiResponse = json.decodeFromString(responseBody)
                     
-                    val nombres = apiResponse.first_name?.trim() ?: ""
-                    val apPat = apiResponse.first_last_name?.trim() ?: ""
-                    val apMat = apiResponse.second_last_name?.trim() ?: ""
+                    val nombres = (apiResponse.first_name ?: "").trim()
+                    val apPat = (apiResponse.first_last_name ?: "").trim()
+                    val apMat = (apiResponse.second_last_name ?: "").trim()
 
                     if (nombres.isBlank() && apPat.isBlank()) {
-                        Resource.Error("DNI $dni no encontrado en decolecta.com")
+                        Resource.Error("DNI no encontrado")
                     } else {
                         Resource.Success(
                             ReniecData(
@@ -221,14 +240,10 @@ class ReniecService @Inject constructor() {
                         )
                     }
                 }
-                HttpURLConnection.HTTP_NOT_FOUND -> Resource.Error("DNI $dni no encontrado en decolecta.com")
-                HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN -> 
-                    Resource.Error("❌ Token inválido en decolecta.com")
-                429 -> Resource.Error("⏳ Límite de consultas en decolecta.com")
-                else -> Resource.Error("Error en decolecta.com (código $responseCode)")
+                else -> Resource.Error("Error en servidor secundario ($responseCode)")
             }
         } catch (e: Exception) {
-            Resource.Error("❌ Error en decolecta.com: ${e.message}")
+            Resource.Error("Error de conexión (S2)")
         }
     }
 
@@ -269,13 +284,15 @@ class ReniecService @Inject constructor() {
             }
 
             val responseCode = connection.responseCode
+            val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            val responseBody = responseStream?.bufferedReader()?.use { it.readText() } ?: ""
+
             when (responseCode) {
                 HttpURLConnection.HTTP_OK -> {
-                    val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
                     val apiResponse: ConsultasPeruResponse = json.decodeFromString(responseBody)
                     
                     if (apiResponse.success == false) {
-                        return Resource.Error(apiResponse.message ?: "No se encontraron resultados en consultasperu.com")
+                        return Resource.Error(apiResponse.message ?: "DNI no encontrado")
                     }
 
                     val data = apiResponse.data
@@ -289,17 +306,13 @@ class ReniecService @Inject constructor() {
                             )
                         )
                     } else {
-                        Resource.Error("DNI $dni no encontrado en consultasperu.com")
+                        Resource.Error("DNI no registrado")
                     }
                 }
-                HttpURLConnection.HTTP_NOT_FOUND -> Resource.Error("DNI $dni no encontrado en consultasperu.com")
-                HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN -> 
-                    Resource.Error("❌ Token inválido en consultasperu.com")
-                429 -> Resource.Error("⏳ Límite de consultas en consultasperu.com")
-                else -> Resource.Error("Error en consultasperu.com (código $responseCode)")
+                else -> Resource.Error("Error en servidor de reserva ($responseCode)")
             }
         } catch (e: Exception) {
-            Resource.Error("❌ Error en consultasperu.com: ${e.message}")
+            Resource.Error("Error de conexión (S3)")
         }
     }
 
@@ -307,7 +320,8 @@ class ReniecService @Inject constructor() {
      * Devuelve datos simulados para desarrollo/testing.
      * En producción, asegúrate de que el token real esté configurado.
      */
-    private fun getMockResource(dni: String): Resource<ReniecData> {
+    private suspend fun getMockResource(dni: String): Resource<ReniecData> {
+        kotlinx.coroutines.delay(1000) // Simular latencia de red para feedback visual
         val data = MOCK_DATA[dni]
         return if (data != null) {
             Resource.Success(data)

@@ -18,6 +18,7 @@ class ClientDataSource @Inject constructor(
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val clientesRef = negocioRef.collection("clientes")
         val dniIndexRef = negocioRef.collection("clientes_dni_index").document(dni)
+        val statsRef = negocioRef.collection("metadata").document("stats")
 
         return firestore.runTransaction { transaction ->
             if (transaction.get(dniIndexRef).exists()) {
@@ -26,6 +27,10 @@ class ClientDataSource @Inject constructor(
             val clienteRef = clientesRef.document()
             transaction.set(clienteRef, clienteData + mapOf("id" to clienteRef.id))
             transaction.set(dniIndexRef, mapOf("clienteId" to clienteRef.id, "dni" to dni))
+            
+            // Incrementar contador de clientes
+            transaction.set(statsRef, mapOf("totalClientes" to com.google.firebase.firestore.FieldValue.increment(1)), com.google.firebase.firestore.SetOptions.merge())
+            
             clienteRef.id
         }.await()
     }
@@ -38,10 +43,12 @@ class ClientDataSource @Inject constructor(
         val negocioRef = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
         val clienteRef = negocioRef.collection("clientes").document(clienteId)
         val dniIndexRef = negocioRef.collection("clientes_dni_index").document(dni)
+        val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
             transaction.delete(clienteRef)
             transaction.delete(dniIndexRef)
+            transaction.set(statsRef, mapOf("totalClientes" to com.google.firebase.firestore.FieldValue.increment(-1)), com.google.firebase.firestore.SetOptions.merge())
         }.await()
     }
 }

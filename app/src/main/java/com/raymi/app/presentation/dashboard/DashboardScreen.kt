@@ -95,9 +95,10 @@ fun DashboardScreen(
                 ExecutiveSummaryCard(
                     ingresoMes = uiState.estadisticas.ingresosMes,
                     ingresoTotal = uiState.estadisticas.ingresosTotales,
+                    saldoPendienteTotal = uiState.estadisticas.montoPendienteTotal,
                     variacion = uiState.variacionMensualPct,
+                    currency = uiState.currentWorkspace?.moneda ?: "PEN",
                     labelMes = strings.monthlyEarnings,
-                    labelTotal = strings.totalEarnings,
                     onExport = { viewModel.exportarResumenFinancieroPdf() }
                 )
 
@@ -120,10 +121,10 @@ fun DashboardScreen(
                     Text(strings.operationalStatus, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     OperationsGrid(
                         inventario = uiState.estadisticas.totalItems,
-                        alquilados = uiState.estadisticas.alquileresActivos,
+                        alquilados = uiState.estadisticas.alquileresActivos, // Mostramos alquileres activos
                         clientes = uiState.estadisticas.totalClientes,
                         labelInventario = strings.inventory,
-                        labelAlquilados = strings.rented,
+                        labelAlquilados = if (strings is com.raymi.app.core.lang.SpanishStrings) "Alquilados" else "Rented",
                         labelClientes = strings.activeClients,
                         onInventoryClick = onNavigateToItems,
                         onRentalsClick = onNavigateToAlquileres,
@@ -238,27 +239,38 @@ fun WeeklyActivityChart(actividad: Map<String, Int>) {
     
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp).fillMaxWidth().height(120.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            actividad.forEach { (dia, cantidad) ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val barHeight = (cantidad.toFloat() / maxVal.toFloat()) * 80
-                    Box(
-                        modifier = Modifier
-                            .width(14.dp)
-                            .height(barHeight.dp)
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(if (cantidad > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(dia, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                actividad.forEach { (dia, cantidad) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                        val barHeight = (cantidad.toFloat() / maxVal.toFloat()) * 80
+                        
+                        Box(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(barHeight.dp.coerceAtLeast(4.dp))
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (cantidad > 0) MaterialTheme.colorScheme.primary 
+                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            dia.take(1).uppercase(), 
+                            style = MaterialTheme.typography.labelSmall, 
+                            fontWeight = FontWeight.Black,
+                            color = if (cantidad > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        )
+                    }
                 }
             }
         }
@@ -269,12 +281,15 @@ fun WeeklyActivityChart(actividad: Map<String, Int>) {
 fun ExecutiveSummaryCard(
     ingresoMes: Double, 
     ingresoTotal: Double, 
+    saldoPendienteTotal: Double,
     variacion: Double, 
+    currency: String,
     labelMes: String,
-    labelTotal: String,
     onExport: () -> Unit
 ) {
     val isPositive = variacion >= 0
+    val symbol = if (currency == "USD") "$" else "S/."
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -289,7 +304,7 @@ fun ExecutiveSummaryCard(
                 Column {
                     Text(labelMes, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelLarge)
                     Text(
-                        text = "S/. " + String.format(Locale.getDefault(), "%,.2f", ingresoMes),
+                        text = "$symbol " + String.format(Locale.getDefault(), "%,.2f", ingresoMes),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = Color.White
@@ -302,36 +317,52 @@ fun ExecutiveSummaryCard(
             
             Spacer(Modifier.height(16.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = Color.White.copy(alpha = 0.2f),
-                    shape = CircleShape
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = CircleShape
                     ) {
-                        Icon(
-                            if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = (if (isPositive) "+" else "") + String.format(Locale.getDefault(), "%.1f", variacion) + "%",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = (if (isPositive) "+" else "") + String.format(Locale.getDefault(), "%.1f", variacion) + "%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Total: $symbol " + String.format(Locale.getDefault(), "%,.0f", ingresoTotal),
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                }
+                
+                // SALDO PENDIENTE RESALTADO A LA DERECHA
+                if (saldoPendienteTotal > 0) {
+                    Surface(
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.End) {
+                            Text("POR COBRAR", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+                            Text("$symbol ${String.format(Locale.getDefault(), "%,.2f", saldoPendienteTotal)}", color = Color.White, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Black)
+                        }
                     }
                 }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = labelTotal + ": S/. " + String.format(Locale.getDefault(), "%,.1f", ingresoTotal),
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.labelSmall
-                )
             }
         }
     }

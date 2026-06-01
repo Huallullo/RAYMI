@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.core.utils.QrCodeGenerator
 import androidx.compose.ui.graphics.asImageBitmap
 import com.raymi.app.domain.model.Item
+import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.presentation.components.EstadoBadge
 import com.raymi.app.presentation.components.RaymiErrorState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
@@ -94,6 +95,7 @@ fun ItemDetailScreen(
                     tonalElevation = 8.dp,
                     shadowElevation = 8.dp
                 ) {
+                    val stockDisponible = (uiState.item!!.cantidad - uiState.item!!.unidadesAlquiladas).coerceAtLeast(0)
                     Button(
                         onClick = { onRentItem(itemId) },
                         modifier = Modifier
@@ -101,7 +103,7 @@ fun ItemDetailScreen(
                             .padding(24.dp)
                             .height(56.dp),
                         shape = MaterialTheme.shapes.extraLarge,
-                        enabled = uiState.item?.estado == "DISPONIBLE"
+                        enabled = uiState.item?.estado != "MANTENIMIENTO" && stockDisponible > 0
                     ) {
                         Icon(Icons.Default.ShoppingCart, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -115,7 +117,7 @@ fun ItemDetailScreen(
             when {
                 uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
                 uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadItem(itemId) })
-                uiState.item != null -> ItemDetailContent(uiState.item!!, strings)
+                uiState.item != null -> ItemDetailContent(uiState.item!!, uiState.historial, strings)
             }
         }
     }
@@ -172,7 +174,7 @@ fun ItemDetailScreen(
 }
 
 @Composable
-fun ItemDetailContent(item: Item, strings: com.raymi.app.core.lang.RaymiStrings) {
+fun ItemDetailContent(item: Item, historial: List<Alquiler>, strings: com.raymi.app.core.lang.RaymiStrings) {
     val scrollState = rememberScrollState()
     val formattedPrice = String.format(Locale.getDefault(), "%.2f", item.precio)
 
@@ -204,13 +206,24 @@ fun ItemDetailContent(item: Item, strings: com.raymi.app.core.lang.RaymiStrings)
                 Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "CÓDIGO" else "CODE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Text(item.codigo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
             }
+            
+            val stockDisponible = (item.cantidad - item.unidadesAlquiladas).coerceAtLeast(0)
+            val estadoTexto = when {
+                item.estado == "MANTENIMIENTO" -> "Reparación"
+                item.unidadesAlquiladas > 0 && stockDisponible > 0 -> "En Uso (${item.unidadesAlquiladas})"
+                item.unidadesAlquiladas >= item.cantidad -> "Alquilado"
+                else -> "Disponible"
+            }
+            val estadoColor = when {
+                item.estado == "MANTENIMIENTO" -> Color(0xFF64748B)
+                item.unidadesAlquiladas > 0 && stockDisponible > 0 -> Color(0xFF3B82F6)
+                item.unidadesAlquiladas >= item.cantidad -> Color(0xFFF59E0B)
+                else -> Color(0xFF10B981)
+            }
+            
             EstadoBadge(
-                texto = item.estado,
-                color = when(item.estado) {
-                    "DISPONIBLE" -> Color(0xFF4CAF50)
-                    "ALQUILADO" -> Color(0xFFFF9800)
-                    else -> Color(0xFFF44336)
-                }
+                texto = estadoTexto,
+                color = estadoColor
             )
         }
 
@@ -223,12 +236,51 @@ fun ItemDetailContent(item: Item, strings: com.raymi.app.core.lang.RaymiStrings)
                 icon = Icons.Default.AttachMoney,
                 modifier = Modifier.weight(1f)
             )
+            val stockDisponible = (item.cantidad - item.unidadesAlquiladas).coerceAtLeast(0)
             InfoSquare(
-                label = if (strings is com.raymi.app.core.lang.SpanishStrings) "Stock Total" else "Total Stock",
-                value = "${item.cantidad} ${strings.units}",
+                label = if (strings is com.raymi.app.core.lang.SpanishStrings) "Stock Disponible" else "Current Stock",
+                value = "$stockDisponible / ${item.cantidad}",
                 icon = Icons.Default.Inventory,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        // 4. Historial de Alquileres
+        if (historial.isNotEmpty()) {
+            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Historial de Uso" else "Usage History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    historial.take(10).forEach { alquiler ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(alquiler.clienteNombre, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "${alquiler.fechaInicioFormatted} - ${alquiler.fechaFinFormatted}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            EstadoBadge(
+                                texto = alquiler.estado.name,
+                                color = if (alquiler.estado == com.raymi.app.domain.model.EstadoAlquiler.DEVUELTO) Color(0xFF10B981) else Color(0xFFF59E0B)
+                            )
+                        }
+                        if (historial.indexOf(alquiler) < historial.size - 1) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        }
+                    }
+                }
+            }
         }
 
         if (item.atributos.isNotEmpty()) {

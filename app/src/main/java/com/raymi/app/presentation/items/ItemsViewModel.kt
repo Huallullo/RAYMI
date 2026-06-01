@@ -3,25 +3,21 @@ package com.raymi.app.presentation.items
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
-import com.raymi.app.domain.model.Categoria
-import com.raymi.app.domain.model.Item
-import com.raymi.app.domain.model.Resource
-import com.raymi.app.domain.model.UserPlan
+import com.raymi.app.domain.model.*
 import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
 import com.raymi.app.domain.usecase.item.GetItemsByWorkspaceOnceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * ViewModel para la gestión de ítems optimizado para SaaS.
- * Usa Snapshots para reducir lecturas de Firestore y filtrado local para fluidez.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ItemsViewModel @Inject constructor(
+    private val itemRepository: com.raymi.app.domain.repository.ItemRepository,
     private val getItemsByWorkspaceOnceUseCase: GetItemsByWorkspaceOnceUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
@@ -36,20 +32,28 @@ class ItemsViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _selectedCategoria = MutableStateFlow<Categoria?>(null)
     private val _limit = MutableStateFlow(100L)
-
-    private var allItems = emptyList<Item>()
+    private val _allItems = MutableStateFlow<List<Item>>(emptyList())
+    private val _allCategorias = MutableStateFlow<List<Categoria>>(emptyList())
 
     init {
-        refreshItems()
         loadUserPlan()
         
-        // Búsqueda y filtrado local (Reactividad instantánea sin costo adicional)
-        _searchQuery.combine(_selectedCategoria) { query, cat ->
-            aplicarFiltros(allItems, query, cat)
-        }.onEach { filtrados ->
-            _uiState.update { it.copy(itemsFiltrados = filtrados) }
+        combine(_allItems, _allCategorias, _searchQuery, _selectedCategoria) { items, cats, query, cat ->
+            Quad(items, cats, query, cat)
+        }.onEach { (items, cats, query, cat) ->
+            _uiState.update { it.copy(
+                itemsFiltrados = aplicarFiltros(items, query, cat),
+                categorias = cats,
+                queryBusqueda = query,
+                categoriaFiltro = cat,
+                isLoading = false
+            ) }
         }.launchIn(viewModelScope)
+
+        refreshItems()
     }
+
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
     private fun loadUserPlan() {
         viewModelScope.launch {
@@ -68,40 +72,43 @@ class ItemsViewModel @Inject constructor(
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             _uiState.update { it.copy(isLoading = true) }
             
-            // 1. Cargar Categorías (Liviano)
-            launch {
-                getCategoriasUseCase(workspaceId).collect { res ->
-                    _uiState.update { it.copy(categorias = res.data ?: emptyList()) }
+            try {
+                // 1. Cargar Categorías (Snapshot - No bloqueante)
+                launch {
+                    getCategoriasUseCase(workspaceId)
+                        .filter { it !is Resource.Loading }
+                        .take(1)
+                        .collect { res ->
+                            if (res is Resource.Success) {
+                                val cats = res.data ?: emptyList()
+                                _allCategorias.value = cats
+                                _uiState.update { it.copy(categorias = cats) }
+                            }
+                        }
                 }
-            }
 
-            // 2. Cargar Ítems (Snapshot - 1 sola lectura por ítem)
-            val res = getItemsByWorkspaceOnceUseCase(workspaceId, _limit.value)
-            if (res is Resource.Success) {
-                allItems = res.data ?: emptyList()
-                _uiState.update { 
-                    it.copy(
-                        items = allItems,
-                        itemsFiltrados = aplicarFiltros(allItems, _searchQuery.value, _selectedCategoria.value),
-                        isLoading = false,
-                        hasMore = allItems.size >= _limit.value.toInt()
-                    )
+                itemRepository.invalidateCache(workspaceId)
+
+                // 2. Cargar Ítems
+                val res = getItemsByWorkspaceOnceUseCase(workspaceId, _limit.value)
+                if (res is Resource.Success) {
+                    _allItems.value = res.data ?: emptyList()
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = (res as? Resource.Error)?.message) }
                 }
-            } else {
-                _uiState.update { it.copy(isLoading = false, error = res.message) }
+            } catch (e: Exception) {
+                android.util.Log.e("ItemsViewModel", "Error: ${e.message}")
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
-    fun buscar(query: String) {
-        _searchQuery.value = query
-    }
+    fun buscar(query: String) { _searchQuery.value = query }
 
-    fun filtrarPorCategoria(categoria: Categoria?) {
-        _selectedCategoria.value = categoria
-    }
+    fun filtrarPorCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
 
     fun cargarMas() {
         _limit.value += 100

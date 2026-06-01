@@ -20,7 +20,8 @@ class RegistrarDevolucionUseCase @Inject constructor(
         alquilerId: String,
         penalidad: Double = 0.0,
         observaciones: String = "",
-        montoGarantiaRetenida: Double = 0.0
+        montoGarantiaRetenida: Double = 0.0,
+        unidadesARetornar: Int = 0
     ): Flow<Resource<Unit>> = flow {
         if (alquilerId.isBlank()) {
             emit(Resource.Error("ID de alquiler no proporcionado"))
@@ -35,10 +36,16 @@ class RegistrarDevolucionUseCase @Inject constructor(
                 emit(Resource.Error("No se puede registrar devolución: Existe un saldo pendiente de ${alquiler.saldoFormateado}. Primero liquide la deuda."))
                 return@flow
             }
+            
+            // Validar que no devuelva más de lo que tiene alquilado
+            if (alquiler != null && unidadesARetornar > alquiler.cantidad) {
+                emit(Resource.Error("No puedes devolver más unidades ($unidadesARetornar) de las alquiladas (${alquiler.cantidad})"))
+                return@flow
+            }
         }
 
         // 2. Ejecutar devolución
-        alquilerRepository.registrarDevolucion(alquilerId, penalidad, observaciones, montoGarantiaRetenida).collect { result ->
+        alquilerRepository.registrarDevolucion(alquilerId, penalidad, observaciones, montoGarantiaRetenida, unidadesARetornar).collect { result ->
             emit(result)
         }
     }

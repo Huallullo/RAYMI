@@ -1,6 +1,7 @@
 package com.raymi.app.data.repository
 
 import com.google.firebase.Timestamp
+import com.raymi.app.core.cache.SmartCache
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.data.model.dto.AlquilerDto
 import com.raymi.app.data.remote.FirebaseDataSource
@@ -11,7 +12,9 @@ import com.raymi.app.domain.repository.AlquilerRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AlquilerRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val rentalDataSource: RentalDataSource,
@@ -19,38 +22,31 @@ class AlquilerRepositoryImpl @Inject constructor(
     private val workspaceManager: WorkspaceManager
 ) : AlquilerRepository {
 
+    // Cache segmentada por Workspace para evitar cruce de datos (Multi-tenancy Fix)
+    private val cacheMap = mutableMapOf<String, SmartCache<List<Alquiler>>>()
+    private val TTL_1_MIN = 60 * 1000L
+
+    private fun getCacheFor(workspaceId: String) = cacheMap.getOrPut(workspaceId) { SmartCache() }
+
     override suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
-        return observerDataSource.observeBusinessCollection(
-            workspaceId = workspaceId,
-            collection = "alquileres",
-            orderByField = "createdAt",
-            descending = true,
-            limit = 100
-        )
-            .map { documents ->
-                val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
-                Resource.Success(alquileres) as Resource<List<Alquiler>>
-            }
-            .onStart { emit(Resource.Loading()) }
-            .catch { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                emit(Resource.Error("Error al obtener alquileres: ${e.message}"))
-            }
+        return flow {
+            emit(Resource.Loading())
+            emit(getAlquileresOnce(workspaceId))
+        }
     }
 
     override suspend fun getAlquileresOnce(workspaceId: String): Resource<List<Alquiler>> {
+        val cache = getCacheFor(workspaceId)
+        cache.get()?.let { return Resource.Success(it) }
+
         return try {
-            val docs = dataSource.getAllBusinessDocumentsOrderedLimited(
-                collection = "alquileres",
-                orderByField = "createdAt",
-                descending = true,
-                limit = 200
-            )
-            val alquileres = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
-            Resource.Success(alquileres)
+            val docs = dataSource.getBusinessDocumentsPaged("alquileres", limit = 30)
+            val list = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            cache.set(list, TTL_1_MIN)
+            Resource.Success(list)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al cargar dashboard: ${e.localizedMessage}")
+            Resource.Error("Error al cargar alquileres: ${e.localizedMessage}")
         }
     }
 
@@ -73,50 +69,8 @@ class AlquilerRepositoryImpl @Inject constructor(
     override suspend fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         try {
-            val documents = dataSource.queryBusinessDocuments(
-                collection = "alquileres",
-                field = "estado",
-                value = estado.name,
-                limit = 300,
-                negocioId = workspaceId
-            )
+            val documents = dataSource.queryBusinessDocuments("alquileres", "estado", estado.name, limit = 100, negocioId = workspaceId)
             val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
-            emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            emit(Resource.Error("Error: ${e.message}"))
-        }
-    }
-
-    override suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
-        emit(Resource.Loading())
-        try {
-            val documents = dataSource.queryBusinessDocuments(
-                collection = "alquileres",
-                field = "clienteId",
-                value = clienteId,
-                limit = 300,
-                negocioId = workspaceId
-            )
-            val alquileres = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
-            emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            emit(Resource.Error("Error: ${e.message}"))
-        }
-    }
-
-    override suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>> = flow {
-        emit(Resource.Loading())
-        try {
-            val docs = dataSource.queryBusinessDocuments(
-                collection = "alquileres",
-                field = "itemId",
-                value = itemId,
-                limit = 500,
-                negocioId = workspaceId
-            )
-            val alquileres = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(alquileres.sortedByDescending { it.createdAt }))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -131,13 +85,7 @@ class AlquilerRepositoryImpl @Inject constructor(
     ): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         try {
-            val docs = dataSource.queryBusinessDocumentsRange(
-                collection = "alquileres",
-                field = "createdAt",
-                start = start,
-                end = end,
-                negocioId = workspaceId
-            )
+            val docs = dataSource.queryBusinessDocumentsRange("alquileres", "createdAt", start, end, limit = 100, negocioId = workspaceId)
             val list = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             emit(Resource.Success(list))
         } catch (e: Exception) {
@@ -152,6 +100,7 @@ class AlquilerRepositoryImpl @Inject constructor(
             val dto = AlquilerDto.fromDomain(alquiler)
             val dataMap = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             val id = rentalDataSource.createAlquilerTransactional(alquiler.workspaceId, dataMap)
+            getCacheFor(alquiler.workspaceId).invalidate()
             emit(Resource.Success(id))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -164,6 +113,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
             rentalDataSource.updateAlquiler(alquiler.workspaceId, alquiler.id, dataMap)
+            getCacheFor(alquiler.workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -176,6 +126,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
             rentalDataSource.updateAlquilerTransactional(alquiler.workspaceId, alquiler.id, dataMap, alquiler.itemId, diffCantidad)
+            getCacheFor(alquiler.workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -187,12 +138,14 @@ class AlquilerRepositoryImpl @Inject constructor(
         alquilerId: String,
         penalidad: Double,
         observaciones: String,
-        montoGarantiaRetenida: Double
+        montoGarantiaRetenida: Double,
+        unidadesARetornar: Int
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
-            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId, penalidad, observaciones, montoGarantiaRetenida)
+            rentalDataSource.registrarDevolucionTransactional(workspaceId, alquilerId, penalidad, observaciones, montoGarantiaRetenida, unidadesARetornar)
+            getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -205,6 +158,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
             rentalDataSource.cancelarAlquilerTransactional(workspaceId, alquilerId, motivo)
+            getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -217,6 +171,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
             rentalDataSource.updateAlquiler(workspaceId, alquilerId, mapOf("estado" to estado.name, "updatedAt" to Timestamp.now()))
+            getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -229,6 +184,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
             rentalDataSource.deleteAlquilerTransactional(workspaceId, alquilerId)
+            getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -241,6 +197,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         try {
             val data = mapOf("alquilerId" to alquilerId, "monto" to pago.monto, "metodoPago" to pago.metodoPago.name, "referencia" to pago.referencia, "fecha" to pago.fecha)
             rentalDataSource.addPago(workspaceId, alquilerId, data)
+            getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -266,6 +223,51 @@ class AlquilerRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error al obtener pagos: ${e.message}"))
+        }
+    }
+
+    override suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
+        emit(Resource.Loading())
+        val result = try {
+            val documents = dataSource.queryBusinessDocuments("alquileres", "clienteId", clienteId, limit = 100, negocioId = workspaceId)
+            val list = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            Resource.Success(list)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error(e.message ?: "Error")
+        }
+        emit(result)
+    }
+
+    override suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>> = flow {
+        emit(Resource.Loading())
+        val result = try {
+            val documents = dataSource.queryBusinessDocuments("alquileres", "itemId", itemId, limit = 100, negocioId = workspaceId)
+            val list = documents.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
+            Resource.Success(list)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Resource.Error(e.message ?: "Error")
+        }
+        emit(result)
+    }
+
+    override suspend fun getPagosDeAlquileres(workspaceId: String, alquilerIds: List<String>): Resource<List<Pago>> {
+        return try {
+            val docs = rentalDataSource.getPagosDeAlquileres(workspaceId, alquilerIds)
+            val pagos = docs.map { data ->
+                Pago(
+                    id = data["id"] as? String ?: "",
+                    alquilerId = data["alquilerId"] as? String ?: "",
+                    monto = (data["monto"] as? Number)?.toDouble() ?: 0.0,
+                    metodoPago = try { MetodoPago.valueOf(data["metodoPago"] as? String ?: "EFECTIVO") } catch (_: Exception) { MetodoPago.EFECTIVO },
+                    referencia = data["referencia"] as? String ?: "",
+                    fecha = data["fecha"] as? Timestamp ?: Timestamp.now()
+                )
+            }
+            Resource.Success(pagos)
+        } catch (e: Exception) {
+            Resource.Error("Error auditando pagos: ${e.message}")
         }
     }
 }

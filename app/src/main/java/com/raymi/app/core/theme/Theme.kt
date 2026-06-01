@@ -8,6 +8,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -52,23 +53,25 @@ private val LightColorScheme = lightColorScheme(
     surface = Color.White,
     onSurface = RaymiColors.Slate900,
     surfaceVariant = Color(0xFFF1F5F9), // Slate 100
-    onSurfaceVariant = RaymiColors.Slate700,
+    onSurfaceVariant = RaymiColors.Slate800,
 
-    outline = Color(0xFFE2E8F0) // Slate 200
+    outline = RaymiColors.Slate600 // Máximo contraste en bordes y etiquetas
 )
 
 @Composable
 fun RaymiTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Forzamos Light Mode por defecto para consistencia SaaS
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    // Si en el futuro quieres habilitar Dark Mode, vuelve a usar: isSystemInDarkTheme()
+    val colorScheme = LightColorScheme 
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.background.toArgb() // Aseguramos color de barra
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

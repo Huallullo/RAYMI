@@ -39,6 +39,8 @@ import com.raymi.app.core.lang.LocalRaymiStrings
  * Pantalla Principal de Inventario (SaaS) - Versión Pulida.
  * Diseño Senior: Animaciones de entrada, estados de carga elegantes y jerarquía visual mejorada.
  */
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemsScreen(
@@ -69,6 +71,9 @@ fun ItemsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.refreshItems() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                    }
                     TextButton(onClick = onNavigateToCategorias) {
                         Icon(Icons.Default.FolderSpecial, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(4.dp))
@@ -92,75 +97,66 @@ fun ItemsScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CustomShapes.CardShape,
-                modifier = Modifier.testTag("fab_add_item")
+                modifier = Modifier
+                    .padding(bottom = 96.dp) // Más aire arriba para no chocar con la barra
+                    .testTag("fab_add_item")
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshItems() },
+            modifier = Modifier.padding(paddingValues).fillMaxSize()
         ) {
-            // 1. Buscador con Diseño Premium
-            RaymiSearchBar(
-                query = uiState.queryBusqueda,
-                onQueryChange = { viewModel.buscar(it) },
-                placeholder = strings.searchPlaceholder,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 1. Buscador con Diseño Premium
+                RaymiSearchBar(
+                    query = uiState.queryBusqueda,
+                    onQueryChange = { viewModel.buscar(it) },
+                    placeholder = strings.searchPlaceholder,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                )
 
-            // 2. Filtro de Categorías (Chips con Animación)
-            AnimatedVisibility(
-                visible = uiState.categorias.isNotEmpty(),
-                enter = fadeIn() + expandVertically()
-            ) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // 2. Filtro de Categorías
+                AnimatedVisibility(
+                    visible = uiState.categorias.isNotEmpty(),
+                    enter = fadeIn() + expandVertically()
                 ) {
-                    item {
-                        FilterChip(
-                            selected = uiState.categoriaFiltro == null,
-                            onClick = { viewModel.filtrarPorCategoria(null) },
-                            label = { Text(strings.all) },
-                            shape = CircleShape,
-                            leadingIcon = { if (uiState.categoriaFiltro == null) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        )
-                    }
-                    items(uiState.categorias) { categoria ->
-                        FilterChip(
-                            selected = uiState.categoriaFiltro?.id == categoria.id,
-                            onClick = { viewModel.filtrarPorCategoria(categoria) },
-                            label = { Text(categoria.nombre) },
-                            shape = CircleShape
-                        )
-                    }
-                }
-            }
-
-            // 3. Contenido Principal con Animaciones de Carga
-            Box(modifier = Modifier.weight(1f)) {
-                when {
-                    uiState.isLoading -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(strokeWidth = 3.dp)
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = uiState.categoriaFiltro == null,
+                                onClick = { viewModel.filtrarPorCategoria(null) },
+                                label = { Text(strings.all) },
+                                shape = CircleShape,
+                                leadingIcon = { if (uiState.categoriaFiltro == null) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                            )
+                        }
+                        items(uiState.categorias) { categoria ->
+                            FilterChip(
+                                selected = uiState.categoriaFiltro?.id == categoria.id,
+                                onClick = { viewModel.filtrarPorCategoria(categoria) },
+                                label = { Text(categoria.nombre) },
+                                shape = CircleShape
+                            )
                         }
                     }
-                    uiState.error != null -> {
-                        RaymiErrorState(message = uiState.error!!, onRetry = { /* El stream se reconecta solo */ })
-                    }
-                    uiState.itemsFiltrados.isEmpty() -> {
+                }
+
+                // 3. Contenido Principal
+                Box(modifier = Modifier.weight(1f)) {
+                    if (uiState.itemsFiltrados.isEmpty() && !uiState.isLoading) {
                         RaymiEmptyState(
                             icon = Icons.Default.Inventory,
                             title = strings.emptyInventory,
                             description = if (uiState.queryBusqueda.isEmpty()) strings.emptyInventoryDesc else strings.searchNoResults,
-                            actionText = if (uiState.queryBusqueda.isEmpty()) strings.newItem else null,
-                            onActionClick = {
-                                if (uiState.categorias.isEmpty()) showCategoryWarning = true else onAddItem()
-                            }
+                            actionText = null, // FAB es suficiente y evita redundancia
+                            onActionClick = {}
                         )
-                    }
-                    else -> {
+                    } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 100.dp, top = 8.dp),
@@ -172,7 +168,6 @@ fun ItemsScreen(
                                 AnimatedItemEntry {
                                     ModernItemCard(
                                         item = item,
-                                        labelStock = strings.units,
                                         onClick = { onItemClick(item.id) }
                                     )
                                 }
@@ -190,10 +185,10 @@ fun ItemsScreen(
                         }
                     }
                 }
-            }
 
-            if (viewModel.debeMostrarAnuncios(uiState.userPlan)) {
-                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                if (viewModel.debeMostrarAnuncios(uiState.userPlan)) {
+                    AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
         }
     }
@@ -240,7 +235,6 @@ fun AnimatedItemEntry(content: @Composable () -> Unit) {
 @Composable
 fun ModernItemCard(
     item: Item,
-    labelStock: String,
     onClick: () -> Unit
 ) {
     Surface(
@@ -281,13 +275,23 @@ fun ModernItemCard(
                 
                 // Badge de Estado Superior Derecho (Minimalista)
                 Box(modifier = Modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.TopEnd) {
+                    val stockDisponible = (item.cantidad - item.unidadesAlquiladas).coerceAtLeast(0)
+                    val estadoTexto = when {
+                        item.estado == "MANTENIMIENTO" -> "Reparación"
+                        item.unidadesAlquiladas > 0 && stockDisponible > 0 -> "En Uso (${item.unidadesAlquiladas})"
+                        item.unidadesAlquiladas >= item.cantidad -> "Alquilado"
+                        else -> "Disponible"
+                    }
+                    val estadoColor = when {
+                        item.estado == "MANTENIMIENTO" -> Color(0xFF64748B)
+                        item.unidadesAlquiladas > 0 && stockDisponible > 0 -> Color(0xFF3B82F6) // Azul para parcial
+                        item.unidadesAlquiladas >= item.cantidad -> Color(0xFFF59E0B) // Ambar para total
+                        else -> Color(0xFF10B981) // Verde para disponible
+                    }
+                    
                     EstadoBadge(
-                        texto = item.estado.lowercase().replaceFirstChar { it.uppercase() },
-                        color = when (item.estado) {
-                            "DISPONIBLE" -> Color(0xFF10B981) // Emerald
-                            "ALQUILADO" -> Color(0xFFF59E0B) // Amber
-                            else -> Color(0xFFEF4444) // Red
-                        }
+                        texto = estadoTexto,
+                        color = estadoColor
                     )
                 }
             }
@@ -318,18 +322,19 @@ fun ModernItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "S/. ${item.precio}",
+                    text = "S/. " + String.format(java.util.Locale.US, "%.2f", item.precio),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
+                val stockDisponible = (item.cantidad - item.unidadesAlquiladas).coerceAtLeast(0)
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                     shape = CircleShape
                 ) {
                     Text(
-                        text = "${item.cantidad} $labelStock",
+                        text = "$stockDisponible / ${item.cantidad} und.",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.ExtraBold,

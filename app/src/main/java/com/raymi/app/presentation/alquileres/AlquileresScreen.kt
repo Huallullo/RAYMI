@@ -77,7 +77,9 @@ fun AlquileresScreen(
                 text = { Text(strings.createRental) },
                 shape = CustomShapes.CardShape,
                 containerColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.testTag("fab_create_alquiler")
+                modifier = Modifier
+                    .padding(bottom = 96.dp) // Más aire arriba
+                    .testTag("fab_create_alquiler")
             )
         }
     ) { paddingValues ->
@@ -104,8 +106,8 @@ fun AlquileresScreen(
                                 icon = Icons.AutoMirrored.Filled.ReceiptLong,
                                 title = strings.noMovements,
                                 description = strings.noMovementsDesc,
-                                actionText = strings.newRental,
-                                onActionClick = onCreateAlquiler
+                                actionText = null, // FAB es suficiente
+                                onActionClick = {}
                             )
                         }
                         else -> {

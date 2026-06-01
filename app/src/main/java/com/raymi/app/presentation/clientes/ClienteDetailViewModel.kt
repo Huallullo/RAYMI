@@ -1,15 +1,18 @@
-// ========== ClienteDetailViewModel.kt ==========
 package com.raymi.app.presentation.clientes
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raymi.app.data.remote.StorageDataSource
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
-import com.raymi.app.domain.usecase.alquiler.GetAlquileresUseCase
 import com.raymi.app.domain.usecase.cliente.GetClienteByIdUseCase
 import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
+import com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase
+import com.raymi.app.domain.usecase.alquiler.GetAlquileresByClienteUseCase
+import com.raymi.app.core.workspace.WorkspaceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -19,9 +22,10 @@ import javax.inject.Inject
 class ClienteDetailViewModel @Inject constructor(
     private val getClienteByIdUseCase: GetClienteByIdUseCase,
     private val updateClienteUseCase: UpdateClienteUseCase,
-    private val deleteClienteUseCase: com.raymi.app.domain.usecase.cliente.DeleteClienteUseCase,
-    private val getAlquileresByClienteUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresByClienteUseCase,
-    private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager,
+    private val deleteClienteUseCase: DeleteClienteUseCase,
+    private val getAlquileresByClienteUseCase: GetAlquileresByClienteUseCase,
+    private val storageDataSource: StorageDataSource,
+    private val workspaceManager: WorkspaceManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -36,26 +40,14 @@ class ClienteDetailViewModel @Inject constructor(
 
     fun loadClienteData() {
         viewModelScope.launch {
-            // Cargar datos del cliente
             getClienteByIdUseCase(clienteId).collect { result ->
                 when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true)
-                    }
+                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                     is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            cliente = result.data,
-                            isLoading = false
-                        )
-                        // Cargar alquileres del cliente
+                        _uiState.update { it.copy(cliente = result.data, isLoading = false) }
                         loadAlquileres()
                     }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             }
         }
@@ -65,59 +57,76 @@ class ClienteDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             getAlquileresByClienteUseCase(workspaceId, clienteId).collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        val alquileres = result.data ?: emptyList()
-
-                        val totalAlquileres = alquileres.size
-                        val totalGastado = alquileres.sumOf { it.precioTotal }
-
-                        _uiState.value = _uiState.value.copy(
-                            alquileres = alquileres,
-                            totalAlquileres = totalAlquileres,
-                            totalGastado = totalGastado
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            error = result.message
-                        )
-                    }
-                    is Resource.Loading -> {}
+                if (result is Resource.Success) {
+                    val alquileres = result.data ?: emptyList()
+                    _uiState.update { it.copy(
+                        alquileres = alquileres,
+                        totalAlquileres = alquileres.size,
+                        totalGastado = alquileres.sumOf { a -> a.precioTotal }
+                    ) }
                 }
             }
         }
     }
 
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-
     /**
-     * Actualiza los datos del cliente
+     * Actualiza los datos del cliente, incluyendo posibles nuevas fotos de identidad.
      */
-    fun updateCliente(cliente: Cliente) {
+    fun updateCliente(
+        cliente: Cliente,
+        dniFront: Uri? = null,
+        dniBack: Uri? = null,
+        face: Uri? = null
+    ) {
         viewModelScope.launch {
-            updateClienteUseCase(cliente).collect { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            try {
+                val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Negocio no identificado")
+                var finalCliente = cliente
+
+                // Actualizar fotos si se seleccionaron nuevas
+                dniFront?.let {
+                    _uiState.value.cliente?.fotoDniFrontUrl?.let { old -> 
+                        val path = storageDataSource.getPathFromUrl(old)
+                        if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
                     }
-                    is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            successMessage = "Cliente actualizado correctamente"
-                        )
-                        // Recargar datos
-                        loadClienteData()
+                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_front.webp", it)
+                    finalCliente = finalCliente.copy(fotoDniFrontUrl = url)
+                }
+                dniBack?.let {
+                    _uiState.value.cliente?.fotoDniBackUrl?.let { old -> 
+                        val path = storageDataSource.getPathFromUrl(old)
+                        if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
                     }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
+                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_back.webp", it)
+                    finalCliente = finalCliente.copy(fotoDniBackUrl = url)
+                }
+                face?.let {
+                    _uiState.value.cliente?.fotoRostroUrl?.let { old -> 
+                        val path = storageDataSource.getPathFromUrl(old)
+                        if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
+                    }
+                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_face.webp", it)
+                    finalCliente = finalCliente.copy(fotoRostroUrl = url)
+                }
+
+                updateClienteUseCase(finalCliente).collect { result ->
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.update { it.copy(isLoading = false, successMessage = "Cliente actualizado con éxito") }
+                            loadClienteData()
+                        }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                        }
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("ClienteDetail", "Fallo al actualizar", e)
+                _uiState.update { it.copy(isLoading = false, error = "Fallo al actualizar: ${e.localizedMessage}") }
             }
         }
     }
@@ -125,27 +134,26 @@ class ClienteDetailViewModel @Inject constructor(
     fun eliminarCliente(onSuccess: () -> Unit) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
+            
+            // Borrar fotos del Storage
+            _uiState.value.cliente?.let { c ->
+                listOfNotNull(c.fotoDniFrontUrl, c.fotoDniBackUrl, c.fotoRostroUrl).forEach { url ->
+                    storageDataSource.getPathFromUrl(url)?.let { path -> storageDataSource.deleteFile(path) }
+                }
+            }
+
             deleteClienteUseCase(clienteId).collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update { it.copy(isLoading = false, successMessage = "Cliente eliminado") }
-                        onSuccess()
-                    }
-                    is Resource.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
-                    is Resource.Loading -> { }
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(isLoading = false, successMessage = "Cliente eliminado") }
+                    onSuccess()
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             }
         }
     }
 
-    fun clearMessages() {
-        _uiState.value = _uiState.value.copy(
-            error = null,
-            successMessage = null
-        )
-    }
+    fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 }
 
 data class ClienteDetailUiState(

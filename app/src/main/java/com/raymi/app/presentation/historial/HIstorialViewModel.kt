@@ -60,7 +60,7 @@ class HistorialViewModel @Inject constructor(
                                 .let { cancelResult ->
                                     val cancelados = (cancelResult as? Resource.Success)?.data ?: emptyList()
                                     val todos = (devueltos + cancelados).sortedByDescending { it.updatedAt }
-                                    historialCache.set(todos, ttlMs = 10 * 60 * 1000) // 10 min
+                                    historialCache.set(todos, ttlMs = 60 * 60 * 1000) // 1 hora
                                     aplicarFiltro(todos, _uiState.value.query)
                                 }
                         } else {

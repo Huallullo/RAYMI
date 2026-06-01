@@ -8,6 +8,10 @@ data class AlquilerItem(
     val itemNombre: String,
     val itemCodigo: String,
     val cantidad: Int,
+    val unidadesDevueltas: Int = 0,
     val precioUnitario: Double,
     val subtotal: Double
-)
+) {
+    val estaCompleto: Boolean get() = unidadesDevueltas >= cantidad
+    val pendienteDevolver: Int get() = (cantidad - unidadesDevueltas).coerceAtLeast(0)
+}

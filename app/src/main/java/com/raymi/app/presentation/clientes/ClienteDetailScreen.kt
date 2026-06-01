@@ -1,5 +1,7 @@
 package com.raymi.app.presentation.clientes
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,19 +13,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.presentation.components.*
 import java.util.Locale
+import androidx.compose.ui.window.Dialog
 
 /**
  * Detalle del Cliente Premium.
- * Diseño Senior: Cabecera elegante, métricas de fidelización y lista de historial integrada.
+ * Diseño Senior: Cabecera elegante, métricas de fidelización y Respaldo de Identidad (Seguridad).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +47,6 @@ fun ClienteDetailScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Observar mensajes (QA Fix: Mensaje de confirmación en edición)
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -78,7 +85,7 @@ fun ClienteDetailScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
-                uiState.isLoading -> RaymiLoadingIndicator(message = "Consultando historial...")
+                uiState.isLoading -> RaymiLoadingIndicator(message = "Consultando datos...")
                 uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.loadClienteData() })
                 uiState.cliente != null -> {
                     val cliente = uiState.cliente!!
@@ -120,7 +127,29 @@ fun ClienteDetailScreen(
                             )
                         }
 
-                        // 3. Información de Contacto
+                        // 3. Respaldo de Identidad (Seguridad Crítica)
+                        Text("Respaldo de Identidad", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                SecurityPhotoCard(
+                                    label = "DNI Frontal",
+                                    url = cliente.fotoDniFrontUrl,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                SecurityPhotoCard(
+                                    label = "DNI Posterior",
+                                    url = cliente.fotoDniBackUrl,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            SecurityPhotoCard(
+                                label = "Rostro verificado",
+                                url = cliente.fotoRostroUrl,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // 4. Información de Contacto
                         Text("Datos de Contacto", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -139,7 +168,7 @@ fun ClienteDetailScreen(
                             }
                         }
 
-                        // 4. Últimos Movimientos
+                        // 5. Historial Reciente
                         Text("Historial Reciente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.alquileres.isEmpty()) {
                             RaymiEmptyState(
@@ -169,8 +198,8 @@ fun ClienteDetailScreen(
         EditClienteDialog(
             cliente = uiState.cliente!!,
             onDismiss = { showEditDialog = false },
-            onConfirm = { clienteActualizado ->
-                viewModel.updateCliente(clienteActualizado)
+            onConfirm = { clienteActualizado, front, back, face ->
+                viewModel.updateCliente(clienteActualizado, front, back, face)
                 showEditDialog = false
             },
             isLoading = uiState.isLoading
@@ -181,7 +210,7 @@ fun ClienteDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Eliminar Cliente") },
-            text = { Text("¿Estás seguro de eliminar a este cliente? Esta acción no se puede deshacer y borrará su historial.") },
+            text = { Text("¿Estás seguro de eliminar a este cliente? Esta acción no se puede deshacer y borrará su historial y fotos de seguridad.") },
             confirmButton = {
                 Button(
                     onClick = { 
@@ -199,6 +228,54 @@ fun ClienteDetailScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun SecurityPhotoCard(label: String, url: String?, modifier: Modifier = Modifier) {
+    var showFullscreen by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clickable(enabled = !url.isNullOrBlank()) { showFullscreen = true },
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            if (!url.isNullOrBlank()) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = label,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.NoPhotography, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
+    }
+
+    if (showFullscreen && !url.isNullOrBlank()) {
+        Dialog(onDismissRequest = { showFullscreen = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f).padding(16.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = Color.Black
+            ) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
     }
 }
 

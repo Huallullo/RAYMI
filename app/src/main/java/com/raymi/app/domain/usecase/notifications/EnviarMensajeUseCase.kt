@@ -2,43 +2,66 @@ package com.raymi.app.domain.usecase.notifications
 
 import android.net.Uri
 import com.raymi.app.data.remote.CommunicationService
+import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.Resource
+import com.raymi.app.domain.model.Workspace
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 
 /**
  * Caso de Uso Maestro de Notificaciones (Estrategia de Fidelización).
- * Implementa plantillas de texto persuasivas y profesionales para el negocio.
+ * Implementa el TICKET VIP para WhatsApp.
  */
 class EnviarMensajeUseCase @Inject constructor(
     private val commsService: CommunicationService
 ) {
     /**
-     * Envía mensaje de bienvenida y confirmación de contrato.
+     * Envía el TICKET VIP de bienvenida y confirmación de contrato.
+     * Soporta múltiples monedas y diseño optimizado para WhatsApp.
      */
     fun enviarConfirmacionAlquiler(
-        telefono: String,
-        cliente: String,
-        item: String,
-        fechaDevolucion: String,
-        monto: String,
-        negocio: String
+        alquiler: Alquiler,
+        workspace: Workspace
     ): Flow<Resource<String>> = flow {
+        
+        val currency = workspace.moneda.ifBlank { "PEN" }
+        val currencySymbol = if (currency == "USD") "$" else "S/."
+        
+        val mapsPart = if (workspace.googleMapsUrl.isNotBlank()) {
+            "\n📍 *¿Cómo llegar?*\n${workspace.googleMapsUrl}\n"
+        } else ""
+
+        val itemsList = if (alquiler.items.isNotEmpty()) {
+            "\n📦 *DETALLE:*\n" + alquiler.items.joinToString("\n") { "• ${it.cantidad}x ${it.itemNombre}" }
+        } else "\n📦 *PRODUCTO:* ${alquiler.itemNombre}"
+
         val mensaje = """
-            *¡Hola $cliente!* 👋
+            ✨ *¡CONFIRMACIÓN DE ALQUILER!* ✨
+            ━━━━━━━━━━━━━━━━━━
+            🏢 *NEGOCIO:* ${workspace.nombreComercial.ifBlank { workspace.nombre }}
+            📝 *CLIENTE:* ${alquiler.clienteNombre}
+            $itemsList
             
-            Gracias por elegir a *$negocio*. Confirmamos tu alquiler:
+            📅 *ENTREGA:* ${alquiler.fechaInicioFormatted}
+            🔄 *DEVOLUCIÓN:* ${alquiler.fechaFinFormatted}
             
-            📦 *Producto:* $item
-            📅 *Fecha de Devolución:* $fechaDevolucion
-            💰 *Total:* $monto
+            💰 *RESUMEN ECONÓMICO:*
+            • Total: $currencySymbol ${String.format("%.2f", alquiler.precioTotal)}
+            • Garantía: $currencySymbol ${String.format("%.2f", alquiler.garantia)}
+            • Adelanto: $currencySymbol ${String.format("%.2f", alquiler.adelanto)}
             
-            ¡Estamos para servirte! Por favor, conserva este mensaje como tu ticket digital. 
+            💸 *SALDO PENDIENTE:* 
+            👉 *$currencySymbol ${String.format("%.2f", alquiler.saldo)}*
+            ━━━━━━━━━━━━━━━━━━
+            $mapsPart
+            ⚠️ *Recuerda traer tu DNI original para recoger el producto.*
+            
+            ¡Gracias por confiar en nosotros! 🚀
         """.trimIndent()
         
         emit(Resource.Loading())
-        emit(commsService.enviarWhatsApp(telefono, mensaje))
+        emit(commsService.enviarWhatsApp(alquiler.clienteTelefono, mensaje))
     }
 
     /**

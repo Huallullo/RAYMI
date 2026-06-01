@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,8 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.TipoComprobante
+import com.raymi.app.core.lang.LocalRaymiStrings
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
-import androidx.compose.material.icons.automirrored.filled.Send
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +33,8 @@ fun GenerateComprobanteScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalRaymiStrings.current
+    val isSpanish = strings is com.raymi.app.core.lang.SpanishStrings
     var showUpgradeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.error) {
@@ -49,21 +52,20 @@ fun GenerateComprobanteScreen(
         AlertDialog(
             onDismissRequest = { showUpgradeDialog = false },
             icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("Función Premium 🔒") },
+            title = { Text(if (isSpanish) "Función Premium 🔒" else "Premium Feature 🔒") },
             text = { 
-                Text("La emisión de Boletas y Facturas electrónicas es parte del Plan PRO. \n\n" +
-                     "✅ Boletas/Facturas ilimitadas\n" +
-                     "✅ Sin anuncios\n" +
-                     "✅ Reportes financieros avanzados") 
+                Text(if (isSpanish) 
+                    "La emisión de Boletas y Facturas electrónicas es parte del Plan PRO. \n\n✅ Boletas/Facturas ilimitadas\n✅ Sin anuncios\n✅ Reportes financieros avanzados" 
+                    else "E-billing is part of the PRO Plan. \n\n✅ Unlimited Bills/Invoices\n✅ No ads\n✅ Advanced financial reports") 
             },
             confirmButton = {
                 Button(onClick = { 
                     showUpgradeDialog = false
                     onNavigateToPlans() 
-                }) { Text("Ver Planes PRO") }
+                }) { Text(strings.viewProPlans) }
             },
             dismissButton = {
-                TextButton(onClick = { showUpgradeDialog = false }) { Text("Tal vez luego") }
+                TextButton(onClick = { showUpgradeDialog = false }) { Text(strings.cancel) }
             }
         )
     }
@@ -72,10 +74,10 @@ fun GenerateComprobanteScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Generar Comprobante", fontWeight = FontWeight.Black) },
+                title = { Text(strings.generateReceipt, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -84,7 +86,8 @@ fun GenerateComprobanteScreen(
         if (uiState.isSuccess && uiState.generatedPdfUri != null) {
             SuccessView(
                 onShare = { viewModel.compartirPdf() },
-                onBack = onNavigateBack
+                onBack = onNavigateBack,
+                strings = strings
             )
         } else {
             Column(
@@ -96,16 +99,16 @@ fun GenerateComprobanteScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // 1. Selección de Tipo
-                Text("Tipo de Comprobante", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(strings.receiptType, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ComprobanteTypeChip(
-                        label = "Ticket",
+                        label = strings.ticket,
                         selected = uiState.tipo == TipoComprobante.TICKET,
                         onClick = { viewModel.onTipoChange(TipoComprobante.TICKET) },
                         modifier = Modifier.weight(1f)
                     )
                     ComprobanteTypeChip(
-                        label = "Boleta",
+                        label = strings.bill,
                         selected = uiState.tipo == TipoComprobante.BOLETA,
                         onClick = { viewModel.onTipoChange(TipoComprobante.BOLETA) },
                         isPro = true,
@@ -113,7 +116,7 @@ fun GenerateComprobanteScreen(
                         modifier = Modifier.weight(1f)
                     )
                     ComprobanteTypeChip(
-                        label = "Factura",
+                        label = strings.invoice,
                         selected = uiState.tipo == TipoComprobante.FACTURA,
                         onClick = { viewModel.onTipoChange(TipoComprobante.FACTURA) },
                         isPro = true,
@@ -125,19 +128,19 @@ fun GenerateComprobanteScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                 // 2. Datos del Cliente
-                Text("Datos del Receptor", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (isSpanish) "Datos del Receptor" else "Receiver Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 
                 OutlinedTextField(
                     value = uiState.clienteDocumento,
                     onValueChange = viewModel::onDocumentoChange,
-                    label = { Text(if (uiState.tipo == TipoComprobante.FACTURA) "RUC" else "DNI / Documento") },
+                    label = { Text(if (uiState.tipo == TipoComprobante.FACTURA) "RUC" else strings.idDocument) },
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         if (uiState.isSearching) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         } else {
                             IconButton(onClick = { viewModel.buscarDocumento() }) {
-                                Icon(Icons.Default.Search, contentDescription = "Buscar")
+                                Icon(Icons.Default.Search, contentDescription = strings.search)
                             }
                         }
                     },
@@ -149,14 +152,14 @@ fun GenerateComprobanteScreen(
                     OutlinedTextField(
                         value = uiState.razonSocial,
                         onValueChange = viewModel::onRazonSocialChange,
-                        label = { Text("Razón Social") },
+                        label = { Text(if (isSpanish) "Razón Social" else "Business Name") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large
                     )
                     OutlinedTextField(
                         value = uiState.direccionFiscal,
                         onValueChange = viewModel::onDireccionChange,
-                        label = { Text("Dirección Fiscal") },
+                        label = { Text(if (isSpanish) "Dirección Fiscal" else "Tax Address") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large
                     )
@@ -164,7 +167,7 @@ fun GenerateComprobanteScreen(
                     OutlinedTextField(
                         value = uiState.clienteNombre,
                         onValueChange = viewModel::onNombreChange,
-                        label = { Text("Nombre del Cliente") },
+                        label = { Text(strings.names) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large
                     )
@@ -183,7 +186,7 @@ fun GenerateComprobanteScreen(
                     } else {
                         Icon(Icons.Default.Description, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
-                        Text("Generar y Guardar", fontWeight = FontWeight.Bold)
+                        Text(if (isSpanish) "Generar y Guardar" else "Generate & Save", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -222,13 +225,12 @@ fun ComprobanteTypeChip(
 }
 
 @Composable
-fun SuccessView(onShare: () -> Unit, onBack: () -> Unit) {
+fun SuccessView(onShare: () -> Unit, onBack: () -> Unit, strings: com.raymi.app.core.lang.RaymiStrings) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Ícono Dinámico de Documento
         Surface(
             shape = CircleShape,
             color = Color(0xFFE8F5E9),
@@ -245,8 +247,9 @@ fun SuccessView(onShare: () -> Unit, onBack: () -> Unit) {
         }
         
         Spacer(Modifier.height(32.dp))
-        Text("¡Comprobante Listo!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-        Text("El PDF ha sido generado con éxito.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val isSpanish = strings is com.raymi.app.core.lang.SpanishStrings
+        Text(if (isSpanish) "¡Comprobante Listo!" else "Receipt Ready!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+        Text(if (isSpanish) "El PDF ha sido generado con éxito." else "PDF generated successfully.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         
         Spacer(Modifier.height(48.dp))
         
@@ -258,7 +261,7 @@ fun SuccessView(onShare: () -> Unit, onBack: () -> Unit) {
         ) {
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
             Spacer(Modifier.width(12.dp))
-            Text("Compartir Comprobante", fontWeight = FontWeight.Bold)
+            Text(strings.shareReceipt, fontWeight = FontWeight.Bold)
         }
         
         Spacer(Modifier.height(16.dp))
@@ -268,7 +271,7 @@ fun SuccessView(onShare: () -> Unit, onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = MaterialTheme.shapes.extraLarge
         ) {
-            Text("Volver al Alquiler")
+            Text(if (isSpanish) "Volver al Alquiler" else "Back to Rental")
         }
     }
 }

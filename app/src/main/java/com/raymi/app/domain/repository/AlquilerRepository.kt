@@ -64,7 +64,8 @@ interface AlquilerRepository {
         alquilerId: String,
         penalidad: Double = 0.0,
         observaciones: String = "",
-        montoGarantiaRetenida: Double = 0.0
+        montoGarantiaRetenida: Double = 0.0,
+        unidadesARetornar: Int = 0
     ): Flow<Resource<Unit>>
 
     /**
@@ -91,4 +92,9 @@ interface AlquilerRepository {
      * Obtiene el historial de pagos de un alquiler
      */
     suspend fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<com.raymi.app.domain.model.Pago>>>
+
+    /**
+     * Obtiene todos los pagos de una lista de alquileres
+     */
+    suspend fun getPagosDeAlquileres(workspaceId: String, alquilerIds: List<String>): Resource<List<com.raymi.app.domain.model.Pago>>
 }

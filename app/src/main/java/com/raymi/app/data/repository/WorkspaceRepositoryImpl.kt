@@ -103,4 +103,8 @@ class WorkspaceRepositoryImpl @Inject constructor(
             emit(Resource.Error("Error: ${e.message}"))
         }
     }
+
+    override suspend fun updateStats(workspaceId: String, data: Map<String, Any>) {
+        dataSource.updateBusinessDocument("metadata", "stats", data, workspaceId)
+    }
 }

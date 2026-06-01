@@ -91,14 +91,13 @@ class CreateAlquilerViewModel @Inject constructor(
     fun seleccionarCliente(cliente: Cliente) = _uiState.update { it.copy(selectedCliente = cliente, showClienteDialog = false) }
 
     fun agregarItem(item: Item, cantidad: Int = 1) {
-        val dias = _uiState.value.diasAlquiler.coerceAtLeast(1)
         val nuevoItem = AlquilerItem(
             itemId = item.id,
             itemNombre = item.nombre,
             itemCodigo = item.codigo,
             cantidad = cantidad,
             precioUnitario = item.precio,
-            subtotal = item.precio * cantidad * dias
+            subtotal = item.precio * cantidad // PRECIO POR ALQUILER (No por día, corregido a pedido de usuario)
         )
         _uiState.update { it.copy(selectedItems = it.selectedItems + nuevoItem, showItemDialog = false) }
         recalcularFinanzas()
@@ -150,8 +149,8 @@ class CreateAlquilerViewModel @Inject constructor(
             val diff = fin.time - inicio.time
             val dias = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
             _uiState.update { state ->
-                val updatedItems = state.selectedItems.map { it.copy(subtotal = it.precioUnitario * it.cantidad * dias) }
-                state.copy(diasAlquiler = dias, selectedItems = updatedItems)
+                // Mantenemos el subtotal fijo por alquiler, pero guardamos los días para referencia
+                state.copy(diasAlquiler = dias)
             }
             recalcularFinanzas()
         }
@@ -198,7 +197,11 @@ class CreateAlquilerViewModel @Inject constructor(
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                     is Resource.Success -> {
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
-                        enviarConfirmacionWhatsApp(nuevoAlquiler)
+                        
+                        // Enviar TICKET VIP (Pasa el objeto completo)
+                        workspaceManager.currentWorkspace.value?.let { ws ->
+                            enviarConfirmacionWhatsApp(nuevoAlquiler, ws)
+                        }
                         
                         // Monetización: Mostrar Intersticial
                         verificarYMostrarAd()
@@ -209,13 +212,9 @@ class CreateAlquilerViewModel @Inject constructor(
         }
     }
 
-    private fun enviarConfirmacionWhatsApp(alquiler: Alquiler) {
+    private fun enviarConfirmacionWhatsApp(alquiler: Alquiler, workspace: Workspace) {
         viewModelScope.launch {
-            val business = workspaceManager.currentWorkspace.value?.nombre ?: "Negocio"
-            enviarMensajeUseCase.enviarConfirmacionAlquiler(
-                alquiler.clienteTelefono, alquiler.clienteNombre, alquiler.itemNombre, 
-                alquiler.fechaFinFormatted, alquiler.precioFormateado, business
-            ).collect { }
+            enviarMensajeUseCase.enviarConfirmacionAlquiler(alquiler, workspace).collect { }
         }
     }
 

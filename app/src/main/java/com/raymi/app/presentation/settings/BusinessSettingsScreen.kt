@@ -24,8 +24,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.raymi.app.core.lang.LocalRaymiStrings
 import com.raymi.app.presentation.components.RaymiPhoneField
+import com.google.accompanist.permissions.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.provider.Settings
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun BusinessSettingsScreen(
     viewModel: BusinessSettingsViewModel = hiltViewModel(),
@@ -34,13 +39,10 @@ fun BusinessSettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val strings = LocalRaymiStrings.current
+    val context = LocalContext.current
 
     val logoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.subirLogo(it) }
-    }
-
-    val sloganLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.subirSloganImagen(it) }
     }
 
     if (uiState.isSuccess) {
@@ -48,6 +50,51 @@ fun BusinessSettingsScreen(
             onNavigateBack() 
             viewModel.clearMessages()
         }
+    }
+
+    // DIÁLOGO PARA GPS DESACTIVADO
+    if (uiState.showGpsDisabledAlert) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissGpsAlert() },
+            title = { Text("GPS Desactivado", fontWeight = FontWeight.Black) },
+            text = { 
+                Text("Para capturar tu ubicación exacta, necesitas activar el interruptor de 'Ubicación' en tu celular.") 
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    context.startActivity(intent)
+                    viewModel.dismissGpsAlert()
+                }) {
+                    Text("Activar en Ajustes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissGpsAlert() }) {
+                    Text("Cerrar")
+                }
+            },
+            icon = { Icon(Icons.Default.LocationOff, null, tint = MaterialTheme.colorScheme.error) },
+            shape = MaterialTheme.shapes.extraLarge
+        )
+    }
+
+    // DIÁLOGO PARA SIN INTERNET
+    if (uiState.showNoInternetAlert) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissNoInternetAlert() },
+            title = { Text("Sin Conexión", fontWeight = FontWeight.Black) },
+            text = { 
+                Text("No hemos detectado una conexión a internet activa. Revisa tu WiFi o Datos Móviles para guardar los cambios.") 
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissNoInternetAlert() }) {
+                    Text("Entendido")
+                }
+            },
+            icon = { Icon(Icons.Default.WifiOff, null, tint = MaterialTheme.colorScheme.error) },
+            shape = MaterialTheme.shapes.extraLarge
+        )
     }
 
     Scaffold(
@@ -70,76 +117,40 @@ fun BusinessSettingsScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Identidad Visual
+            // 1. Imagen de Marca
             SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Imagen de Marca" else "Brand Identity") {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .clickable { logoLauncher.launch("image/*") }
-                        ) {
-                            if (uiState.logoUrl != null) {
-                                AsyncImage(
-                                    model = uiState.logoUrl,
-                                    contentDescription = "Logo",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.padding(20.dp))
-                                }
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .clickable { logoLauncher.launch("image/*") }
+                    ) {
+                        if (uiState.logoUrl != null) {
+                            AsyncImage(
+                                model = uiState.logoUrl,
+                                contentDescription = "Logo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.padding(25.dp))
                             }
                         }
-                        Text("Logo Principal", style = MaterialTheme.typography.labelSmall)
                     }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .clickable { sloganLauncher.launch("image/*") }
-                        ) {
-                            if (uiState.sloganImageUrl != null) {
-                                AsyncImage(
-                                    model = uiState.sloganImageUrl,
-                                    contentDescription = "Banner",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.secondaryContainer
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(Icons.Default.Image, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("Subir Banner/Slogan", style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                            }
-                        }
-                        Text("Imagen de Eslogan / Banner", style = MaterialTheme.typography.labelSmall)
-                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Logo del Negocio" else "Business Logo", style = MaterialTheme.typography.labelMedium)
                 }
             }
 
-            // 2. Identidad y Datos Fiscales
+            // 2. Información del Negocio
             SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Información del Negocio" else "Business Information") {
                 OutlinedTextField(
                     value = uiState.nombre,
@@ -183,88 +194,123 @@ fun BusinessSettingsScreen(
                 )
 
                 OutlinedTextField(
-                    value = uiState.slogan,
-                    onValueChange = viewModel::onSloganChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Eslogan Publicitario" else "Marketing Slogan") },
-                    placeholder = { Text("Ej: Tu mejor opción en vestuarios") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true
-                )
-                
-                OutlinedTextField(
                     value = uiState.descripcion,
                     onValueChange = viewModel::onDescripcionChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descripción Detallada" else "Detailed Description") },
+                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descripción del Negocio" else "Business Description") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    minLines = 3
+                    maxLines = 5
+                )
+
+                OutlinedTextField(
+                    value = uiState.googleMapsUrl,
+                    onValueChange = viewModel::onGoogleMapsUrlChange,
+                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Link de Google Maps (Ubicación)" else "Google Maps Link (Location)") },
+                    placeholder = { Text("https://maps.google.com/...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    leadingIcon = { Icon(Icons.Default.Map, contentDescription = null) },
+                    trailingIcon = {
+                        val locationPermissionState = rememberPermissionState(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                        IconButton(onClick = {
+                            if (locationPermissionState.status.isGranted) {
+                                viewModel.captureLocation()
+                            } else {
+                                locationPermissionState.launchPermissionRequest()
+                            }
+                        }) {
+                            Icon(Icons.Default.MyLocation, contentDescription = "Capturar Ubicación")
+                        }
+                    },
+                    singleLine = true
                 )
             }
 
-            // 3. Comprobantes
-            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Configuración de Comprobantes" else "Receipt Configuration") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 3. Finanzas
+            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Finanzas y Región" else "Finance & Region") {
+                var expanded by remember { mutableStateOf(false) }
+                val currencies = listOf(
+                    "PEN" to "🇵🇪 Sol Peruano",
+                    "USD" to "🇺🇸 Dólar Estadounidense",
+                    "MXN" to "🇲🇽 Peso Mexicano",
+                    "COP" to "🇨🇴 Peso Colombiano",
+                    "CLP" to "🇨🇱 Peso Chileno",
+                    "ARS" to "🇦🇷 Peso Argentino",
+                    "BRL" to "🇧🇷 Real Brasileño",
+                    "BOB" to "🇧🇴 Boliviano",
+                    "PYG" to "🇵🇾 Guaraní",
+                    "UYU" to "🇺🇾 Peso Uruguayo"
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
                     OutlinedTextField(
-                        value = uiState.serieTicket,
-                        onValueChange = viewModel::onSerieTicketChange,
-                        label = { Text("Serie Ticket") },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.large
+                        value = currencies.find { it.first == uiState.moneda }?.second ?: uiState.moneda,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Moneda del Negocio" else "Business Currency") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = MaterialTheme.shapes.large,
+                        leadingIcon = { Icon(Icons.Default.Paid, null) }
                     )
-                    OutlinedTextField(
-                        value = uiState.serieBoleta,
-                        onValueChange = viewModel::onSerieBoletaChange,
-                        label = { Text("Serie Boleta") },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.large
-                    )
-                    OutlinedTextField(
-                        value = uiState.serieFactura,
-                        onValueChange = viewModel::onSerieFacturaChange,
-                        label = { Text("Serie Factura") },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.large
-                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        currencies.forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    viewModel.onMonedaChange(code)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
-            // 4. Regionalización y Finanzas
-            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Finanzas y Región" else "Finance & Region") {
-                OutlinedTextField(
-                    value = uiState.moneda,
-                    onValueChange = viewModel::onMonedaChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Moneda (Símbolo o Código)" else "Currency (Symbol or Code)") },
-                    placeholder = { Text("PEN, USD, S/.") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    leadingIcon = { Icon(Icons.Default.Paid, contentDescription = null) }
-                )
-            }
-
-            // 5. Términos y Condiciones
+            // 4. Legal y Políticas
             SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Legal y Políticas" else "Legal & Policies") {
+                val terminosDefault = if (strings is com.raymi.app.core.lang.SpanishStrings) 
+                    "Al utilizar este servicio, el cliente acepta entregar el equipo en las mismas condiciones. El retraso genera penalidades según la política vigente." 
+                    else "By using this service, the client agrees to return the equipment in the same conditions. Delays generate penalties according to current policy."
+
+                val politicaDefault = if (strings is com.raymi.app.core.lang.SpanishStrings)
+                    "Retraso por día: 20% del valor del alquiler. Daños menores: Costo de reparación. Daño total/Extravío: Valor comercial del equipo."
+                    else "Delay per day: 20% of the rental value. Minor damage: Repair cost. Total loss: Commercial value of the equipment."
+
                  OutlinedTextField(
-                    value = uiState.terminosCondiciones,
-                    onValueChange = viewModel::onTerminosChange,
+                    value = uiState.terminosCondiciones.ifBlank { terminosDefault },
+                    onValueChange = {},
                     label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Términos y Condiciones" else "Terms and Conditions") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    minLines = 3
+                    readOnly = true,
+                    maxLines = 5
                 )
                 OutlinedTextField(
-                    value = uiState.politicaPenalidades,
-                    onValueChange = viewModel::onPoliticaChange,
+                    value = uiState.politicaPenalidades.ifBlank { politicaDefault },
+                    onValueChange = {},
                     label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Política de Penalidades" else "Penalty Policy") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    minLines = 3
+                    readOnly = true,
+                    maxLines = 5
+                )
+                Text(
+                    text = if (strings is com.raymi.app.core.lang.SpanishStrings) "* Las políticas legales son gestionadas internamente por RAYMI." else "* Legal policies are managed internally by RAYMI.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Botón de Guardado
             Button(
                 onClick = { viewModel.guardarCambios() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),

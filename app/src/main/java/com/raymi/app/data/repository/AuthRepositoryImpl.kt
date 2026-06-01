@@ -72,22 +72,23 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             val errorMessage = when (e) {
                 is FirebaseAuthException -> when (e.errorCode) {
-                    "ERROR_INVALID_EMAIL" -> "El correo electrónico no tiene un formato válido."
-                    "ERROR_USER_NOT_FOUND" -> "No existe ninguna cuenta con este correo."
-                    "ERROR_WRONG_PASSWORD" -> "La contraseña es incorrecta."
-                    "ERROR_USER_DISABLED" -> "Esta cuenta ha sido deshabilitada."
-                    "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos. Intenta más tarde."
-                    "ERROR_NETWORK_REQUEST_FAILED" -> "Error de red. Verifica tu conexión a internet."
-                    "ERROR_EMAIL_ALREADY_IN_USE" -> "Este correo ya está registrado en otra cuenta."
-                    "ERROR_WEAK_PASSWORD" -> "La contraseña es muy débil (mínimo 6 caracteres)."
+                    "ERROR_INVALID_EMAIL", "invalid-email" -> "El correo electrónico no tiene un formato válido."
+                    "ERROR_USER_NOT_FOUND", "user-not-found" -> "No existe ninguna cuenta con este correo."
+                    "ERROR_WRONG_PASSWORD", "wrong-password", "invalid-credential" -> "La contraseña o el correo son incorrectos."
+                    "ERROR_USER_DISABLED", "user-disabled" -> "Esta cuenta ha sido deshabilitada."
+                    "ERROR_TOO_MANY_REQUESTS", "too-many-requests" -> "Demasiados intentos. Intenta más tarde."
+                    "ERROR_NETWORK_REQUEST_FAILED", "network-request-failed" -> "Error de red. Verifica tu conexión a internet."
+                    "ERROR_EMAIL_ALREADY_IN_USE", "email-already-in-use" -> "Este correo ya está registrado en otra cuenta."
+                    "ERROR_WEAK_PASSWORD", "weak-password" -> "La contraseña es muy débil (mínimo 6 caracteres)."
                     else -> "Error de autenticación: ${e.localizedMessage ?: "desconocido"}"
                 }
                 else -> {
-                    val msg = e.localizedMessage ?: ""
+                    val msg = e.localizedMessage?.lowercase() ?: ""
                     when {
-                        msg.contains("already in use") -> "Este correo ya está en uso por otro negocio."
-                        msg.contains("network") -> "Error de conexión. Revisa tu internet."
-                        msg.contains("PERMISSION_DENIED") -> "Error de acceso: No tienes permisos para esta carpeta. Revisa tus reglas de Firebase."
+                        msg.contains("already in use") || msg.contains("email-already-in-use") -> "Este correo ya está en uso por otro negocio."
+                        msg.contains("wrong-password") || msg.contains("incorrect") || msg.contains("invalid-credential") -> "Credenciales incorrectas. Verifica tus datos."
+                        msg.contains("network") || msg.contains("unavailable") -> "Error de conexión. Revisa tu internet."
+                        msg.contains("permission_denied") || msg.contains("permission-denied") -> "Error de acceso: No tienes permisos."
                         else -> "Error al entrar al sistema: ${e.localizedMessage}"
                     }
                 }

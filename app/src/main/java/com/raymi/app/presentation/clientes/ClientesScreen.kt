@@ -24,6 +24,8 @@ import com.raymi.app.presentation.components.*
 import androidx.compose.ui.platform.testTag
 import com.raymi.app.core.lang.LocalRaymiStrings
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientesScreen(
@@ -63,6 +65,11 @@ fun ClientesScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.search)
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.refreshClientes() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                    }
+                },
                 scrollBehavior = scrollBehavior
             )
         },
@@ -73,66 +80,70 @@ fun ClientesScreen(
                 text = { Text(strings.newClient) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 shape = CustomShapes.CardShape,
-                modifier = Modifier.testTag("fab_add_cliente")
+                modifier = Modifier
+                    .padding(bottom = 96.dp) // Más aire arriba
+                    .testTag("fab_add_cliente")
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            
-            // 1. Buscador Inteligente
-            RaymiSearchBar(
-                query = uiState.searchQuery,
-                onQueryChange = { viewModel.searchClientes(it) },
-                placeholder = strings.searchClient + "...",
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.searchClientes("") }) {
-                            Icon(Icons.Filled.Clear, contentDescription = strings.cancel)
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshClientes() },
+            modifier = Modifier.padding(paddingValues).fillMaxSize()
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                
+                // 1. Buscador Inteligente
+                RaymiSearchBar(
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.searchClientes(it) },
+                    placeholder = strings.searchClient + "...",
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.searchClientes("") }) {
+                                Icon(Icons.Filled.Clear, contentDescription = strings.cancel)
+                            }
                         }
                     }
-                }
-            )
+                )
 
-            // 2. Chips de Ordenamiento (Recurso Gratis para UX)
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = uiState.orden == OrdenCliente.RECIBIENTES,
-                        onClick = { viewModel.cambiarOrden(OrdenCliente.RECIBIENTES) },
-                        label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Recientes" else "Recent") },
-                        leadingIcon = { if (uiState.orden == OrdenCliente.RECIBIENTES) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) },
-                        shape = CircleShape
-                    )
+                // 2. Chips de Ordenamiento
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = uiState.orden == OrdenCliente.RECIBIENTES,
+                            onClick = { viewModel.cambiarOrden(OrdenCliente.RECIBIENTES) },
+                            label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Recientes" else "Recent") },
+                            leadingIcon = { if (uiState.orden == OrdenCliente.RECIBIENTES) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) },
+                            shape = CircleShape
+                        )
+                    }
+                    item {
+                        FilterChip(
+                            selected = uiState.orden == OrdenCliente.ALFABETICO,
+                            onClick = { viewModel.cambiarOrden(OrdenCliente.ALFABETICO) },
+                            label = { Text("A-Z") },
+                            shape = CircleShape
+                        )
+                    }
                 }
-                item {
-                    FilterChip(
-                        selected = uiState.orden == OrdenCliente.ALFABETICO,
-                        onClick = { viewModel.cambiarOrden(OrdenCliente.ALFABETICO) },
-                        label = { Text("A-Z") },
-                        shape = CircleShape
-                    )
-                }
-            }
 
-            // 3. Listado de Clientes
-            Box(modifier = Modifier.weight(1f)) {
-                when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.loading)
-                    uiState.visibleClientes.isEmpty() -> {
+                // 3. Listado de Clientes
+                Box(modifier = Modifier.weight(1f)) {
+                    if (uiState.visibleClientes.isEmpty() && !uiState.isLoading) {
                         RaymiEmptyState(
                             icon = Icons.AutoMirrored.Filled.ContactSupport,
                             title = strings.clients,
                             description = if (uiState.searchQuery.isEmpty()) strings.activeClients else "No results found.",
-                            actionText = if (uiState.searchQuery.isEmpty()) strings.newClient else null,
-                            onActionClick = { viewModel.showAddClienteDialog() }
+                            actionText = null, // FAB es suficiente
+                            onActionClick = {}
                         )
-                    }
-                    else -> {
+                    } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 20.dp, start = 24.dp, end = 24.dp, top = 12.dp),
@@ -156,18 +167,17 @@ fun ClientesScreen(
                         }
                     }
                 }
-            }
 
-            if (viewModel.debeMostrarAnuncios()) {
-                AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                if (viewModel.debeMostrarAnuncios()) {
+                    AdBanner(modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
         }
     }
 
     if (uiState.showAddDialog) {
         AddClienteDialog(
-            onDismiss = { viewModel.hideAddClienteDialog() },
-            onConfirm = { cliente -> viewModel.addCliente(cliente) }
+            onDismiss = { viewModel.hideAddClienteDialog() }
         )
     }
 }

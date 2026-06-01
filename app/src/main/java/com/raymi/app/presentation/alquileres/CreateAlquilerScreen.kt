@@ -122,10 +122,14 @@ fun CreateAlquilerScreen(
                             }
                         }
                     }
-                    TextButton(onClick = { viewModel.showItemDialog() }, modifier = Modifier.fillMaxWidth().testTag("alquiler_add_item")) {
+                    TextButton(
+                        onClick = { viewModel.showItemDialog() }, 
+                        modifier = Modifier.fillMaxWidth().testTag("alquiler_add_item"),
+                        enabled = uiState.fechaFin != null
+                    ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(strings.selectItem)
+                        Text(if (uiState.fechaFin == null) "Primero elige fechas" else strings.selectItem)
                     }
                 }
             )
@@ -260,7 +264,9 @@ fun CreateAlquilerScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                             OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text("Cant") }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                             Spacer(Modifier.width(12.dp))
-                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { Text(strings.search) }
+                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { 
+                                Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Seleccionar" else "Select") 
+                            }
                         }
                     }
                 }

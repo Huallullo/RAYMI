@@ -124,7 +124,7 @@ class AddItemViewModel @Inject constructor(
 
                 var imageUrl: String? = null
                 state.selectedImageUri?.let { uri ->
-                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.jpg"
+                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.webp"
                     imageUrl = storageDataSource.uploadFile(path, uri)
                 }
 

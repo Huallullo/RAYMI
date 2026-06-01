@@ -38,4 +38,9 @@ interface WorkspaceRepository {
      * Obtiene el workspace que el usuario tiene marcado como actual/favorito
      */
     suspend fun getCurrentWorkspace(userId: String): Flow<Resource<Workspace?>>
+
+    /**
+     * Actualiza metadatos de estadísticas
+     */
+    suspend fun updateStats(workspaceId: String, data: Map<String, Any>)
 }

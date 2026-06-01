@@ -19,6 +19,9 @@ data class Cliente(
     val totalGastado: Double = 0.0,
     val deudaTotal: Double = 0.0,
     val ultimoAlquiler: Timestamp? = null,
+    val fotoDniFrontUrl: String? = null,
+    val fotoDniBackUrl: String? = null,
+    val fotoRostroUrl: String? = null,
     val createdAt: Timestamp = Timestamp.now()
 ) {
     val nombreCompleto: String get() = "$nombre $apellidos"

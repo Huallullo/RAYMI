@@ -28,6 +28,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.raymi.app.core.lang.LocalRaymiStrings
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+
 /**
  * Detalle de Alquiler Premium.
  */
@@ -40,6 +44,7 @@ fun AlquilerDetailScreen(
     onGenerateComprobante: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val strings = LocalRaymiStrings.current
@@ -173,7 +178,8 @@ fun AlquilerDetailScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
-                        color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f) else Color(0xFFE8F5E9)
+                        color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f) else Color(0xFFE8F5E9),
+                        border = if (alquiler.saldoPendienteReal <= 0) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50)) else null
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -182,13 +188,13 @@ fun AlquilerDetailScreen(
                         ) {
                             Column {
                                 Text(
-                                    if (alquiler.saldoPendienteReal > 0) strings.balance.uppercase() else (if (strings is com.raymi.app.core.lang.SpanishStrings) "LIQUIDADO" else "SETTLED"),
+                                    if (alquiler.saldoPendienteReal > 0) strings.balance.uppercase() else (if (strings is com.raymi.app.core.lang.SpanishStrings) "PAGO COMPLETADO" else "FULLY PAID"),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
                                 )
                                 Text(
-                                    alquiler.saldoFormateado,
+                                    if (alquiler.saldoPendienteReal > 0) alquiler.saldoFormateado else "S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.precioTotal + alquiler.penalidad)}",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Black,
                                     color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
@@ -199,7 +205,7 @@ fun AlquilerDetailScreen(
                                     onClick = { showPagoDialog = true },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                     shape = MaterialTheme.shapes.medium
-                                ) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Abonar" else "Pay", fontWeight = FontWeight.Bold) }
+                                ) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cobrar Saldo" else "Pay Balance", fontWeight = FontWeight.Bold) }
                             } else {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(32.dp))
                             }
@@ -219,9 +225,22 @@ fun AlquilerDetailScreen(
                                 }
                             }
                             Spacer(Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(alquiler.clienteNombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("ID: ${alquiler.clienteDni}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            
+                            // ACCIONES RÁPIDAS
+                            Row {
+                                IconButton(onClick = {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${alquiler.clienteTelefono}"))
+                                    context.startActivity(intent)
+                                }) {
+                                    Icon(Icons.Default.Phone, "Llamar", tint = Color(0xFF10B981))
+                                }
+                                IconButton(onClick = { viewModel.reenviarTicketVip() }) {
+                                    Icon(Icons.Default.Send, "Reenviar Ticket", tint = Color(0xFF25D366))
+                                }
                             }
                         }
                     }
@@ -238,7 +257,7 @@ fun AlquilerDetailScreen(
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Cant" else "Qty"}: ${alquiler.cantidad}", style = MaterialTheme.typography.bodyMedium)
-                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Unitario" else "Unit"}: ${alquiler.precioUnitario}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Unitario" else "Unit"}: S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.precioUnitario)}", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -367,7 +386,7 @@ fun AlquilerDetailScreen(
                                                 }
                                             }
                                             Column {
-                                                Text(text = "S/. ${pago.monto}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                                Text(text = "S/. ${String.format(java.util.Locale.US, "%.2f", pago.monto)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                                                 Text(
                                                     text = if (pago.referencia.isNotBlank()) "${pago.metodoPago.name} • ${pago.referencia}" else pago.metodoPago.name,
                                                     style = MaterialTheme.typography.labelSmall,
@@ -482,66 +501,93 @@ fun AlquilerDetailScreen(
 
     if (showDevolucionDialog && uiState.alquiler != null) {
         val alquiler = uiState.alquiler!!
-        var penalidadStr by remember { mutableStateOf("0") }
-        var garantiaRetenidaStr by remember { mutableStateOf("0") }
+        val strings = LocalRaymiStrings.current
+        
+        // CÁLCULO DE PENALIDAD AUTOMÁTICA (Senior Logic)
+        val diasAtraso = if (alquiler.estaVencido) {
+            kotlin.math.abs(alquiler.diasRestantes)
+        } else 0
+        
+        // Sugerencia: 3% del precio total por día de atraso (Pedido por el usuario)
+        val penalidadSugerida = if (diasAtraso > 0) {
+            (alquiler.precioTotal * 0.03) * diasAtraso
+        } else 0.0
+
+        var penalidadStr by remember { mutableStateOf(String.format(java.util.Locale.US, "%.2f", penalidadSugerida)) }
+        var garantiaRetenidaStr by remember { mutableStateOf("0.00") }
         var observacionesDev by remember { mutableStateOf("") }
+        var unidadesARetornar by remember { mutableStateOf(alquiler.cantidad.toString()) }
 
         AlertDialog(
             onDismissRequest = { showDevolucionDialog = false },
-            title = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Finalizar Alquiler" else "Finish Rental") },
+            title = { 
+                Column {
+                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Finalizar Contrato" else "Finish Contract", fontWeight = FontWeight.Black)
+                    if (diasAtraso > 0) {
+                        Text("⚠️ Atraso detectado: $diasAtraso día(s)", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (alquiler.saldoPendienteReal > 0) {
+                        // Alerta de cobro pendiente
                         Surface(
                             color = MaterialTheme.colorScheme.errorContainer,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Payments, null, tint = MaterialTheme.colorScheme.error)
                                 Column {
-                                    Text(
-                                        "${strings.balance}: S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.saldoPendienteReal)}",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                    Text(
-                                        if (strings is com.raymi.app.core.lang.SpanishStrings) "Debes liquidar la deuda antes de registrar la devolución." else "You must settle the debt before registering the return.",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
-                                    )
+                                    Text("${strings.balance}: S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.saldoPendienteReal)}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                    Text("Primero cobra el saldo antes de recibir el equipo.", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
                     } else {
-                        Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Confirma la recepción del ítem." else "Confirm item reception.")
+                        // Sección de Recepción
+                        Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Detalles de la recepción:" else "Receipt details:")
+                        
+                        OutlinedTextField(
+                            value = unidadesARetornar,
+                            onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() }) unidadesARetornar = it },
+                            label = { Text("Unidades devueltas (De ${alquiler.cantidad})") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = MaterialTheme.shapes.large,
+                            leadingIcon = { Icon(Icons.Default.Inventory, null) }
+                        )
+
                         OutlinedTextField(
                             value = penalidadStr,
                             onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) penalidadStr = it },
-                            label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Penalidad Extra (S/.)" else "Extra Penalty (S/.)") },
+                            label = { Text("Monto Penalidad (Atraso/Daño)") },
                             modifier = Modifier.fillMaxWidth(),
                             prefix = { Text("S/. ") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            shape = MaterialTheme.shapes.large
+                            shape = MaterialTheme.shapes.large,
+                            supportingText = { 
+                                if (diasAtraso > 0) Text("Sugerido: S/. ${String.format(java.util.Locale.US, "%.2f", penalidadSugerida)} (3%/día)", color = MaterialTheme.colorScheme.primary)
+                            }
                         )
+
                         OutlinedTextField(
                             value = garantiaRetenidaStr,
                             onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) garantiaRetenidaStr = it },
-                            label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descuento de garantía (S/.)" else "Guarantee deduction (S/.)") },
+                            label = { Text("Descuento de Garantía") },
                             modifier = Modifier.fillMaxWidth(),
                             prefix = { Text("S/. ") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            shape = MaterialTheme.shapes.large
+                            shape = MaterialTheme.shapes.large,
+                            supportingText = { Text("Garantía del cliente: ${alquiler.garantiaFormateada}") }
                         )
+
                         OutlinedTextField(
                             value = observacionesDev,
                             onValueChange = { observacionesDev = it },
-                            label = { Text(strings.notes) },
+                            label = { Text("Notas de estado (Opcional)") },
+                            placeholder = { Text("Ej: Entregó con mancha pequeña...") },
                             modifier = Modifier.fillMaxWidth(),
                             maxLines = 3,
                             shape = MaterialTheme.shapes.large
@@ -551,21 +597,26 @@ fun AlquilerDetailScreen(
             },
             confirmButton = {
                 if (alquiler.saldoPendienteReal > 0) {
-                    Button(onClick = {
-                        showDevolucionDialog = false
-                        showPagoDialog = true
-                    }) {
-                        Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Ir a Cobrar" else "Go to Checkout")
+                    Button(onClick = { showDevolucionDialog = false; showPagoDialog = true }) {
+                        Text("Ir a Cobrar")
                     }
                 } else {
-                    Button(onClick = { 
-                        viewModel.registrarDevolucion(
-                            penalidad = penalidadStr.toDoubleOrNull() ?: 0.0,
-                            observaciones = observacionesDev,
-                            montoGarantiaRetenida = garantiaRetenidaStr.toDoubleOrNull() ?: 0.0
-                        ) 
-                        showDevolucionDialog = false
-                    }) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Confirmar Devolución" else "Confirm Return") }
+                    Button(
+                        onClick = { 
+                            viewModel.registrarDevolucion(
+                                penalidad = penalidadStr.toDoubleOrNull() ?: 0.0,
+                                observaciones = observacionesDev,
+                                montoGarantiaRetenida = garantiaRetenidaStr.toDoubleOrNull() ?: 0.0,
+                                unidadesARetornar = unidadesARetornar.toIntOrNull() ?: 0
+                            ) 
+                            showDevolucionDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (diasAtraso > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    ) { 
+                        Text(if (diasAtraso > 0) "Cobrar Penalidad y Cerrar" else "Confirmar Recepción") 
+                    }
                 }
             },
             dismissButton = { TextButton(onClick = { showDevolucionDialog = false }) { Text(strings.cancel) } }
