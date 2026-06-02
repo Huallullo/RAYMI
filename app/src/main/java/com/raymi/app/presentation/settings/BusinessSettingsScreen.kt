@@ -118,7 +118,7 @@ fun BusinessSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // 1. Imagen de Marca
-            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Imagen de Marca" else "Brand Identity") {
+            SettingsSection(title = strings.brandIdentity) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -146,7 +146,7 @@ fun BusinessSettingsScreen(
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Logo del Negocio" else "Business Logo", style = MaterialTheme.typography.labelMedium)
+                    Text(strings.businessLogo, style = MaterialTheme.typography.labelMedium)
                 }
             }
 
@@ -155,7 +155,7 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.nombre,
                     onValueChange = viewModel::onNombreChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Nombre del Negocio (Interno)" else "Business Name (Internal)") },
+                    label = { Text(strings.businessNameInternal) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large
                 )
@@ -163,7 +163,7 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.nombreComercial,
                     onValueChange = viewModel::onNombreComercialChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Nombre Comercial (Para Comprobantes)" else "Trade Name (For Receipts)") },
+                    label = { Text(strings.tradeName) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Store, contentDescription = null) }
@@ -172,7 +172,7 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.ruc,
                     onValueChange = viewModel::onRucChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "RUC del Negocio" else "Tax ID / RUC") },
+                    label = { Text(strings.taxId) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) }
@@ -196,7 +196,7 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.descripcion,
                     onValueChange = viewModel::onDescripcionChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descripción del Negocio" else "Business Description") },
+                    label = { Text(strings.businessDescription) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     maxLines = 5
@@ -205,7 +205,7 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.googleMapsUrl,
                     onValueChange = viewModel::onGoogleMapsUrlChange,
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Link de Google Maps (Ubicación)" else "Google Maps Link (Location)") },
+                    label = { Text(strings.googleMapsLink) },
                     placeholder = { Text("https://maps.google.com/...") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
@@ -227,7 +227,7 @@ fun BusinessSettingsScreen(
             }
 
             // 3. Finanzas
-            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Finanzas y Región" else "Finance & Region") {
+            SettingsSection(title = strings.financeRegion) {
                 var expanded by remember { mutableStateOf(false) }
                 val currencies = listOf(
                     "PEN" to "🇵🇪 Sol Peruano",
@@ -250,7 +250,7 @@ fun BusinessSettingsScreen(
                         value = currencies.find { it.first == uiState.moneda }?.second ?: uiState.moneda,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Moneda del Negocio" else "Business Currency") },
+                        label = { Text(strings.businessCurrency) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         shape = MaterialTheme.shapes.large,
@@ -275,7 +275,7 @@ fun BusinessSettingsScreen(
             }
 
             // 4. Legal y Políticas
-            SettingsSection(title = if (strings is com.raymi.app.core.lang.SpanishStrings) "Legal y Políticas" else "Legal & Policies") {
+            SettingsSection(title = strings.legalPolicies) {
                 val terminosDefault = if (strings is com.raymi.app.core.lang.SpanishStrings) 
                     "Al utilizar este servicio, el cliente acepta entregar el equipo en las mismas condiciones. El retraso genera penalidades según la política vigente." 
                     else "By using this service, the client agrees to return the equipment in the same conditions. Delays generate penalties according to current policy."
@@ -287,7 +287,7 @@ fun BusinessSettingsScreen(
                  OutlinedTextField(
                     value = uiState.terminosCondiciones.ifBlank { terminosDefault },
                     onValueChange = {},
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Términos y Condiciones" else "Terms and Conditions") },
+                    label = { Text(strings.termsConditions) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     readOnly = true,
@@ -296,14 +296,14 @@ fun BusinessSettingsScreen(
                 OutlinedTextField(
                     value = uiState.politicaPenalidades.ifBlank { politicaDefault },
                     onValueChange = {},
-                    label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Política de Penalidades" else "Penalty Policy") },
+                    label = { Text(strings.penaltyPolicy) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     readOnly = true,
                     maxLines = 5
                 )
                 Text(
-                    text = if (strings is com.raymi.app.core.lang.SpanishStrings) "* Las políticas legales son gestionadas internamente por RAYMI." else "* Legal policies are managed internally by RAYMI.",
+                    text = strings.internalPolicyMessage,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )

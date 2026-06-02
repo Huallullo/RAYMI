@@ -265,6 +265,19 @@ interface RaymiStrings {
     val fullPaymentMessage: String
     val subtotal: String
     val debt: String
+    val businessNameInternal: String
+    val tradeName: String
+    val taxId: String
+    val businessDescription: String
+    val googleMapsLink: String
+    val businessCurrency: String
+    val legalPolicies: String
+    val termsConditions: String
+    val penaltyPolicy: String
+    val internalPolicyMessage: String
+    val brandIdentity: String
+    val businessLogo: String
+    val financeRegion: String
 }
 
 class SpanishStrings : RaymiStrings {
@@ -493,6 +506,19 @@ class SpanishStrings : RaymiStrings {
     override val fullPaymentMessage = "¡Pago completo! Ya puedes devolver el equipo."
     override val subtotal = "Subtotal"
     override val debt = "Debe"
+    override val businessNameInternal = "Nombre del Negocio (Interno)"
+    override val tradeName = "Nombre Comercial (Para Comprobantes)"
+    override val taxId = "RUC del Negocio"
+    override val businessDescription = "Descripción del Negocio"
+    override val googleMapsLink = "Link de Google Maps (Ubicación)"
+    override val businessCurrency = "Moneda del Negocio"
+    override val legalPolicies = "Legal y Políticas"
+    override val termsConditions = "Términos y Condiciones"
+    override val penaltyPolicy = "Política de Penalidades"
+    override val internalPolicyMessage = "* Las políticas legales son gestionadas internamente por RAYMI."
+    override val brandIdentity = "Imagen de Marca"
+    override val businessLogo = "Logo del Negocio"
+    override val financeRegion = "Finanzas y Región"
 
     override val loginTitle = "Bienvenido de nuevo"
     override val loginSubtitle = "Accede a tu panel de control central"
@@ -748,6 +774,19 @@ class EnglishStrings : RaymiStrings {
     override val fullPaymentMessage = "Full payment! You can now return the equipment."
     override val subtotal = "Subtotal"
     override val debt = "Owes"
+    override val businessNameInternal = "Business Name (Internal)"
+    override val tradeName = "Trade Name (For Receipts)"
+    override val taxId = "Tax ID / RUC"
+    override val businessDescription = "Business Description"
+    override val googleMapsLink = "Google Maps Link (Location)"
+    override val businessCurrency = "Business Currency"
+    override val legalPolicies = "Legal & Policies"
+    override val termsConditions = "Terms and Conditions"
+    override val penaltyPolicy = "Penalty Policy"
+    override val internalPolicyMessage = "* Legal policies are managed internally by RAYMI."
+    override val brandIdentity = "Brand Identity"
+    override val businessLogo = "Business Logo"
+    override val financeRegion = "Finance & Region"
 
     override val loginTitle = "Welcome back"
     override val loginSubtitle = "Access your central control panel"

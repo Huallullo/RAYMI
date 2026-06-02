@@ -112,11 +112,11 @@ class ItemsViewModel @Inject constructor(
         }
     }
 
-    fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
+    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
-    fun searchItems(query: String) { _searchQuery.value = query }
+    fun buscar(query: String) { _searchQuery.value = query }
 
-    fun filterByCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
+    fun filtrarPorCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
 
     fun cargarMas() {
         loadMore()

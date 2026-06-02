@@ -104,6 +104,11 @@ interface AlquilerRepository {
     ): Flow<Resource<Unit>>
 
     /**
+     * Elimina un alquiler
+     */
+    suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
+
+    /**
      * Registra un nuevo pago para un alquiler
      */
     suspend fun addPago(workspaceId: String, alquilerId: String, pago: com.raymi.app.domain.model.Pago): Flow<Resource<Unit>>

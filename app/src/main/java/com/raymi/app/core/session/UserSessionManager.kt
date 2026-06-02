@@ -11,10 +11,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Gestor de Sesión Centralizado (SaaS Optimization).
- * Comparte el estado del plan del usuario entre múltiples ViewModels para reducir lecturas de Firestore.
- */
 @Singleton
 class UserSessionManager @Inject constructor(
     private val userPlanRepository: UserPlanRepository,
