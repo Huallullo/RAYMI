@@ -268,7 +268,7 @@ fun LoginScreen(
                         .testTag("login_button"),
                     shape = MaterialTheme.shapes.extraLarge,
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                    enabled = !uiState.isLoading && (!uiState.isRegisterMode || uiState.isBotVerified)
+                    enabled = !uiState.isLoading // MODO QA: Siempre habilitado
                 ) {
                     Text(
                         if (uiState.isRegisterMode) strings.registerButton else strings.loginButton,

@@ -18,19 +18,18 @@ class RentalDataSource @Inject constructor(
         val monto = (pagoData["monto"] as? Number)?.toDouble() ?: 0.0
 
         firestore.runTransaction { transaction ->
-            // 1. LEER datos necesarios
-            val snapshot = transaction.get(alquilerRef)
-            val saldoActual = (snapshot.get("saldo") as? Number)?.toDouble() ?: 0.0
-            val adelantoActual = (snapshot.get("adelanto") as? Number)?.toDouble() ?: 0.0
-
             // 2. ESCRIBIR cambios
             val newPagoRef = pagosRef.document()
-            transaction.set(newPagoRef, pagoData + mapOf("id" to newPagoRef.id))
+            transaction.set(newPagoRef, pagoData + mapOf(
+                "id" to newPagoRef.id,
+                "workspaceId" to workspaceId // OPTIMIZACIÓN: Añadir workspaceId para evitar N+1 queries en el futuro
+            ))
             
+            // OPTIMIZACIÓN: Usar increment atómico para evitar race conditions en el saldo
             transaction.update(alquilerRef, mapOf(
-                "saldo" to (saldoActual - monto).coerceAtLeast(0.0), 
-                "adelanto" to (adelantoActual + monto), 
-                "updatedAt" to FieldValue.serverTimestamp()
+                "saldo" to com.google.firebase.firestore.FieldValue.increment(-monto), 
+                "adelanto" to com.google.firebase.firestore.FieldValue.increment(monto), 
+                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
             ))
 
             // ACTUALIZAR ESTADÍSTICAS MENSUALES Y TOTALES
@@ -95,6 +94,7 @@ class RentalDataSource @Inject constructor(
                 transaction.set(initialPagoRef, mapOf(
                     "id" to initialPagoRef.id,
                     "alquilerId" to newRef.id,
+                    "workspaceId" to workspaceId, // OPTIMIZACIÓN: Añadir workspaceId
                     "monto" to adelanto,
                     "metodoPago" to (alquilerData["metodoPago"] ?: "EFECTIVO"),
                     "referencia" to "Pago Inicial",
@@ -126,13 +126,38 @@ class RentalDataSource @Inject constructor(
     }
 
     suspend fun getPagosDeAlquileres(workspaceId: String, alquileres: List<String>): List<Map<String, Any>> {
-        val pagos = mutableListOf<Map<String, Any>>()
-        for (id in alquileres) {
-            val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-                .collection("alquileres").document(id).collection("pagos").get().await()
-            pagos.addAll(snapshot.documents.mapNotNull { it.data })
+        // OPTIMIZACIÓN: Usar collectionGroup con filtro de workspaceId para evitar N+1 queries.
+        // Nota: Requiere que los pagos antiguos tengan el campo workspaceId o usar fallback.
+        return try {
+            val snapshot = firestore.collectionGroup("pagos")
+                .whereEqualTo("workspaceId", workspaceId)
+                .get()
+                .await()
+            
+            if (snapshot.isEmpty && alquileres.isNotEmpty()) {
+                // Fallback para datos antiguos (N+1 controlado o chunks)
+                val allPagos = mutableListOf<Map<String, Any>>()
+                alquileres.chunked(30).forEach { chunk ->
+                    val snaps = firestore.collectionGroup("pagos")
+                        .whereIn("alquilerId", chunk)
+                        .get()
+                        .await()
+                    allPagos.addAll(snaps.documents.mapNotNull { it.data })
+                }
+                allPagos
+            } else {
+                snapshot.documents.mapNotNull { it.data }
+            }
+        } catch (e: Exception) {
+            // Si falla el collectionGroup (ej: falta índice), usar fallback por alquiler
+            val pagos = mutableListOf<Map<String, Any>>()
+            for (id in alquileres) {
+                val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
+                    .collection("alquileres").document(id).collection("pagos").get().await()
+                pagos.addAll(snapshot.documents.mapNotNull { it.data })
+            }
+            pagos
         }
-        return pagos
     }
 
     suspend fun getAlquiler(workspaceId: String, alquilerId: String): Map<String, Any>? {
@@ -246,10 +271,13 @@ class RentalDataSource @Inject constructor(
                 ((it["unidadesDevueltas"] as? Number)?.toInt() ?: 0) >= ((it["cantidad"] as? Number)?.toInt() ?: 0) 
             }
 
+            val extraIngreso = penalidad + montoGarantiaRetenida
+
             transaction.update(alqRef, mapOf(
                 "estado" to if (todasDevueltas) "DEVUELTO" else "ACTIVO", 
                 "items" to nuevosItems,
-                "penalidad" to FieldValue.increment(penalidad + montoGarantiaRetenida), 
+                "penalidad" to FieldValue.increment(extraIngreso), 
+                "adelanto" to FieldValue.increment(extraIngreso), // ✅ Sumar al total pagado para historial exacto
                 "observaciones" to newObs, 
                 "fechaDevolucion" to if (todasDevueltas) FieldValue.serverTimestamp() else alqSnap.get("fechaDevolucion"), 
                 "updatedAt" to FieldValue.serverTimestamp()
@@ -261,15 +289,25 @@ class RentalDataSource @Inject constructor(
                  transaction.update(statsRef, mapOf("totalSaldoPendiente" to FieldValue.increment(-saldoActual)))
             }
             
-            // 5. ESCRIBIR cambios en Ítems (Liberar Stock)
+            // 5. ESCRIBIR cambios en Ítems (Liberar Stock - Lógica Senior)
             itemsOriginales.forEach { itemData ->
                 val id = itemData["itemId"] as? String ?: return@forEach
                 val itemSnap = itemSnapshots[id]
                 if (itemSnap != null && itemSnap.exists()) {
+                    val stockTotal = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
                     val currentAlquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+                    val nuevasAlquiladas = (currentAlquiladas - cantidadADevolverEfectiva).coerceAtLeast(0)
+                    
+                    val currentEstado = itemSnap.getString("estado") ?: "DISPONIBLE"
+                    val nuevoEstado = when {
+                        nuevasAlquiladas >= stockTotal -> "ALQUILADO"
+                        currentEstado == "ALQUILADO" -> "DISPONIBLE"
+                        else -> currentEstado
+                    }
+                    
                     transaction.update(negocioRef.collection("items").document(id), mapOf(
-                        "unidadesAlquiladas" to (currentAlquiladas - cantidadADevolverEfectiva).coerceAtLeast(0), 
-                        "estado" to "DISPONIBLE"
+                        "unidadesAlquiladas" to nuevasAlquiladas, 
+                        "estado" to nuevoEstado
                     ))
                 }
             }
@@ -278,7 +316,6 @@ class RentalDataSource @Inject constructor(
             val cal = java.util.Calendar.getInstance()
             val mesKey = "ingresos_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.MONTH)}"
             val hoyKey = "operaciones_${cal.get(java.util.Calendar.YEAR)}_${cal.get(java.util.Calendar.DAY_OF_YEAR)}"
-            val extraIngreso = penalidad + montoGarantiaRetenida
 
             if (extraIngreso > 0) {
                 val penaltyPagoRef = alqRef.collection("pagos").document()

@@ -222,6 +222,49 @@ interface RaymiStrings {
     val successDelete: String
     val successUpdate: String
     val successPayment: String
+    
+    // Auditoría de Localización
+    val permissionDenied: String
+    val cameraPermissionDesc: String
+    val openSettings: String
+    val gpsDisabled: String
+    val gpsDisabledDesc: String
+    val noConnection: String
+    val noConnectionDesc: String
+    val clientProfile: String
+    val identityBackup: String
+    val contactData: String
+    val unitPrice: String
+    val overdueDetected: String
+    val registerPayment: String
+    val amountToPay: String
+    val selectLanguage: String
+    val forCollecting: String
+    val suggestion: String
+    val note: String
+    val returnText: String
+    val ok: String
+    val total: String
+    val paid: String
+    val maintenanceHistory: String
+    val registerMaintenance: String
+    val reason: String
+    val cost: String
+    val responsible: String
+    val description: String
+    val finalState: String
+    val idFront: String
+    val idBack: String
+    val facePhoto: String
+    val idNotFound: String
+    val deleteClient: String
+    val transactions: String
+    val afterPayment: String
+    val newAdvance: String
+    val newBalance: String
+    val fullPaymentMessage: String
+    val subtotal: String
+    val debt: String
 }
 
 class SpanishStrings : RaymiStrings {
@@ -408,6 +451,48 @@ class SpanishStrings : RaymiStrings {
     override val successDelete = "Eliminado correctamente."
     override val successUpdate = "Actualizado correctamente."
     override val successPayment = "Abono registrado con éxito."
+
+    override val permissionDenied = "Permiso Denegado"
+    override val cameraPermissionDesc = "Para tomar fotos del DNI o del cliente, RAYMI necesita acceso a la cámara."
+    override val openSettings = "Abrir Ajustes"
+    override val gpsDisabled = "GPS Desactivado"
+    override val gpsDisabledDesc = "Para capturar tu ubicación exacta, necesitas activar el interruptor de 'Ubicación' en tu dispositivo."
+    override val noConnection = "Sin Conexión"
+    override val noConnectionDesc = "No hemos detectado una conexión a internet activa. Revisa tu WiFi o Datos Móviles."
+    override val clientProfile = "Ficha del Cliente"
+    override val identityBackup = "Respaldo de Identidad"
+    override val contactData = "Datos de Contacto"
+    override val unitPrice = "Unitario"
+    override val overdueDetected = "Atraso detectado"
+    override val registerPayment = "Registrar Pago"
+    override val amountToPay = "Monto a Pagar"
+    override val selectLanguage = "Seleccionar Idioma"
+    override val forCollecting = "POR COBRAR"
+    override val suggestion = "Sugerido"
+    override val note = "Nota"
+    override val returnText = "Retorno"
+    override val ok = "Aceptar"
+    override val total = "Total"
+    override val paid = "Pagado"
+    override val maintenanceHistory = "Historial de Mantenimiento"
+    override val registerMaintenance = "Registrar Mantenimiento"
+    override val reason = "Motivo"
+    override val cost = "Costo"
+    override val responsible = "Responsable"
+    override val description = "Descripción"
+    override val finalState = "Estado Final del Ítem"
+    override val idFront = "DNI Frontal"
+    override val idBack = "DNI Posterior"
+    override val facePhoto = "Foto del Cliente (Rostro)"
+    override val idNotFound = "DNI no encontrado"
+    override val deleteClient = "Eliminar Cliente"
+    override val transactions = "oper."
+    override val afterPayment = "Después del pago:"
+    override val newAdvance = "Nuevo adelanto:"
+    override val newBalance = "Nuevo saldo:"
+    override val fullPaymentMessage = "¡Pago completo! Ya puedes devolver el equipo."
+    override val subtotal = "Subtotal"
+    override val debt = "Debe"
 
     override val loginTitle = "Bienvenido de nuevo"
     override val loginSubtitle = "Accede a tu panel de control central"
@@ -621,6 +706,48 @@ class EnglishStrings : RaymiStrings {
     override val successDelete = "Deleted successfully."
     override val successUpdate = "Updated successfully."
     override val successPayment = "Payment registered successfully."
+
+    override val permissionDenied = "Permission Denied"
+    override val cameraPermissionDesc = "To take photos of ID or client, RAYMI needs camera access."
+    override val openSettings = "Open Settings"
+    override val gpsDisabled = "GPS Disabled"
+    override val gpsDisabledDesc = "To capture your exact location, you need to enable 'Location' on your device."
+    override val noConnection = "No Connection"
+    override val noConnectionDesc = "We haven't detected an active internet connection. Check your WiFi or Mobile Data."
+    override val clientProfile = "Client Profile"
+    override val identityBackup = "Identity Backup"
+    override val contactData = "Contact Data"
+    override val unitPrice = "Unit Price"
+    override val overdueDetected = "Overdue detected"
+    override val registerPayment = "Register Payment"
+    override val amountToPay = "Amount to Pay"
+    override val selectLanguage = "Select Language"
+    override val forCollecting = "FOR COLLECTING"
+    override val suggestion = "Suggested"
+    override val note = "Note"
+    override val returnText = "Return"
+    override val ok = "OK"
+    override val total = "Total"
+    override val paid = "Paid"
+    override val maintenanceHistory = "Maintenance History"
+    override val registerMaintenance = "Register Maintenance"
+    override val reason = "Reason"
+    override val cost = "Cost"
+    override val responsible = "Responsible"
+    override val description = "Description"
+    override val finalState = "Final Item State"
+    override val idFront = "ID Front"
+    override val idBack = "ID Back"
+    override val facePhoto = "Client Photo (Face)"
+    override val idNotFound = "ID not found"
+    override val deleteClient = "Delete Client"
+    override val transactions = "trans."
+    override val afterPayment = "After payment:"
+    override val newAdvance = "New advance:"
+    override val newBalance = "New balance:"
+    override val fullPaymentMessage = "Full payment! You can now return the equipment."
+    override val subtotal = "Subtotal"
+    override val debt = "Owes"
 
     override val loginTitle = "Welcome back"
     override val loginSubtitle = "Access your central control panel"

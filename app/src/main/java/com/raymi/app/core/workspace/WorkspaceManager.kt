@@ -40,24 +40,24 @@ class WorkspaceManager @Inject constructor(
     private val _currentLanguage = MutableStateFlow("es")
     val currentLanguage: StateFlow<String> = _currentLanguage.asStateFlow()
 
+    // OPTIMIZACIÓN: StateFlow para manejar el estado de inicialización y evitar race conditions
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
     init {
         // Restaurar workspaceID e idioma desde persistencia al iniciar
         scope.launch {
-            val prefs = context.dataStore.data.first()
-            val id = prefs[KEY_WORKSPACE_ID]
-            val lang = prefs[KEY_LANGUAGE] ?: "es"
+            try {
+                val prefs = context.dataStore.data.first()
+                val id = prefs[KEY_WORKSPACE_ID]
+                val lang = prefs[KEY_LANGUAGE] ?: "es"
 
-            _currentLanguage.value = lang
+                _currentLanguage.value = lang
 
-            if (id != null && _currentWorkspace.value == null) {
-                // Seteamos caché inicial
-                firebaseDataSource.setBusinessId(id)
-                
-                // Primero seteamos el ID básico para evitar UI vacía si es posible
-                _currentWorkspace.value = Workspace(id = id)
-                
-                // Cargar datos completos desde el repositorio (Lectura única al iniciar)
-                try {
+                if (id != null && _currentWorkspace.value == null) {
+                    firebaseDataSource.setBusinessId(id)
+                    _currentWorkspace.value = Workspace(id = id)
+                    
                     val resource = workspaceRepositoryProvider.get().getWorkspaceById(id)
                         .filter { it !is Resource.Loading }
                         .first()
@@ -65,9 +65,10 @@ class WorkspaceManager @Inject constructor(
                     if (resource is Resource.Success) {
                         _currentWorkspace.value = resource.data
                     }
-                } catch (_: Exception) {
-                    // Si falla la carga remota, nos quedamos con el ID parcial
                 }
+            } catch (_: Exception) {
+            } finally {
+                _isInitialized.value = true // Se marca como inicializado siempre al terminar
             }
         }
     }

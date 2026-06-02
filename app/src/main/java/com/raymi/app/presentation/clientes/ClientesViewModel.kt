@@ -13,6 +13,7 @@ import com.raymi.app.domain.usecase.cliente.UpdateClienteUseCase
 import com.raymi.app.domain.usecase.reniec.ConsultarReniecUseCase
 import com.raymi.app.data.remote.ReniecData
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,6 +22,7 @@ import javax.inject.Inject
  * ViewModel para la gestión inteligente de clientes optimizado para SaaS.
  * Incluye respaldo de identidad (Fotos DNI y Rostro) para máxima seguridad.
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class ClientesViewModel @Inject constructor(
     private val getClientesOnceUseCase: GetClientesOnceUseCase,
@@ -28,6 +30,7 @@ class ClientesViewModel @Inject constructor(
     private val updateClienteUseCase: UpdateClienteUseCase,
     private val deleteClienteUseCase: DeleteClienteUseCase,
     private val consultarReniecUseCase: ConsultarReniecUseCase,
+    private val planLimitsUseCase: com.raymi.app.domain.usecase.auth.PlanLimitsUseCase, // OPTIMIZACIÓN: Consolidar límites
     private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth,
     private val storageDataSource: StorageDataSource,
@@ -39,10 +42,33 @@ class ClientesViewModel @Inject constructor(
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
 
     private var allClientes = emptyList<Cliente>()
+    private val _searchQuery = MutableStateFlow("")
+    private val _orden = MutableStateFlow(OrdenCliente.RECIBIENTES)
+    private var lastSnapshot: Any? = null
+    private val PAGE_SIZE = 20L
 
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     init {
+        // OPTIMIZACIÓN: Debounce en búsqueda para evitar recomposiciones innecesarias
+        _searchQuery
+            .debounce(300)
+            .distinctUntilChanged()
+            .combine(_orden) { query, orden -> query to orden }
+            .onEach { (query, orden) ->
+                // NOTA: Si el usuario busca, invalidamos la paginación para búsqueda global o manejamos local
+                val filtrados = aplicarLogicaFiltro(allClientes, query, orden)
+                _uiState.update { state ->
+                    state.copy(
+                        searchQuery = query,
+                        orden = orden,
+                        filteredClientes = filtrados,
+                        visibleClientes = filtrados.take(state.visibleLimit),
+                        hasMoreClientes = filtrados.size > state.visibleLimit
+                    )
+                }
+            }.launchIn(viewModelScope)
+
         refreshClientes()
         loadUserPlan()
     }
@@ -60,19 +86,31 @@ class ClientesViewModel @Inject constructor(
     }
 
     fun refreshClientes() {
+        lastSnapshot = null
+        allClientes = emptyList()
+        loadMore()
+    }
+
+    fun loadMore() {
+        if (_uiState.value.isLoading) return
+        
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             _uiState.update { it.copy(isLoading = true) }
-            val result = getClientesOnceUseCase(workspaceId)
+            
+            val result = getClientesOnceUseCase(workspaceId, limit = PAGE_SIZE, lastSnapshot = lastSnapshot)
             if (result is Resource.Success) {
-                allClientes = result.data ?: emptyList()
+                val newItems = result.data ?: emptyList()
+                allClientes = if (lastSnapshot == null) newItems else allClientes + newItems
+                lastSnapshot = result.cursor
+                
                 _uiState.update { state ->
                     val filtrados = aplicarLogicaFiltro(allClientes, state.searchQuery, state.orden)
                     state.copy(
                         clientes = allClientes,
                         filteredClientes = filtrados,
-                        visibleClientes = filtrados.take(state.visibleLimit),
-                        hasMoreClientes = filtrados.size > state.visibleLimit,
+                        visibleClientes = filtrados,
+                        hasMoreClientes = newItems.size >= PAGE_SIZE,
                         isLoading = false
                     )
                 }
@@ -83,26 +121,11 @@ class ClientesViewModel @Inject constructor(
     }
 
     fun searchClientes(query: String) {
-        _uiState.update { state ->
-            val filtrados = aplicarLogicaFiltro(allClientes, query, state.orden)
-            state.copy(
-                searchQuery = query,
-                filteredClientes = filtrados,
-                visibleClientes = filtrados.take(state.visibleLimit),
-                hasMoreClientes = filtrados.size > state.visibleLimit
-            )
-        }
+        _searchQuery.value = query
     }
 
     fun cambiarOrden(nuevoOrden: OrdenCliente) {
-        _uiState.update { state ->
-            val filtrados = aplicarLogicaFiltro(allClientes, state.searchQuery, nuevoOrden)
-            state.copy(
-                orden = nuevoOrden,
-                filteredClientes = filtrados,
-                visibleClientes = filtrados.take(state.visibleLimit)
-            )
-        }
+        _orden.value = nuevoOrden
     }
 
     private fun aplicarLogicaFiltro(lista: List<Cliente>, query: String, orden: OrdenCliente): List<Cliente> {
@@ -145,7 +168,7 @@ class ClientesViewModel @Inject constructor(
                     return@launch
                 }
 
-                val canAdd = userPlanRepository.canAddMoreClients(userId, workspaceId)
+                val canAdd = planLimitsUseCase.canAddMoreClients(userId, workspaceId)
                 if (!canAdd) {
                     _uiState.update { it.copy(isLoading = false, error = "Has alcanzado el límite de clientes de tu plan. ¡Pásate a PRO para registro ilimitado!") }
                     return@launch

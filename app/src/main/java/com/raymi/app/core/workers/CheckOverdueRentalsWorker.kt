@@ -37,9 +37,16 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
 
             val notificationHelper = NotificationHelper(applicationContext)
             vencidos.forEach { alquiler ->
+                // Obtener idioma del negocio para la notificación
+                val strings = obtenerStringsParaNegocio(alquiler.workspaceId)
+                
                 notificarClienteVencido(alquiler)
                 marcarComoVencidoEnFirestore(alquiler)
-                notificationHelper.sendOverdueNotification(alquiler.clienteNombre, alquiler.id)
+                notificationHelper.sendOverdueNotification(
+                    alquilerId = alquiler.id,
+                    title = strings.overdueDetected,
+                    content = if (strings is com.raymi.app.core.lang.SpanishStrings) "El alquiler de ${alquiler.clienteNombre} ha vencido." else "Rental for ${alquiler.clienteNombre} has expired."
+                )
             }
 
             Result.success()
@@ -72,6 +79,10 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
     }
 
     private suspend fun marcarComoVencidoEnFirestore(alquiler: Alquiler) {
+        if (alquiler.workspaceId.isBlank()) {
+            android.util.Log.w("CheckOverdueWorker", "Alquiler ${alquiler.id} sin workspaceId (campo legacy). Ignorando actualización.")
+            return
+        }
         try {
             firebaseDataSource.updateBusinessDocument(
                 collection = "alquileres",
@@ -97,6 +108,16 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 esVencido = true
             ).collect { }
         } catch (_: Exception) { }
+    }
+
+    private suspend fun obtenerStringsParaNegocio(workspaceId: String): com.raymi.app.core.lang.RaymiStrings {
+        return try {
+            val data = firebaseDataSource.getDocument(com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS, workspaceId)
+            val idioma = data?.get("idioma") as? String ?: "es"
+            if (idioma == "en") com.raymi.app.core.lang.EnglishStrings() else com.raymi.app.core.lang.SpanishStrings()
+        } catch (_: Exception) {
+            com.raymi.app.core.lang.SpanishStrings()
+        }
     }
 
     private suspend fun obtenerTelefonoCliente(clienteId: String): String {

@@ -44,6 +44,7 @@ fun ClienteDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -66,18 +67,18 @@ fun ClienteDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Ficha del Cliente", fontWeight = FontWeight.Black) },
+                title = { Text(strings.clientProfile, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 },
                 actions = {
                     IconButton(onClick = { showEditDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
+                        Icon(Icons.Default.Edit, contentDescription = strings.edit)
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Default.Delete, contentDescription = strings.delete, tint = MaterialTheme.colorScheme.error)
                     }
                 }
             )
@@ -114,13 +115,13 @@ fun ClienteDetailScreen(
                         // 2. KPIs de Fidelización
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             InfoSquareSmall(
-                                label = "Alquileres",
+                                label = strings.rentals,
                                 value = uiState.totalAlquileres.toString(),
                                 icon = Icons.Default.Repeat,
                                 modifier = Modifier.weight(1f)
                             )
                             InfoSquareSmall(
-                                label = "Inversión",
+                                label = if (strings is com.raymi.app.core.lang.SpanishStrings) "Inversión" else "Investment",
                                 value = "S/. ${String.format(Locale.getDefault(), "%,.2f", uiState.totalGastado)}",
                                 icon = Icons.Default.Payments,
                                 modifier = Modifier.weight(1f)
@@ -128,53 +129,53 @@ fun ClienteDetailScreen(
                         }
 
                         // 3. Respaldo de Identidad (Seguridad Crítica)
-                        Text("Respaldo de Identidad", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.identityBackup, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SecurityPhotoCard(
-                                    label = "DNI Frontal",
+                                    label = strings.idFront,
                                     url = cliente.fotoDniFrontUrl,
                                     modifier = Modifier.weight(1f)
                                 )
                                 SecurityPhotoCard(
-                                    label = "DNI Posterior",
+                                    label = strings.idBack,
                                     url = cliente.fotoDniBackUrl,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
                             SecurityPhotoCard(
-                                label = "Rostro verificado",
+                                label = strings.facePhoto,
                                 url = cliente.fotoRostroUrl,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
 
                         // 4. Información de Contacto
-                        Text("Datos de Contacto", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(strings.contactData, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                ContactRow(icon = Icons.Default.Badge, label = "DNI / Identificación", value = cliente.dni)
-                                ContactRow(icon = Icons.Default.Phone, label = "Teléfono móvil", value = cliente.telefono)
+                                ContactRow(icon = Icons.Default.Badge, label = strings.dni, value = cliente.dni)
+                                ContactRow(icon = Icons.Default.Phone, label = strings.phone, value = cliente.telefono)
                                 if (cliente.email.isNotBlank()) {
-                                    ContactRow(icon = Icons.Default.Mail, label = "Correo electrónico", value = cliente.email)
+                                    ContactRow(icon = Icons.Default.Mail, label = strings.email, value = cliente.email)
                                 }
                                 if (cliente.direccion.isNotBlank()) {
-                                    ContactRow(icon = Icons.Default.LocationOn, label = "Dirección", value = cliente.direccion)
+                                    ContactRow(icon = Icons.Default.LocationOn, label = strings.address, value = cliente.direccion)
                                 }
                             }
                         }
 
                         // 5. Historial Reciente
-                        Text("Historial Reciente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Historial Reciente" else "Recent History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.alquileres.isEmpty()) {
                             RaymiEmptyState(
                                 icon = Icons.Default.History,
-                                title = "Sin actividad",
-                                description = "Este cliente aún no tiene alquileres registrados."
+                                title = strings.noMovements,
+                                description = if (strings is com.raymi.app.core.lang.SpanishStrings) "Este cliente aún no tiene alquileres registrados." else "This client has no rental records yet."
                             )
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -209,8 +210,8 @@ fun ClienteDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Eliminar Cliente") },
-            text = { Text("¿Estás seguro de eliminar a este cliente? Esta acción no se puede deshacer y borrará su historial y fotos de seguridad.") },
+            title = { Text(strings.deleteClient) },
+            text = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "¿Estás seguro de eliminar a este cliente? Esta acción no se puede deshacer y borrará su historial y fotos de seguridad." else "Are you sure you want to delete this client? This action cannot be undone and will delete history and security photos.") },
             confirmButton = {
                 Button(
                     onClick = { 
@@ -219,12 +220,12 @@ fun ClienteDetailScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Eliminar")
+                    Text(strings.delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
+                    Text(strings.cancel)
                 }
             }
         )

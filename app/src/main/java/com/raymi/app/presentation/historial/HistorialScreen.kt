@@ -135,8 +135,9 @@ fun SummaryHeader(recaudado: Double, totalTransacciones: Int, labelRevenue: Stri
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
+                val strings = LocalRaymiStrings.current
                 Text(labelMovements, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$totalTransacciones oper.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("$totalTransacciones ${strings.transactions}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
     }

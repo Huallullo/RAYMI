@@ -16,8 +16,8 @@ import com.raymi.app.core.theme.CustomShapes
 fun ConfirmDialog(
     title: String,
     message: String,
-    confirmText: String = "Confirmar",
-    dismissText: String = "Cancelar",
+    confirmText: String = com.raymi.app.core.lang.LocalRaymiStrings.current.ok,
+    dismissText: String = com.raymi.app.core.lang.LocalRaymiStrings.current.cancel,
     icon: ImageVector? = null,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -49,11 +49,12 @@ fun ConfirmDialog(
  */
 @Composable
 fun DeleteConfirmDialog(
-    title: String = "Confirmar Eliminación",
+    title: String = com.raymi.app.core.lang.LocalRaymiStrings.current.delete,
     message: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -72,12 +73,12 @@ fun DeleteConfirmDialog(
                     containerColor = MaterialTheme.colorScheme.error
                 )
             ) {
-                Text("Eliminar")
+                Text(strings.delete)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(strings.cancel)
             }
         },
         shape = CustomShapes.DialogShape
@@ -94,6 +95,7 @@ fun WarningDialog(
     message: String,
     onDismiss: () -> Unit
 ) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -107,7 +109,7 @@ fun WarningDialog(
         text = { Text(message) },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text("Entendido")
+                Text(strings.understood)
             }
         },
         shape = CustomShapes.DialogShape
@@ -124,13 +126,14 @@ fun InfoDialog(
     message: String,
     onDismiss: () -> Unit
 ) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text("Aceptar")
+                Text(strings.ok)
             }
         },
         shape = CustomShapes.DialogShape

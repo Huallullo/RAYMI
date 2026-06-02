@@ -59,6 +59,7 @@ fun AlquilerItem(
     onClick: () -> Unit
 ) {
     val esVencido = alquiler.estaVencido
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     
     Surface(
         onClick = onClick,
@@ -107,13 +108,13 @@ fun AlquilerItem(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Entrega: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        Text("${strings.startDate}: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                         Text(alquiler.fechaInicioFormatted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                     val dateColor = if (esVencido) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Default.EventAvailable, null, modifier = Modifier.size(14.dp), tint = dateColor)
-                        Text("Devolución: ", style = MaterialTheme.typography.labelSmall, color = dateColor.copy(alpha = 0.7f))
+                        Text("${strings.returnText}: ", style = MaterialTheme.typography.labelSmall, color = dateColor.copy(alpha = 0.7f))
                         Text(alquiler.fechaFinFormatted, style = MaterialTheme.typography.labelSmall, color = dateColor, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -131,7 +132,7 @@ fun AlquilerItem(
                             shape = CircleShape
                         ) {
                             Text(
-                                text = "Debe: ${alquiler.saldoFormateado}",
+                                text = "${strings.debt}: ${alquiler.saldoFormateado}",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,

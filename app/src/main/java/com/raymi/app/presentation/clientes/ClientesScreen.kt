@@ -67,7 +67,7 @@ fun ClientesScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refreshClientes() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                        Icon(Icons.Default.Refresh, contentDescription = strings.update)
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -118,7 +118,7 @@ fun ClientesScreen(
                         FilterChip(
                             selected = uiState.orden == OrdenCliente.RECIBIENTES,
                             onClick = { viewModel.cambiarOrden(OrdenCliente.RECIBIENTES) },
-                            label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Recientes" else "Recent") },
+                            label = { Text(strings.recent) },
                             leadingIcon = { if (uiState.orden == OrdenCliente.RECIBIENTES) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) },
                             shape = CircleShape
                         )
@@ -139,7 +139,7 @@ fun ClientesScreen(
                         RaymiEmptyState(
                             icon = Icons.AutoMirrored.Filled.ContactSupport,
                             title = strings.clients,
-                            description = if (uiState.searchQuery.isEmpty()) strings.activeClients else "No results found.",
+                            description = if (uiState.searchQuery.isEmpty()) strings.emptyClientsDesc else strings.searchNoResults,
                             actionText = null, // FAB es suficiente
                             onActionClick = {}
                         )
@@ -161,7 +161,7 @@ fun ClientesScreen(
                                     TextButton(
                                         onClick = { viewModel.loadMoreClientes() },
                                         modifier = Modifier.fillMaxWidth()
-                                    ) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Ver más clientes" else "Show more") }
+                                    ) { Text(strings.showMoreClients) }
                                 }
                             }
                         }

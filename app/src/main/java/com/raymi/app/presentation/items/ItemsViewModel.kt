@@ -14,7 +14,7 @@ import javax.inject.Inject
 /**
  * ViewModel para la gestión de ítems optimizado para SaaS.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class ItemsViewModel @Inject constructor(
     private val itemRepository: com.raymi.app.domain.repository.ItemRepository,
@@ -31,24 +31,30 @@ class ItemsViewModel @Inject constructor(
 
     private val _searchQuery = MutableStateFlow("")
     private val _selectedCategoria = MutableStateFlow<Categoria?>(null)
-    private val _limit = MutableStateFlow(100L)
     private val _allItems = MutableStateFlow<List<Item>>(emptyList())
     private val _allCategorias = MutableStateFlow<List<Categoria>>(emptyList())
+    private var lastSnapshot: Any? = null
+    private val PAGE_SIZE = 20L
 
     init {
         loadUserPlan()
         
-        combine(_allItems, _allCategorias, _searchQuery, _selectedCategoria) { items, cats, query, cat ->
-            Quad(items, cats, query, cat)
-        }.onEach { (items, cats, query, cat) ->
-            _uiState.update { it.copy(
-                itemsFiltrados = aplicarFiltros(items, query, cat),
-                categorias = cats,
-                queryBusqueda = query,
-                categoriaFiltro = cat,
-                isLoading = false
-            ) }
-        }.launchIn(viewModelScope)
+        // Búsqueda y filtrado local REACTIVO con DEBOUNCE
+        _searchQuery
+            .debounce(300)
+            .distinctUntilChanged()
+            .combine(_allCategorias) { query, cats -> query to cats }
+            .combine(_allItems) { (query, cats), items -> Triple(items, cats, query) }
+            .combine(_selectedCategoria) { (items, cats, query), cat -> Quad(items, cats, query, cat) }
+            .onEach { (items, cats, query, cat) ->
+                _uiState.update { it.copy(
+                    itemsFiltrados = aplicarFiltros(items, query, cat),
+                    categorias = cats,
+                    queryBusqueda = query,
+                    categoriaFiltro = cat,
+                    isLoading = false
+                ) }
+            }.launchIn(viewModelScope)
 
         refreshItems()
     }
@@ -68,33 +74,44 @@ class ItemsViewModel @Inject constructor(
     }
 
     fun refreshItems() {
+        lastSnapshot = null
+        _allItems.value = emptyList()
+        loadMore()
+    }
+
+    fun loadMore() {
+        if (_uiState.value.isLoading) return
+        
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             _uiState.update { it.copy(isLoading = true) }
             
             try {
-                // 1. Cargar Categorías (Snapshot - No bloqueante)
-                launch {
-                    getCategoriasUseCase(workspaceId)
-                        .filter { it !is Resource.Loading }
-                        .take(1)
-                        .collect { res ->
-                            if (res is Resource.Success) {
-                                val cats = res.data ?: emptyList()
-                                _allCategorias.value = cats
-                                _uiState.update { it.copy(categorias = cats) }
+                // 1. Cargar Categorías (Solo si están vacías)
+                if (_allCategorias.value.isEmpty()) {
+                    launch {
+                        getCategoriasUseCase(workspaceId)
+                            .filter { it !is Resource.Loading }
+                            .take(1)
+                            .collect { res ->
+                                if (res is Resource.Success) {
+                                    val cats = res.data ?: emptyList()
+                                    _allCategorias.value = cats
+                                    _uiState.update { it.copy(categorias = cats) }
+                                }
                             }
-                        }
+                    }
                 }
 
-                itemRepository.invalidateCache(workspaceId)
-
-                // 2. Cargar Ítems
-                val res = getItemsByWorkspaceOnceUseCase(workspaceId, _limit.value)
+                // 2. Cargar Ítems Paginados
+                val res = itemRepository.getItemsByWorkspaceOnce(workspaceId, limit = PAGE_SIZE, lastSnapshot = lastSnapshot)
                 if (res is Resource.Success) {
-                    _allItems.value = res.data ?: emptyList()
+                    val newItems = res.data ?: emptyList()
+                    _allItems.value = if (lastSnapshot == null) newItems else _allItems.value + newItems
+                    lastSnapshot = res.cursor
+                    _uiState.update { it.copy(hasMore = newItems.size >= PAGE_SIZE) }
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = (res as? Resource.Error)?.message) }
+                    _uiState.update { it.copy(error = (res as? Resource.Error)?.message) }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ItemsViewModel", "Error: ${e.message}")
@@ -111,8 +128,7 @@ class ItemsViewModel @Inject constructor(
     fun filtrarPorCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
 
     fun cargarMas() {
-        _limit.value += 100
-        refreshItems()
+        loadMore()
     }
 
     private fun aplicarFiltros(items: List<Item>, query: String, categoria: Categoria?): List<Item> {

@@ -147,7 +147,7 @@ fun AddItemScreen(
                     value = uiState.precio, 
                     onValueChange = viewModel::onPrecioChange, 
                     label = { Text(strings.price) }, 
-                    prefix = { Text("S/. ") }, 
+                    prefix = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "S/. " else "$ ") },
                     modifier = Modifier.weight(1f).testTag("item_precio_input"), 
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), 
                     shape = MaterialTheme.shapes.large

@@ -1,11 +1,11 @@
 package com.raymi.app.data.repository
 
 import com.raymi.app.core.cache.SmartCache
+import com.raymi.app.core.utils.FirebaseErrorMapper
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.data.model.dto.ClienteDto
 import com.raymi.app.data.remote.ClientDataSource
 import com.raymi.app.data.remote.FirebaseDataSource
-import com.raymi.app.data.remote.ObserverDataSource
 import com.raymi.app.domain.model.Cliente
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ClienteRepository
@@ -18,13 +18,12 @@ import javax.inject.Singleton
 class ClienteRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
     private val clientDataSource: ClientDataSource,
-    private val observerDataSource: ObserverDataSource,
     private val workspaceManager: WorkspaceManager
 ) : ClienteRepository {
 
-    // Cache segmentada por Workspace (Multi-tenancy Fix)
+    // OPTIMIZACIÓN: TTL de 15 minutos para clientes
     private val cacheMap = mutableMapOf<String, SmartCache<List<Cliente>>>()
-    private val TTL_10_MIN = 10 * 60 * 1000L
+    private val TTL_15_MIN = 15 * 60 * 1000L
 
     private fun getCacheFor(workspaceId: String) = cacheMap.getOrPut(workspaceId) { SmartCache() }
 
@@ -37,18 +36,29 @@ class ClienteRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getClientesOnce(workspaceId: String): Resource<List<Cliente>> {
+    override suspend fun getClientesOnce(workspaceId: String, limit: Long, lastSnapshot: Any?): Resource<List<Cliente>> {
         val cache = getCacheFor(workspaceId)
-        cache.get()?.let { return Resource.Success(it) }
+        if (lastSnapshot == null) {
+            cache.get()?.let { return Resource.Success(it) }
+        }
 
         return try {
-            val docs = dataSource.getBusinessDocumentsPaged("clientes", limit = 25)
-            val list = docs.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-            cache.set(list, TTL_10_MIN)
-            Resource.Success(list)
+            val fetchLimit = if (limit > 0) limit else 20
+            val docs = dataSource.getBusinessDocumentsPaged(
+                collection = "clientes", 
+                limit = fetchLimit, 
+                lastSnapshot = lastSnapshot as? com.google.firebase.firestore.DocumentSnapshot,
+                negocioId = workspaceId
+            )
+            val list = docs.map { doc -> ClienteDto.fromMap(doc.id, doc.data!!).toDomain() }
+            
+            if (lastSnapshot == null) {
+                cache.set(list, TTL_15_MIN)
+            }
+            Resource.Success(list, cursor = docs.lastOrNull())
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al cargar clientes: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
     }
 
@@ -63,7 +73,7 @@ class ClienteRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al obtener cliente: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }
@@ -84,7 +94,7 @@ class ClienteRepositoryImpl @Inject constructor(
             } else Resource.Success(null)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al buscar: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }
@@ -99,7 +109,7 @@ class ClienteRepositoryImpl @Inject constructor(
             Resource.Success(id)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error(e.message ?: "Error al agregar")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }
@@ -114,7 +124,7 @@ class ClienteRepositoryImpl @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al actualizar: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }
@@ -130,7 +140,7 @@ class ClienteRepositoryImpl @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error al eliminar: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }
@@ -138,16 +148,17 @@ class ClienteRepositoryImpl @Inject constructor(
     override suspend fun searchClientes(query: String): Flow<Resource<List<Cliente>>> = flow {
         emit(Resource.Loading())
         val result = try {
-            val documents = if (query.isBlank()) {
-                dataSource.getBusinessDocumentsPaged("clientes", limit = 25)
+            val list = if (query.isBlank()) {
+                val docs = dataSource.getBusinessDocumentsPaged("clientes", limit = 25)
+                docs.map { ClienteDto.fromMap(it.id, it.data!!).toDomain() }
             } else {
-                dataSource.queryBusinessArrayContainsLimited("clientes", "searchTerms", query.lowercase().trim(), limit = 25)
+                val docs = dataSource.queryBusinessArrayContainsLimited("clientes", "searchTerms", query.lowercase().trim(), limit = 25)
+                docs.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
             }
-            val clientes = documents.map { (id, data) -> ClienteDto.fromMap(id, data).toDomain() }
-            Resource.Success(clientes)
+            Resource.Success(list)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Resource.Error("Error en búsqueda: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
     }

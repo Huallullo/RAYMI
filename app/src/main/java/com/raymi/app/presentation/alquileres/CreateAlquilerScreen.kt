@@ -114,7 +114,7 @@ fun CreateAlquilerScreen(
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(item.itemNombre, fontWeight = FontWeight.Bold)
-                                    Text("Cant: ${item.cantidad} • Sub: S/. ${item.subtotal}", style = MaterialTheme.typography.bodySmall)
+                                    Text("${strings.units}: ${item.cantidad} • ${strings.subtotal}: S/. ${item.subtotal}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 IconButton(onClick = { viewModel.removerItem(index) }) {
                                     Icon(Icons.Default.Delete, contentDescription = strings.delete, tint = MaterialTheme.colorScheme.error)
@@ -129,7 +129,7 @@ fun CreateAlquilerScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (uiState.fechaFin == null) "Primero elige fechas" else strings.selectItem)
+                        Text(if (uiState.fechaFin == null) (if (strings is com.raymi.app.core.lang.SpanishStrings) "Primero elige fechas" else "Select dates first") else strings.selectItem)
                     }
                 }
             )
@@ -211,13 +211,13 @@ fun CreateAlquilerScreen(
                         FilterChip(
                             selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.ACTIVO,
                             onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.ACTIVO) },
-                            label = { Text("Activo") },
+                            label = { Text(strings.active) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = uiState.estadoInicial == com.raymi.app.domain.model.EstadoAlquiler.RESERVADO,
                             onClick = { viewModel.setEstadoInicial(com.raymi.app.domain.model.EstadoAlquiler.RESERVADO) },
-                            label = { Text("Reserva") },
+                            label = { Text(strings.reserved) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -262,10 +262,10 @@ fun CreateAlquilerScreen(
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text("Cant") }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text(strings.units) }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                             Spacer(Modifier.width(12.dp))
                             Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { 
-                                Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Seleccionar" else "Select") 
+                                Text(strings.add) 
                             }
                         }
                     }
@@ -309,5 +309,6 @@ fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelect
 
 @Composable
 fun <T> GenericSelectionDialog(title: String, items: List<T>, onDismiss: () -> Unit, header: @Composable (() -> Unit)? = null, itemContent: @Composable (T) -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text("No items available.", style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text(strings.searchNoResults, style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text(strings.close) } })
 }

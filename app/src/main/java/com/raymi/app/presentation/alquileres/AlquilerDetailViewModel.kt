@@ -13,6 +13,7 @@ import com.raymi.app.domain.repository.ComprobanteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,7 +47,8 @@ class AlquilerDetailViewModel @Inject constructor(
             workspaceManager.currentWorkspace.collectLatest { workspace ->
                 if (workspace != null && alquilerId.isNotBlank()) {
                     _uiState.update { it.copy(isLoading = true) }
-                    try {
+                    // OPTIMIZACIÓN: coroutineScope asegura que los hijos se cancelen si collectLatest reinicia
+                    coroutineScope {
                         launch {
                             getAlquilerByIdUseCase(alquilerId).collect { result ->
                                 when (result) {
@@ -70,8 +72,6 @@ class AlquilerDetailViewModel @Inject constructor(
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                        _uiState.update { it.copy(isLoading = false, error = e.message) }
                     }
                 }
             }
@@ -88,7 +88,7 @@ class AlquilerDetailViewModel @Inject constructor(
                     is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
                     is Resource.Success -> {
                         _uiState.update { it.copy(isProcessing = false, successMessage = "Abono registrado") }
-                        loadAlquiler()
+                        loadAlquiler() // OPTIMIZACIÓN: Refrescar datos tras pago exitoso
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }

@@ -6,7 +6,15 @@ import kotlinx.coroutines.flow.Flow
 
 interface ClienteRepository {
     suspend fun getClientes(): Flow<Resource<List<Cliente>>>
-    suspend fun getClientesOnce(workspaceId: String): Resource<List<Cliente>>
+    /**
+     * Obtiene los clientes de un negocio con soporte para paginación real (Snapshots).
+     * OPTIMIZACIÓN: Límite de 20 por defecto.
+     */
+    suspend fun getClientesOnce(
+        workspaceId: String,
+        limit: Long = 20,
+        lastSnapshot: Any? = null
+    ): Resource<List<Cliente>>
     suspend fun getClienteById(id: String): Flow<Resource<Cliente>>
     suspend fun searchClienteByDni(dni: String): Flow<Resource<Cliente?>>
     suspend fun addCliente(cliente: Cliente): Flow<Resource<String>>

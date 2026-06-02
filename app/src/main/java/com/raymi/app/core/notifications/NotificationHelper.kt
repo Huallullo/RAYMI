@@ -35,7 +35,7 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    fun sendOverdueNotification(alquilerNombre: String, alquilerId: String) {
+    fun sendOverdueNotification(alquilerId: String, title: String, content: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", "alquiler/$alquilerId")
@@ -50,8 +50,8 @@ class NotificationHelper(private val context: Context) {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_raymi_logo)
-            .setContentTitle("Alquiler Vencido")
-            .setContentText("El alquiler de $alquilerNombre ha vencido.")
+            .setContentTitle(title)
+            .setContentText(content)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

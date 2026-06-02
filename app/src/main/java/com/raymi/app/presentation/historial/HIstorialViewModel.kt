@@ -35,7 +35,6 @@ class HistorialViewModel @Inject constructor(
 
     fun cargarHistorial() {
         viewModelScope.launch {
-            // Si el caché es válido, úsalo sin tocar Firestore
             val cached = historialCache.get()
             if (cached != null) {
                 aplicarFiltro(cached, _uiState.value.query)
@@ -46,30 +45,21 @@ class HistorialViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                // get() puntual — NO listener
-                alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.DEVUELTO)
-                    .filter { it !is Resource.Loading }
-                    .first()
-                    .let { result ->
-                        if (result is Resource.Success) {
-                            val devueltos = result.data ?: emptyList()
-                            // También busca cancelados
-                            alquilerRepository.getAlquileresByEstado(workspaceId, EstadoAlquiler.CANCELADO)
-                                .filter { it !is Resource.Loading }
-                                .first()
-                                .let { cancelResult ->
-                                    val cancelados = (cancelResult as? Resource.Success)?.data ?: emptyList()
-                                    val todos = (devueltos + cancelados).sortedByDescending { it.updatedAt }
-                                    historialCache.set(todos, ttlMs = 60 * 60 * 1000) // 1 hora
-                                    aplicarFiltro(todos, _uiState.value.query)
-                                }
-                        } else {
-                            _uiState.update { it.copy(isLoading = false, error = result.message) }
-                        }
-                    }
+                // OPTIMIZACIÓN: Auditoría completa del historial en una sola pasada (Snapshot)
+                val result = alquilerRepository.getAlquileresOnce(workspaceId)
+                if (result is Resource.Success) {
+                    val todos = result.data ?: emptyList()
+                    // Filtramos solo los cerrados para el historial
+                    val historial = todos.filter { it.estado == EstadoAlquiler.DEVUELTO || it.estado == EstadoAlquiler.CANCELADO }
+                        .sortedByDescending { it.updatedAt }
+                    
+                    historialCache.set(historial, ttlMs = 60 * 60 * 1000)
+                    aplicarFiltro(historial, _uiState.value.query)
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
             } catch (e: Exception) {
-                android.util.Log.e("Historial", "Error: ${e.message}")
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial: ${e.message}") }
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }
             }
         }
     }
@@ -85,6 +75,7 @@ class HistorialViewModel @Inject constructor(
             it.copy(
                 allAlquileres = todos,
                 filteredAlquileres = filtrados,
+                // ✅ Corregido: 'adelanto' ya incluye abonos + penalidades por lógica transaccional
                 totalRecaudado = todos.sumOf { a -> a.adelanto },
                 isLoading = false
             )

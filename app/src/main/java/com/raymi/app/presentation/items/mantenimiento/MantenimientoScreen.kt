@@ -26,29 +26,30 @@ fun MantenimientoScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Historial de Mantenimiento", fontWeight = FontWeight.Black) },
+                title = { Text(strings.maintenanceHistory, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Registrar Mantenimiento")
+                Icon(Icons.Default.Add, contentDescription = strings.registerMaintenance)
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 uiState.isLoading -> RaymiLoadingIndicator()
-                uiState.mantenimientos.isEmpty() -> RaymiEmptyState(icon = Icons.Default.Build, title = "Sin registros", description = "Aún no hay mantenimientos para este producto.")
+                uiState.mantenimientos.isEmpty() -> RaymiEmptyState(icon = Icons.Default.Build, title = strings.noMovements, description = if (strings is com.raymi.app.core.lang.SpanishStrings) "Sin registros de mantenimiento." else "No maintenance records.")
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(uiState.mantenimientos) { maintenance ->
@@ -73,6 +74,7 @@ fun MantenimientoScreen(
 
 @Composable
 fun MaintenanceCard(maintenance: Mantenimiento) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -97,8 +99,8 @@ fun MaintenanceCard(maintenance: Mantenimiento) {
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "Costo: S/. ${maintenance.costo}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Resp: ${maintenance.responsable}", style = MaterialTheme.typography.bodySmall)
+                Text(text = "${strings.cost}: S/. ${maintenance.costo}", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "${strings.responsible.take(4)}: ${maintenance.responsable}", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -106,6 +108,7 @@ fun MaintenanceCard(maintenance: Mantenimiento) {
 
 @Composable
 fun AddMaintenanceDialog(onDismiss: () -> Unit, onConfirm: (Mantenimiento) -> Unit) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     var motivo by remember { mutableStateOf("") }
     var costo by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
@@ -114,15 +117,15 @@ fun AddMaintenanceDialog(onDismiss: () -> Unit, onConfirm: (Mantenimiento) -> Un
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Registrar Mantenimiento", fontWeight = FontWeight.Bold) },
+        title = { Text(strings.registerMaintenance, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = motivo, onValueChange = { motivo = it }, label = { Text("Motivo") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = costo, onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) costo = it }, label = { Text("Costo (S/.)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
-                OutlinedTextField(value = responsable, onValueChange = { responsable = it }, label = { Text("Responsable") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = descripcion, onValueChange = { descripcion = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
+                OutlinedTextField(value = motivo, onValueChange = { motivo = it }, label = { Text(strings.reason) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = costo, onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) costo = it }, label = { Text("${strings.cost} (S/.)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
+                OutlinedTextField(value = responsable, onValueChange = { responsable = it }, label = { Text(strings.responsible) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = descripcion, onValueChange = { descripcion = it }, label = { Text(strings.description) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
                 
-                Text("Estado Final del Ítem", style = MaterialTheme.typography.labelSmall)
+                Text(strings.finalState, style = MaterialTheme.typography.labelSmall)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("OPERATIVO", "MANTENIMIENTO", "DE_BAJA").forEach { estado ->
                         FilterChip(
@@ -138,9 +141,9 @@ fun AddMaintenanceDialog(onDismiss: () -> Unit, onConfirm: (Mantenimiento) -> Un
         confirmButton = {
             Button(onClick = {
                 onConfirm(Mantenimiento(motivo = motivo, costo = costo.toDoubleOrNull() ?: 0.0, descripcion = descripcion, responsable = responsable, estadoFinal = estadoFinal))
-            }, enabled = motivo.isNotBlank()) { Text("Guardar") }
+            }, enabled = motivo.isNotBlank()) { Text(strings.save) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(strings.cancel) } }
     )
 }
 

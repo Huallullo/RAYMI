@@ -127,7 +127,7 @@ fun AddClienteDialog(
                     }
                     is Resource.Error -> {
                         isConsultingReniec = false
-                        dniError = resource.message ?: (if (strings is com.raymi.app.core.lang.SpanishStrings) "DNI no encontrado" else "ID not found")
+                        dniError = resource.message ?: strings.idNotFound
                     }
                 }
             }
@@ -139,8 +139,8 @@ fun AddClienteDialog(
     if (uiState.showCameraPermissionAlert) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissCameraPermissionAlert() },
-            title = { Text("Permiso Denegado", fontWeight = FontWeight.Black) },
-            text = { Text("Para tomar fotos del DNI o del cliente, RAYMI necesita acceso a la cámara. Por favor, actívalo en los ajustes de tu celular.") },
+            title = { Text(strings.permissionDenied, fontWeight = FontWeight.Black) },
+            text = { Text(strings.cameraPermissionDesc) },
             confirmButton = {
                 Button(onClick = {
                     val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -149,12 +149,12 @@ fun AddClienteDialog(
                     context.startActivity(intent)
                     viewModel.dismissCameraPermissionAlert()
                 }) {
-                    Text("Abrir Ajustes")
+                    Text(strings.openSettings)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissCameraPermissionAlert() }) {
-                    Text("Cerrar")
+                    Text(strings.close)
                 }
             },
             icon = { Icon(Icons.Default.CameraAlt, null, tint = MaterialTheme.colorScheme.error) }
@@ -166,7 +166,7 @@ fun AddClienteDialog(
         title = {
             Column {
                 Text(strings.addClient, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text("Seguridad RAYMI: Respaldo de identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(strings.identityBackup, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
         },
         text = {
@@ -239,11 +239,11 @@ fun AddClienteDialog(
 
                 // SECCIÓN DE SEGURIDAD (FOTOS) - OPCIONAL
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                Text("RESPALDO DE IDENTIDAD (OPCIONAL)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(strings.identityBackup.uppercase(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PhotoCaptureField(
-                        label = "DNI Frontal",
+                        label = strings.idFront,
                         imageUri = dniFrontUri,
                         onCaptureClick = { checkAndStartCapture("front") },
                         onClearClick = { dniFrontUri = null },
@@ -251,7 +251,7 @@ fun AddClienteDialog(
                         icon = Icons.Default.AddAPhoto
                     )
                     PhotoCaptureField(
-                        label = "DNI Posterior",
+                        label = strings.idBack,
                         imageUri = dniBackUri,
                         onCaptureClick = { checkAndStartCapture("back") },
                         onClearClick = { dniBackUri = null },
@@ -261,7 +261,7 @@ fun AddClienteDialog(
                 }
 
                 PhotoCaptureField(
-                    label = "Foto del Cliente (Rostro)",
+                    label = strings.facePhoto,
                     imageUri = faceUri,
                     onCaptureClick = { checkAndStartCapture("face") },
                     onClearClick = { faceUri = null },

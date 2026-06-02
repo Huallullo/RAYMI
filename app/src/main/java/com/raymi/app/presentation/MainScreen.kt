@@ -45,6 +45,7 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val isInitialized by workspaceManager.isInitialized.collectAsStateWithLifecycle()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -54,15 +55,25 @@ fun MainScreen(
     val currentWorkspace by workspaceManager.currentWorkspace.collectAsStateWithLifecycle()
     val currentLanguage by workspaceManager.currentLanguage.collectAsStateWithLifecycle()
     
-    // Motor de decisión de idioma robusto
-    val strings = remember(currentWorkspace?.idioma, currentLanguage, currentDestination?.route) {
-        val route = currentDestination?.route
-        val isAuthFlow = route == Screen.Login.route || 
-                         route == Screen.WorkspaceSelection.route ||
-                         route == Screen.WorkspaceCreate.route
+    // OPTIMIZACIÓN: Usar derivedStateOf para asegurar que el cambio de idioma/workspace invalide la UI correctamente
+    val strings by remember(currentWorkspace?.idioma, currentLanguage) {
+        derivedStateOf {
+            val route = currentDestination?.route
+            val isAuthFlow = route == Screen.Login.route || 
+                             route == Screen.WorkspaceSelection.route ||
+                             route == Screen.WorkspaceCreate.route
 
-        val finalLang = if (isAuthFlow) currentLanguage else (currentWorkspace?.idioma ?: currentLanguage)
-        if (finalLang == "en") EnglishStrings() else SpanishStrings()
+            val finalLang = if (isAuthFlow) currentLanguage else (currentWorkspace?.idioma ?: currentLanguage)
+            if (finalLang == "en") EnglishStrings() else SpanishStrings()
+        }
+    }
+
+    if (!isInitialized) {
+        // OPTIMIZACIÓN: Evitar race conditions mostrando un estado de carga mientras se restaura la sesión
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     CompositionLocalProvider(LocalRaymiStrings provides strings) {

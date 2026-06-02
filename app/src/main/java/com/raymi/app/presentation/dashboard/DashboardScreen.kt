@@ -82,7 +82,7 @@ fun DashboardScreen(
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.refreshData() },
+            onRefresh = { viewModel.refreshData(forceRefresh = true) },
             modifier = Modifier.padding(paddingValues)
         ) {
             Column(
@@ -287,6 +287,7 @@ fun ExecutiveSummaryCard(
     labelMes: String,
     onExport: () -> Unit
 ) {
+    val strings = LocalRaymiStrings.current
     val isPositive = variacion >= 0
     val symbol = if (currency == "USD") "$" else "S/."
     
@@ -358,7 +359,7 @@ fun ExecutiveSummaryCard(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.End) {
-                            Text("POR COBRAR", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+                            Text(strings.forCollecting, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
                             Text("$symbol ${String.format(Locale.getDefault(), "%,.2f", saldoPendienteTotal)}", color = Color.White, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Black)
                         }
                     }
@@ -492,8 +493,9 @@ fun LanguageSelectorDialog(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
         ) {
+            val strings = LocalRaymiStrings.current
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Seleccionar Idioma", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                Text(strings.selectLanguage, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                 Text("Select Language", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 
                 Spacer(Modifier.height(24.dp))
@@ -517,7 +519,7 @@ fun LanguageSelectorDialog(
                 
                 Spacer(Modifier.height(16.dp))
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                    Text("Cerrar / Close")
+                    Text(strings.close + " / Close")
                 }
             }
         }

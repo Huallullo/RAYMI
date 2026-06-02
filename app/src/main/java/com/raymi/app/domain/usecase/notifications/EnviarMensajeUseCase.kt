@@ -24,6 +24,10 @@ class EnviarMensajeUseCase @Inject constructor(
         alquiler: Alquiler,
         workspace: Workspace
     ): Flow<Resource<String>> = flow {
+        if (alquiler.clienteTelefono.isBlank()) {
+            emit(Resource.Error("El cliente no tiene teléfono registrado"))
+            return@flow
+        }
         
         val currency = workspace.moneda.ifBlank { "PEN" }
         val currencySymbol = if (currency == "USD") "$" else "S/."

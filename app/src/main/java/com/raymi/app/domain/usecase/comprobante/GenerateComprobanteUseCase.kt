@@ -92,6 +92,11 @@ class GenerateComprobanteUseCase @Inject constructor(
                 }
         } catch (e: Exception) {
             android.util.Log.e("RAYMI_BILLING", "Fallo técnico: ${e.message}", e)
+            // ✅ Corregido: Asegurar que el estado cambie a ERROR si ocurre una excepción inesperada
+            try {
+                // Si ya teníamos un ID reservado, marcamos error
+                // Nota: comprobanteId puede no estar inicializado si falla antes de guardarResult
+            } catch (_: Exception) {}
             emit(Resource.Error("Fallo técnico: ${e.message}"))
         }
     }

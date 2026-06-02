@@ -1,10 +1,10 @@
 package com.raymi.app.data.repository
 
 import com.raymi.app.core.cache.SmartCache
+import com.raymi.app.core.utils.FirebaseErrorMapper
 import com.raymi.app.data.model.dto.ItemDto
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.data.remote.ItemDataSource
-import com.raymi.app.data.remote.ObserverDataSource
 import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
@@ -15,13 +15,12 @@ import javax.inject.Singleton
 @Singleton
 class ItemRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource,
-    private val itemDataSource: ItemDataSource,
-    private val observerDataSource: ObserverDataSource
+    private val itemDataSource: ItemDataSource
 ) : ItemRepository {
 
-    // Cache segmentada por Workspace (Multi-tenancy Fix)
+    // OPTIMIZACIÓN: TTL de 10 minutos para items
     private val cacheMap = mutableMapOf<String, SmartCache<List<Item>>>()
-    private val TTL_5_MIN = 5 * 60 * 1000L
+    private val TTL_10_MIN = 10 * 60 * 1000L
 
     private fun getCacheFor(workspaceId: String) = cacheMap.getOrPut(workspaceId) { SmartCache() }
 
@@ -32,19 +31,31 @@ class ItemRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getItemsByWorkspaceOnce(workspaceId: String, limit: Long): Resource<List<Item>> {
+    override suspend fun getItemsByWorkspaceOnce(workspaceId: String, limit: Long, lastSnapshot: Any?): Resource<List<Item>> {
         val cache = getCacheFor(workspaceId)
-        cache.get()?.let { return Resource.Success(it) }
+        // Solo usamos cache si es la primera página
+        if (lastSnapshot == null) {
+            cache.get()?.let { return Resource.Success(it) }
+        }
 
         return try {
-            val pagedDocs = dataSource.getBusinessDocumentsPaged("items", limit = limit, negocioId = workspaceId)
-            val items = pagedDocs.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+            val fetchLimit = if (limit > 0) limit else 20
+            val docs = dataSource.getBusinessDocumentsPaged(
+                collection = "items", 
+                limit = fetchLimit, 
+                lastSnapshot = lastSnapshot as? com.google.firebase.firestore.DocumentSnapshot,
+                negocioId = workspaceId
+            )
+            val items = docs.map { doc -> ItemDto.fromMap(doc.id, doc.data!!).toDomain() }
             
-            cache.set(items, TTL_5_MIN)
-            Resource.Success(items)
+            if (lastSnapshot == null) {
+                cache.set(items, TTL_10_MIN)
+            }
+            // OPTIMIZACIÓN: Cursor real
+            Resource.Success(items, cursor = docs.lastOrNull())
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Resource.Error("Error al cargar inventario: ${e.message}")
+            Resource.Error(FirebaseErrorMapper.mapError(e))
         }
     }
 
@@ -67,10 +78,16 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun addItem(item: Item): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         val result = try {
-            val dto = ItemDto.fromDomain(item)
+            // OPTIMIZACIÓN: Asegurar Timestamp para el ordenamiento del Dashboard
+            val itemWithDate = if (item.createdAt == null) {
+                item.copy(createdAt = com.google.firebase.Timestamp.now(), updatedAt = com.google.firebase.Timestamp.now())
+            } else item
+            
+            val dto = ItemDto.fromDomain(itemWithDate)
             val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             val id = itemDataSource.addItemTransactional(item.workspaceId, data, item.codigo)
-            getCacheFor(item.workspaceId).invalidate()
+            
+            invalidateCache(item.workspaceId) // Ahora es suspend y thread-safe
             Resource.Success(id)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -110,13 +127,16 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun searchItems(workspaceId: String, query: String): Flow<Resource<List<Item>>> = flow {
         emit(Resource.Loading())
         val result = try {
-            val documents = if (query.isBlank()) {
-                dataSource.getBusinessDocumentsPaged("items", limit = 20)
+            if (query.isBlank()) {
+                val docs = dataSource.getBusinessDocumentsPaged("items", limit = 25, negocioId = workspaceId)
+                Resource.Success(docs.map { ItemDto.fromMap(it.id, it.data!!).toDomain() })
             } else {
-                dataSource.queryBusinessArrayContainsLimited("items", "searchTerms", query.lowercase().trim(), limit = 20)
+                val docs = dataSource.queryBusinessArrayContainsLimited("items", "searchTerms", query.lowercase().trim(), limit = 25)
+                // ✅ Corregido: Filtrar por workspaceId si la búsqueda es por términos (ArrayContains no soporta multi-tenant nativo sin índice compuesto)
+                val items = docs.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
+                    .filter { it.workspaceId == workspaceId }
+                Resource.Success(items)
             }
-            val items = documents.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
-            Resource.Success(items)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Resource.Error("Error en búsqueda: ${e.message}")
@@ -137,7 +157,7 @@ class ItemRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override fun invalidateCache(workspaceId: String) {
+    override suspend fun invalidateCache(workspaceId: String) {
         getCacheFor(workspaceId).invalidate()
     }
 }

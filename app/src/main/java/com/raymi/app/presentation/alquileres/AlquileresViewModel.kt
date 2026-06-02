@@ -29,6 +29,8 @@ class AlquileresViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var observeJob: Job? = null
+    private var lastSnapshot: Any? = null
+    private val PAGE_SIZE = 20L
     
     private val _uiState = MutableStateFlow(AlquileresUiState())
     val uiState: StateFlow<AlquileresUiState> = _uiState.asStateFlow()
@@ -53,37 +55,44 @@ class AlquileresViewModel @Inject constructor(
     }
 
     /**
-     * Carga los alquileres del negocio actual (Snapshot para ahorro de costos).
+     * Reinicia y carga la primera página de alquileres.
      */
     fun refreshAlquileres() {
+        lastSnapshot = null
+        _uiState.update { it.copy(alquileres = emptyList(), filteredAlquileres = emptyList()) }
+        loadMore()
+    }
+
+    fun loadMore() {
+        if (_uiState.value.isLoading) return
+
         viewModelScope.launch {
             try {
-                val workspaceId = workspaceManager.getWorkspaceId()
-                if (workspaceId == null) {
-                    _uiState.update { it.copy(isLoading = false, error = "Negocio no seleccionado") }
-                    return@launch
-                }
-                
+                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
                 _uiState.update { it.copy(isLoading = true) }
                 
-                val result = getAlquileresOnceUseCase(workspaceId)
+                val result = getAlquileresOnceUseCase(workspaceId, limit = PAGE_SIZE, lastSnapshot = lastSnapshot)
                 when (result) {
                     is Resource.Success -> {
-                        val data = result.data ?: emptyList()
+                        val newData = result.data ?: emptyList()
+                        val currentList = if (lastSnapshot == null) newData else _uiState.value.alquileres + newData
+                        lastSnapshot = result.cursor
+                        
                         _uiState.update { 
                             it.copy(
-                                alquileres = data,
-                                filteredAlquileres = filterAlquileres(data, it.searchQuery, it.selectedEstado),
+                                alquileres = currentList,
+                                filteredAlquileres = filterAlquileres(currentList, it.searchQuery, it.selectedEstado),
+                                hasMore = newData.size >= PAGE_SIZE,
                                 isLoading = false 
                             )
                         }
-                        verificarVencidos(data)
+                        verificarVencidos(newData)
                     }
                     is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                     else -> {}
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Fallo de conexión") }
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar datos") }
             }
         }
     }
@@ -152,6 +161,7 @@ data class AlquileresUiState(
     val searchQuery: String = "",
     val selectedEstado: EstadoAlquiler? = null,
     val userPlan: com.raymi.app.domain.model.UserPlan? = null,
+    val hasMore: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null

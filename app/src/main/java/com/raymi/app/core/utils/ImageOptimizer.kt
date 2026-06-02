@@ -45,9 +45,9 @@ class ImageOptimizer @Inject constructor(
             // Corregir rotación (Crucial para fotos de cámara)
             bitmap = rotateImageIfRequired(bitmap, uri)
 
-            // Redimensionado final exacto
+            // Redimensionado final exacto (OPTIMIZACIÓN: Kotlin-style minOf)
             if (bitmap.width > maxWidth || bitmap.height > maxHeight) {
-                val ratio = Math.min(maxWidth.toFloat() / bitmap.width, maxHeight.toFloat() / bitmap.height)
+                val ratio = minOf(maxWidth.toFloat() / bitmap.width, maxHeight.toFloat() / bitmap.height)
                 val width = (bitmap.width * ratio).toInt()
                 val height = (bitmap.height * ratio).toInt()
                 bitmap = Bitmap.createScaledBitmap(bitmap, width, height, true)

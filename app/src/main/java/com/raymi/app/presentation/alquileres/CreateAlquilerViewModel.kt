@@ -28,11 +28,9 @@ class CreateAlquilerViewModel @Inject constructor(
     private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val connectivityObserver: com.raymi.app.core.utils.ConnectivityObserver,
     private val workspaceManager: WorkspaceManager,
+    private val adManager: com.raymi.app.core.ads.AdManager, // OPTIMIZACIÓN: Inyección vía constructor
     savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
-
-    @Inject
-    lateinit var adManager: com.raymi.app.core.ads.AdManager
 
     private val preselectedItemId: String? = savedStateHandle["itemId"]
     private val _uiState = MutableStateFlow(CreateAlquilerUiState())

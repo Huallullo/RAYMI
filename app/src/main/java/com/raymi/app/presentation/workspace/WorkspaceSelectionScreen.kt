@@ -39,7 +39,7 @@ fun WorkspaceSelectionScreen(
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalRaymiStrings.current
 
-    LaunchedEffect(Unit) { viewModel.loadWorkspaces() }
+    // OPTIMIZACIÓN: Se quitó el double fetch de loadWorkspaces() que ya se ejecuta en el init del ViewModel
     LaunchedEffect(uiState.workspaceSelected) { if (uiState.workspaceSelected) onWorkspaceSelected() }
 
     Scaffold(

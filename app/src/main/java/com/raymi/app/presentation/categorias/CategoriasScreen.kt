@@ -65,15 +65,15 @@ fun CategoriasScreen(
                     RaymiEmptyState(
                         icon = Icons.Default.Category,
                         title = strings.categories,
-                        description = "No categories found.", // To translate
-                        actionText = "Create Now", // To translate
+                        description = if (strings is com.raymi.app.core.lang.SpanishStrings) "No se encontraron categorías." else "No categories found.",
+                        actionText = strings.newItem,
                         onActionClick = { showAddDialog = true }
                     )
                 }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(24.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp, start = 24.dp, end = 24.dp, top = 24.dp), // Espacio para el FAB y cápsula
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(uiState.categorias, key = { it.id }) { categoria ->
@@ -133,7 +133,7 @@ fun CategoriasScreen(
         AlertDialog(
             onDismissRequest = { categoriaAEliminar = null },
             title = { Text(strings.delete + "?") },
-            text = { Text("Are you sure? Items in this category will become unclassified.") }, // To translate
+            text = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "¿Estás seguro? Los productos en esta categoría quedarán sin clasificar." else "Are you sure? Items in this category will become unclassified.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -198,7 +198,7 @@ fun CategoryDialog(
             OutlinedTextField(
                 value = nombre,
                 onValueChange = onNombreChange,
-                label = { Text("Name") }, // To translate
+                label = { Text(if (LocalRaymiStrings.current is com.raymi.app.core.lang.SpanishStrings) "Nombre" else "Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )

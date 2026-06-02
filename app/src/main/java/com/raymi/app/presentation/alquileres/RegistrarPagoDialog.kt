@@ -23,6 +23,7 @@ fun RegistrarPagoDialog(
     onConfirm: (Double) -> Unit,
     isLoading: Boolean = false
 ) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
     var montoPago by remember { mutableStateOf(alquiler.saldo.toString()) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -36,7 +37,7 @@ fun RegistrarPagoDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Filled.Payments, contentDescription = null)
-                Text("Registrar Pago")
+                Text(strings.registerPayment)
             }
         },
         text = {
@@ -60,7 +61,7 @@ fun RegistrarPagoDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Cliente:")
+                            Text("${strings.clients}:")
                             Text(
                                 alquiler.clienteNombre,
                                 fontWeight = FontWeight.Bold
@@ -70,7 +71,7 @@ fun RegistrarPagoDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Precio Total:")
+                            Text("${strings.totalRental}:")
                             Text(
                                 alquiler.precioFormateado,
                                 fontWeight = FontWeight.Bold
@@ -80,7 +81,7 @@ fun RegistrarPagoDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Pagado:")
+                            Text("${strings.paid}:")
                             Text(
                                 alquiler.adelantoFormateado,
                                 color = RaymiColors.Success
@@ -92,7 +93,7 @@ fun RegistrarPagoDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "Saldo Actual:",
+                                "${strings.balance}:",
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -120,7 +121,7 @@ fun RegistrarPagoDialog(
                             }
                         }
                     },
-                    label = { Text("Monto a Pagar *") },
+                    label = { Text(strings.amountToPay) },
                     leadingIcon = {
                         Icon(Icons.Filled.AttachMoney, contentDescription = null)
                     },
@@ -130,7 +131,7 @@ fun RegistrarPagoDialog(
                             montoPago = alquiler.saldo.toString()
                             error = null
                         }) {
-                            Text("TODO", fontSize = MaterialTheme.typography.labelSmall.fontSize)
+                            Text(strings.all.uppercase(), fontSize = MaterialTheme.typography.labelSmall.fontSize)
                         }
                     },
                     isError = error != null,
@@ -159,7 +160,7 @@ fun RegistrarPagoDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "Después del pago:",
+                            strings.afterPayment,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -167,7 +168,7 @@ fun RegistrarPagoDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Nuevo adelanto:")
+                            Text(strings.newAdvance)
                             Text(
                                 "S/. ${String.format(Locale.getDefault(), "%.2f", nuevoAdelanto)}",
                                 color = RaymiColors.Success,
@@ -178,7 +179,7 @@ fun RegistrarPagoDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Nuevo saldo:")
+                            Text(strings.newBalance)
                             Text(
                                 "S/. ${String.format(Locale.getDefault(), "%.2f", nuevoSaldo)}",
                                 color = if (nuevoSaldo <= 0) RaymiColors.Success else RaymiColors.Warning,
@@ -198,7 +199,7 @@ fun RegistrarPagoDialog(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    "¡Pago completo! Podrás devolver el vestuario.",
+                                    strings.fullPaymentMessage,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = RaymiColors.Success
                                 )
@@ -227,7 +228,7 @@ fun RegistrarPagoDialog(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Registrar Pago")
+                    Text(strings.registerPayment)
                 }
             }
         },
@@ -236,7 +237,7 @@ fun RegistrarPagoDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Cancelar")
+                Text(strings.cancel)
             }
         },
         shape = CustomShapes.DialogShape

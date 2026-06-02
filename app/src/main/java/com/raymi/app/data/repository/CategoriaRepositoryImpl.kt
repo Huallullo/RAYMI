@@ -16,7 +16,8 @@ class CategoriaRepositoryImpl @Inject constructor(
     private val dataSource: FirebaseDataSource
 ) : CategoriaRepository {
 
-    // Cache de 30 minutos — categorías no cambian frecuentemente
+    // OPTIMIZACIÓN: TTL de 4 horas para categorías (cambian poco)
+    private val TTL_CATEGORIAS = 4 * 60 * 60 * 1000L
     private val cacheByWorkspace = mutableMapOf<String, SmartCache<List<Categoria>>>()
 
     private fun getCacheFor(workspaceId: String) =
@@ -44,7 +45,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                         .map { (id, data) -> CategoriaDto.fromMap(id, data).toDomain() }
                         .sortedBy { it.orden }
 
-                    cache.set(categorias, ttlMs = 60 * 60 * 1000) // 1 hora
+                    cache.set(categorias, ttlMs = TTL_CATEGORIAS)
                     Resource.Success(categorias)
                 }
             }
@@ -71,7 +72,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
             getCacheFor(categoria.workspaceId).invalidate() // invalida al crear
-            emit(Resource.Success(id))
+            Resource.Success(id)
         } catch (e: Exception) {
             emit(Resource.Error("Error al crear categoría: ${e.message}"))
         }
@@ -87,7 +88,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
             getCacheFor(categoria.workspaceId).invalidate() // invalida al editar
-            emit(Resource.Success(Unit))
+            Resource.Success(Unit)
         } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar: ${e.message}"))
         }
@@ -101,7 +102,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 documentId = categoriaId
             )
             getCacheFor(workspaceId).invalidate() // invalida al borrar
-            emit(Resource.Success(Unit))
+            Resource.Success(Unit)
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar: ${e.message}"))
         }

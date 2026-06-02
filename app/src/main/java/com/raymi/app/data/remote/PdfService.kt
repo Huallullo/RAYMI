@@ -45,13 +45,13 @@ class PdfService @Inject constructor(
         if (logoUrl.isNullOrBlank()) return null
         return try {
             val connection = URL(logoUrl).openConnection()
-            connection.connectTimeout = 5000 // 5 segundos de timeout
-            connection.readTimeout = 5000
+            connection.connectTimeout = 2500 // OPTIMIZACIÓN: Timeout reducido para evitar bloqueo largo
+            connection.readTimeout = 2500
             val bytes = connection.getInputStream().use { it.readBytes() }
             val imageData = ImageDataFactory.create(bytes)
             Image(imageData)
         } catch (e: Exception) {
-            Log.e("PdfService", "Error cargando logo desde URL: $logoUrl", e)
+            Log.e("PdfService", "Error cargando logo, continuando sin él: ${e.message}")
             null
         }
     }

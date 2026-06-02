@@ -6,5 +6,9 @@ import javax.inject.Inject
 class GetClientesOnceUseCase @Inject constructor(
     private val repository: ClienteRepository
 ) {
-    suspend operator fun invoke(workspaceId: String) = repository.getClientesOnce(workspaceId)
+    suspend operator fun invoke(
+        workspaceId: String,
+        limit: Long = 20,
+        lastSnapshot: Any? = null
+    ) = repository.getClientesOnce(workspaceId, limit, lastSnapshot)
 }

@@ -34,11 +34,13 @@ interface ItemRepository {
     suspend fun updateItem(item: Item): Flow<Resource<Unit>>
     
     /**
-     * Obtiene los ítems de un negocio (Snapshot - Ahorro de costos)
+     * Obtiene los ítems de un negocio con soporte para paginación real (Snapshots).
+     * OPTIMIZACIÓN: Límite de 20 por defecto para ahorro de lecturas.
      */
     suspend fun getItemsByWorkspaceOnce(
         workspaceId: String,
-        limit: Long = 100
+        limit: Long = 20,
+        lastSnapshot: Any? = null
     ): Resource<List<Item>>
     
     /**
@@ -59,5 +61,5 @@ interface ItemRepository {
     /**
      * Limpia la cache local del workspace
      */
-    fun invalidateCache(workspaceId: String)
+    suspend fun invalidateCache(workspaceId: String)
 }

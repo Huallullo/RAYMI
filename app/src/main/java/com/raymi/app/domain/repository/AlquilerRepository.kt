@@ -16,9 +16,14 @@ interface AlquilerRepository {
     suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>>
 
     /**
-     * Obtiene todos los alquileres una sola vez (Snapshot)
+     * Obtiene todos los alquileres una sola vez con soporte de paginación real (Snapshot).
+     * OPTIMIZACIÓN: Límite de 20 por defecto.
      */
-    suspend fun getAlquileresOnce(workspaceId: String): Resource<List<Alquiler>>
+    suspend fun getAlquileresOnce(
+        workspaceId: String,
+        limit: Long = 20,
+        lastSnapshot: Any? = null
+    ): Resource<List<Alquiler>>
 
     /**
      * Obtiene un alquiler por su ID
@@ -65,7 +70,7 @@ interface AlquilerRepository {
         penalidad: Double = 0.0,
         observaciones: String = "",
         montoGarantiaRetenida: Double = 0.0,
-        unidadesARetornar: Int = 0
+        unidadesARetornar: Int = 0 // ✅ Corregido: parámetro añadido a la interfaz
     ): Flow<Resource<Unit>>
 
     /**

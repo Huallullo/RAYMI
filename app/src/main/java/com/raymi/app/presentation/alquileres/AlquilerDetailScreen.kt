@@ -94,7 +94,7 @@ fun AlquilerDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Detalle de Alquiler" else "Rental Detail", fontWeight = FontWeight.Black) },
+                title = { Text("${strings.rentals} #${alquilerId.takeLast(4)}", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
@@ -105,7 +105,7 @@ fun AlquilerDetailScreen(
                         Icon(Icons.Default.Edit, contentDescription = strings.edit)
                     }
                     IconButton(onClick = { viewModel.generarPdf() }) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = "Export")
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = strings.exportCsv)
                     }
                 }
             )
@@ -122,7 +122,7 @@ fun AlquilerDetailScreen(
                         ) {
                             Icon(Icons.AutoMirrored.Filled.AssignmentReturn, contentDescription = null)
                             Spacer(Modifier.width(12.dp))
-                            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Registrar Devolución" else "Register Return", fontWeight = FontWeight.Bold)
+                            Text(strings.returnText, fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
                             onClick = { showCancelDialog = true },
@@ -132,7 +132,7 @@ fun AlquilerDetailScreen(
                         ) {
                             Icon(Icons.Default.Cancel, contentDescription = null)
                             Spacer(Modifier.width(12.dp))
-                            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cancelar Alquiler" else "Cancel Rental", fontWeight = FontWeight.Bold)
+                            Text(strings.cancel, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -149,7 +149,7 @@ fun AlquilerDetailScreen(
                     // 1. Estado y Finanzas
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "COSTO ALQUILER" else "RENTAL COST", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text(strings.totalRental.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             Text(alquiler.precioFormateado, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                         }
                         EstadoBadge(
@@ -188,7 +188,7 @@ fun AlquilerDetailScreen(
                         ) {
                             Column {
                                 Text(
-                                    if (alquiler.saldoPendienteReal > 0) strings.balance.uppercase() else (if (strings is com.raymi.app.core.lang.SpanishStrings) "PAGO COMPLETADO" else "FULLY PAID"),
+                                    if (alquiler.saldoPendienteReal > 0) strings.balance.uppercase() else strings.successPayment.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (alquiler.saldoPendienteReal > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
@@ -205,14 +205,14 @@ fun AlquilerDetailScreen(
                                     onClick = { showPagoDialog = true },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                     shape = MaterialTheme.shapes.medium
-                                ) { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cobrar Saldo" else "Pay Balance", fontWeight = FontWeight.Bold) }
+                                ) { Text(strings.registerPayment, fontWeight = FontWeight.Bold) }
                             } else {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(32.dp))
                             }
                         }
                     }
 
-                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Información del Cliente" else "Client Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(strings.clientProfile, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
@@ -245,7 +245,7 @@ fun AlquilerDetailScreen(
                         }
                     }
 
-                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Detalle del Ítem" else "Item Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(strings.contactData, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
@@ -256,8 +256,8 @@ fun AlquilerDetailScreen(
                             Text("SKU: ${alquiler.itemCodigo}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Cant" else "Qty"}: ${alquiler.cantidad}", style = MaterialTheme.typography.bodyMedium)
-                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Unitario" else "Unit"}: S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.precioUnitario)}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${strings.units}: ${alquiler.cantidad}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${strings.unitPrice}: S/. ${String.format(java.util.Locale.US, "%.2f", alquiler.precioUnitario)}", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -270,11 +270,11 @@ fun AlquilerDetailScreen(
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Entrega" else "Pickup"}: ${alquiler.fechaInicioFormatted}")
+                                Text("${strings.startDate}: ${alquiler.fechaInicioFormatted}")
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.NotificationImportant, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
-                                Text("${if (strings is com.raymi.app.core.lang.SpanishStrings) "Retorno" else "Return"}: ${alquiler.fechaFinFormatted}", color = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
+                                Text("${strings.returnText}: ${alquiler.fechaFinFormatted}", color = if (alquiler.estaVencido) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }

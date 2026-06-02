@@ -18,6 +18,8 @@ fun RaymiBottomNavigation(
     navController: NavController,
     currentDestination: NavDestination?
 ) {
+    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
+    
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp
@@ -27,16 +29,25 @@ fun RaymiBottomNavigation(
                 it.route == item.route
             } == true
 
+            val title = when(item) {
+                com.raymi.app.core.navigation.BottomNavItem.Dashboard -> strings.dashboard
+                com.raymi.app.core.navigation.BottomNavItem.Clientes -> strings.clients
+                com.raymi.app.core.navigation.BottomNavItem.Items -> strings.inventory
+                com.raymi.app.core.navigation.BottomNavItem.Alquileres -> strings.rentals
+                com.raymi.app.core.navigation.BottomNavItem.Historial -> strings.history
+                com.raymi.app.core.navigation.BottomNavItem.Profile -> strings.profile
+            }
+
             NavigationBarItem(
                 icon = {
                     Icon(
                         imageVector = if (selected) item.selectedIcon else item.icon,
-                        contentDescription = item.title
+                        contentDescription = title
                     )
                 },
                 label = {
                     Text(
-                        text = item.title,
+                        text = title,
                         style = MaterialTheme.typography.labelSmall
                     )
                 },

@@ -23,7 +23,7 @@ import javax.inject.Inject
 class AddItemViewModel @Inject constructor(
     private val addItemUseCase: AddItemUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val planLimitsUseCase: com.raymi.app.domain.usecase.auth.PlanLimitsUseCase, // OPTIMIZACIÓN: Consolidar límites
     private val authRepository: com.raymi.app.domain.repository.AuthRepository,
     private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val storageDataSource: StorageDataSource,
@@ -115,8 +115,8 @@ class AddItemViewModel @Inject constructor(
                 val user = authRepository.getCurrentUser() ?: throw Exception("Usuario no autenticado")
                 val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Negocio no identificado")
                 
-                // Verificar límites del plan
-                val canAdd = userPlanRepository.canAddMoreItems(user.uid, workspaceId)
+                // OPTIMIZACIÓN: Verificar límites del plan usando el caso de uso centralizado
+                val canAdd = planLimitsUseCase.canAddMoreItems(user.uid, workspaceId)
                 if (!canAdd) {
                     _uiState.update { it.copy(isLoading = false, shouldNavigateToPlans = true) }
                     return@launch
@@ -143,7 +143,10 @@ class AddItemViewModel @Inject constructor(
                     when (result) {
                         is Resource.Success -> {
                             analytics.logEvent("item_creado", null)
-                            _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                            // OPTIMIZACIÓN: Limpiar estado al éxito para evitar buffers de texto corruptos
+                            _uiState.value = AddItemUiState(categorias = state.categorias) 
+                            _uiState.update { it.copy(isSuccess = true) }
+                            generarCodigoAutomatico()
                         }
                         is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
                         else -> {}

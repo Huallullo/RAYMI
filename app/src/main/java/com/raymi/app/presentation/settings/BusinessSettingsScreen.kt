@@ -56,9 +56,9 @@ fun BusinessSettingsScreen(
     if (uiState.showGpsDisabledAlert) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissGpsAlert() },
-            title = { Text("GPS Desactivado", fontWeight = FontWeight.Black) },
+            title = { Text(strings.gpsDisabled, fontWeight = FontWeight.Black) },
             text = { 
-                Text("Para capturar tu ubicación exacta, necesitas activar el interruptor de 'Ubicación' en tu celular.") 
+                Text(strings.gpsDisabledDesc) 
             },
             confirmButton = {
                 Button(onClick = {
@@ -66,12 +66,12 @@ fun BusinessSettingsScreen(
                     context.startActivity(intent)
                     viewModel.dismissGpsAlert()
                 }) {
-                    Text("Activar en Ajustes")
+                    Text(strings.openSettings)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissGpsAlert() }) {
-                    Text("Cerrar")
+                    Text(strings.close)
                 }
             },
             icon = { Icon(Icons.Default.LocationOff, null, tint = MaterialTheme.colorScheme.error) },
@@ -83,13 +83,13 @@ fun BusinessSettingsScreen(
     if (uiState.showNoInternetAlert) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissNoInternetAlert() },
-            title = { Text("Sin Conexión", fontWeight = FontWeight.Black) },
+            title = { Text(strings.noConnection, fontWeight = FontWeight.Black) },
             text = { 
-                Text("No hemos detectado una conexión a internet activa. Revisa tu WiFi o Datos Móviles para guardar los cambios.") 
+                Text(strings.noConnectionDesc) 
             },
             confirmButton = {
                 Button(onClick = { viewModel.dismissNoInternetAlert() }) {
-                    Text("Entendido")
+                    Text(strings.understood)
                 }
             },
             icon = { Icon(Icons.Default.WifiOff, null, tint = MaterialTheme.colorScheme.error) },
@@ -132,7 +132,7 @@ fun BusinessSettingsScreen(
                         if (uiState.logoUrl != null) {
                             AsyncImage(
                                 model = uiState.logoUrl,
-                                contentDescription = "Logo",
+                                contentDescription = strings.appName,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )

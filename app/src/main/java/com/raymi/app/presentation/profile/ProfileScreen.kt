@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.PlanType
 import com.raymi.app.presentation.components.AvatarWithInitials
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
+import com.raymi.app.core.lang.LocalRaymiStrings
 
 /**
  * Pantalla de Perfil de Usuario Premium.
@@ -40,7 +41,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
-    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
+    val strings = LocalRaymiStrings.current
 
     if (uiState.loggedOut) {
         LaunchedEffect(Unit) { onLogout() }
@@ -143,7 +144,7 @@ fun ProfileScreen(
                     }
                     
                     Text(
-                        "RAYMI SaaS v2.0 • 2026",
+                        "${strings.appName} SaaS v2.5 • 2026",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -172,7 +173,7 @@ fun UserIdentitySection(name: String, email: String) {
 @Composable
 fun SubscriptionStatusCard(planType: PlanType, onUpgradeClick: () -> Unit) {
     val isPro = planType == PlanType.PRO
-    val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
+    val strings = LocalRaymiStrings.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
