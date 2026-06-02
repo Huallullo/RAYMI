@@ -285,21 +285,21 @@ fun BusinessSettingsScreen(
                     else "Delay per day: 20% of the rental value. Minor damage: Repair cost. Total loss: Commercial value of the equipment."
 
                  OutlinedTextField(
-                    value = uiState.terminosCondiciones.ifBlank { terminosDefault },
-                    onValueChange = {},
+                    value = uiState.terminosCondiciones,
+                    onValueChange = viewModel::onTerminosChange, // ✅ Editable
                     label = { Text(strings.termsConditions) },
+                    placeholder = { Text(terminosDefault) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    readOnly = true,
                     maxLines = 5
                 )
                 OutlinedTextField(
-                    value = uiState.politicaPenalidades.ifBlank { politicaDefault },
-                    onValueChange = {},
+                    value = uiState.politicaPenalidades,
+                    onValueChange = viewModel::onPoliticaChange, // ✅ Editable
                     label = { Text(strings.penaltyPolicy) },
+                    placeholder = { Text(politicaDefault) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    readOnly = true,
                     maxLines = 5
                 )
                 Text(

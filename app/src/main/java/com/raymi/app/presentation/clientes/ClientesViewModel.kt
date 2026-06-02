@@ -246,13 +246,18 @@ class ClientesViewModel @Inject constructor(
     }
 
     fun loadMoreClientes() {
-        _uiState.update { state ->
-            val nuevoLimite = state.visibleLimit + 50
-            state.copy(
-                visibleLimit = nuevoLimite,
-                visibleClientes = state.filteredClientes.take(nuevoLimite),
-                hasMoreClientes = state.filteredClientes.size > nuevoLimite
-            )
+        val state = _uiState.value
+        // ✅ BUG 2 FIX: Trigger real fetch if Firestore has more pages
+        if (state.hasMoreClientes && !state.isLoading) {
+            loadMore()
+        } else {
+            // Local expansion for windowing
+            _uiState.update { 
+                it.copy(
+                    visibleLimit = it.visibleLimit + 50,
+                    visibleClientes = it.filteredClientes.take(it.visibleLimit + 50)
+                )
+            }
         }
     }
 

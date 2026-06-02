@@ -45,41 +45,39 @@ class EditItemViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
 
-            launch {
-                getCategoriasUseCase(workspaceId).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
+            // ✅ BUG 3 FIX: Use combine to ensure both categorias and item are loaded before resolving selection
+            combine(
+                getCategoriasUseCase(workspaceId),
+                itemRepository.getItemById(workspaceId, itemId)
+            ) { categoriasRes, itemRes ->
+                if (categoriasRes is Resource.Success && itemRes is Resource.Success) {
+                    val item = itemRes.data ?: return@combine
+                    val cats = categoriasRes.data ?: emptyList()
+                    
+                    _uiState.update { state ->
+                        state.copy(
+                            categorias = cats,
+                            itemOriginal = item,
+                            nombre = item.nombre,
+                            descripcion = item.descripcion,
+                            codigo = item.codigo,
+                            precio = item.precio.toString(),
+                            cantidad = item.cantidad,
+                            atributos = item.atributos,
+                            categoriaSeleccionada = cats.find { it.id == item.categoriaId },
+                            isLoading = false
+                        )
                     }
+                } else if (categoriasRes is Resource.Error || itemRes is Resource.Error) {
+                    val msg = (categoriasRes as? Resource.Error)?.message ?: (itemRes as? Resource.Error)?.message ?: "Error"
+                    _uiState.update { it.copy(isLoading = false, error = msg) }
                 }
-            }
-
-            itemRepository.getItemById(workspaceId, itemId).collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        val item = result.data ?: return@collect
-                        _uiState.update { state ->
-                            state.copy(
-                                itemOriginal = item,
-                                nombre = item.nombre,
-                                codigo = item.codigo,
-                                precio = item.precio.toString(),
-                                cantidad = item.cantidad,
-                                atributos = item.atributos,
-                                categoriaSeleccionada = state.categorias.find { it.id == item.categoriaId },
-                                isLoading = false
-                            )
-                        }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
-                    else -> {}
-                }
-            }
+            }.collect()
         }
     }
 
     fun onNombreChange(nombre: String) = _uiState.update { it.copy(nombre = nombre) }
+    fun onDescripcionChange(descripcion: String) = _uiState.update { it.copy(descripcion = descripcion) }
     fun onCodigoChange(codigo: String) = _uiState.update { it.copy(codigo = codigo) }
     fun onPrecioChange(precio: String) = _uiState.update { it.copy(precio = precio) }
     fun onCantidadChange(cantidad: Int) = _uiState.update { it.copy(cantidad = cantidad) }
@@ -125,6 +123,7 @@ class EditItemViewModel @Inject constructor(
 
                 val updatedItem = original.copy(
                     nombre = state.nombre,
+                    descripcion = state.descripcion,
                     precio = state.precio.toDoubleOrNull() ?: original.precio,
                     cantidad = state.cantidad,
                     categoriaId = state.categoriaSeleccionada?.id ?: original.categoriaId,
@@ -149,6 +148,7 @@ class EditItemViewModel @Inject constructor(
 data class EditItemUiState(
     val itemOriginal: Item? = null,
     val nombre: String = "",
+    val descripcion: String = "",
     val codigo: String = "",
     val precio: String = "",
     val cantidad: Int = 1,

@@ -111,6 +111,15 @@ fun EditItemScreen(
                     Text(strings.basicInfo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     OutlinedTextField(value = uiState.nombre, onValueChange = viewModel::onNombreChange, label = { Text(strings.itemName) }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large)
 
+                    OutlinedTextField(
+                        value = uiState.descripcion,
+                        onValueChange = viewModel::onDescripcionChange,
+                        label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descripción" else "Description") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        maxLines = 3
+                    )
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
                             value = uiState.codigo,

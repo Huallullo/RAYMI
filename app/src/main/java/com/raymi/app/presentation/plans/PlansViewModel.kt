@@ -86,8 +86,8 @@ class PlansViewModel @Inject constructor(
 
 data class PlansUiState(
     val currentPlan: UserPlan? = null,
-    val freePrice: String = "0.00",
-    val proPrice: String = "29.90",
+    val freePrice: String = PlanType.PRICE_FREE.toString(),
+    val proPrice: String = PlanType.PRICE_PRO.toString(),
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val error: String? = null

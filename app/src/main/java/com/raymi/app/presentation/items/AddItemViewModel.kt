@@ -62,6 +62,7 @@ class AddItemViewModel @Inject constructor(
     }
 
     fun onNombreChange(nombre: String) = _uiState.update { it.copy(nombre = nombre) }
+    fun onDescripcionChange(descripcion: String) = _uiState.update { it.copy(descripcion = descripcion) }
     fun onCodigoChange(codigo: String) = _uiState.update { it.copy(codigo = codigo) }
     fun onPrecioChange(precio: String) = _uiState.update { it.copy(precio = precio) }
     fun onCantidadChange(cantidad: Int) = _uiState.update { it.copy(cantidad = cantidad) }
@@ -131,6 +132,7 @@ class AddItemViewModel @Inject constructor(
                 val nuevoItem = Item(
                     workspaceId = workspaceId,
                     nombre = nombreLimpio,
+                    descripcion = state.descripcion.trim(),
                     codigo = codigoLimpio,
                     categoriaId = state.categoriaSeleccionada.id,
                     precio = state.precio.toDoubleOrNull() ?: 0.0,
@@ -161,6 +163,7 @@ class AddItemViewModel @Inject constructor(
 
 data class AddItemUiState(
     val nombre: String = "",
+    val descripcion: String = "",
     val codigo: String = "",
     val precio: String = "",
     val cantidad: Int = 1,

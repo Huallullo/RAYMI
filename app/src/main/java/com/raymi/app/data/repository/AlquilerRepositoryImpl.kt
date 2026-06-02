@@ -100,7 +100,8 @@ class AlquilerRepositoryImpl @Inject constructor(
     ): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         val result = try {
-            val docs = dataSource.queryBusinessDocumentsRange("alquileres", "createdAt", start, end, limit = 100, negocioId = workspaceId)
+            // ✅ COSTO 1 FIX: Usar 'fechaFinPrevista' para detectar vencimientos reales
+            val docs = dataSource.queryBusinessDocumentsRange("alquileres", "fechaFinPrevista", start, end, limit = 100, negocioId = workspaceId)
             val list = docs.map { (id, data) -> AlquilerDto.fromMap(id, data).toDomain() }
             Resource.Success(list)
         } catch (e: Exception) {
@@ -234,15 +235,18 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val negocioRef = firestore.collection("negocios").document(workspaceId)
-            val batch = firestore.batch()
             val now = Timestamp.now()
 
-            alquilerIds.forEach { id ->
-                val ref = negocioRef.collection("alquileres").document(id)
-                batch.update(ref, mapOf("estado" to nuevoEstado.name, "updatedAt" to now))
+            // ✅ BUG 8 FIX: Firestore limit is 500 per batch. Chunking to 400 for safety.
+            alquilerIds.chunked(400).forEach { chunk ->
+                val batch = firestore.batch()
+                chunk.forEach { id ->
+                    val ref = negocioRef.collection("alquileres").document(id)
+                    batch.update(ref, mapOf("estado" to nuevoEstado.name, "updatedAt" to now))
+                }
+                batch.commit().await()
             }
 
-            batch.commit().await()
             getCacheFor(workspaceId).invalidate()
             emit(Resource.Success(Unit))
         } catch (e: Exception) {

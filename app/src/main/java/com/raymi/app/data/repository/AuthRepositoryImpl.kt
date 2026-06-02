@@ -252,8 +252,16 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateFcmToken(token: String): Flow<Resource<Unit>> = flow {
+        try {
+            val uid = authDataSource.getCurrentUser()?.uid ?: return@flow
+            dataSource.updateDocument(COLLECTION_USUARIOS, uid, mapOf("fcmToken" to token))
+            emit(Resource.Success(Unit))
+        } catch (_: Exception) { }
+    }
+
     /**
-     * Verifica si hay un usuario autenticado (no suspendida)
+     * Verifica si hay un usuario autenticado (síncrono, no suspendido)
      */
     override fun isUserAuthenticated(): Boolean = authDataSource.isUserAuthenticated()
 }

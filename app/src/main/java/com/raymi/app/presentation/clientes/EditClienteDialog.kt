@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import android.content.Intent
 import com.raymi.app.core.theme.CustomShapes
 import com.raymi.app.core.utils.Validators
 import com.raymi.app.domain.model.Cliente
@@ -66,6 +67,49 @@ fun EditClienteDialog(
         tempUri = uri
         captureTarget = target
         cameraLauncher.launch(uri)
+    }
+
+    // ✅ SEC 4 FIX: Add Camera Permission Check
+    var showPermissionAlert by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            captureTarget?.let { startCapture(it) }
+        } else {
+            showPermissionAlert = true
+        }
+    }
+
+    fun checkAndStartCapture(target: String) {
+        captureTarget = target
+        val permission = android.Manifest.permission.CAMERA
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            startCapture(target)
+        } else {
+            permissionLauncher.launch(permission)
+        }
+    }
+
+    if (showPermissionAlert) {
+        AlertDialog(
+            onDismissRequest = { showPermissionAlert = false },
+            title = { Text(strings.permissionDenied, fontWeight = FontWeight.Black) },
+            text = { Text(strings.cameraPermissionDesc) },
+            confirmButton = {
+                Button(onClick = {
+                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                    showPermissionAlert = false
+                }) {
+                    Text(strings.openSettings)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionAlert = false }) { Text(strings.close) }
+            },
+            icon = { Icon(Icons.Default.CameraAlt, null, tint = MaterialTheme.colorScheme.error) }
+        )
     }
 
     var nombreError by remember { mutableStateOf<String?>(null) }
@@ -124,7 +168,7 @@ fun EditClienteDialog(
                     PhotoCaptureField(
                         label = "DNI Frontal",
                         imageUri = dniFrontUri ?: (if (cliente.fotoDniFrontUrl != null) Uri.parse(cliente.fotoDniFrontUrl) else null),
-                        onCaptureClick = { startCapture("front") },
+                        onCaptureClick = { checkAndStartCapture("front") },
                         onClearClick = { dniFrontUri = null },
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.AddAPhoto
@@ -132,7 +176,7 @@ fun EditClienteDialog(
                     PhotoCaptureField(
                         label = "DNI Posterior",
                         imageUri = dniBackUri ?: (if (cliente.fotoDniBackUrl != null) Uri.parse(cliente.fotoDniBackUrl) else null),
-                        onCaptureClick = { startCapture("back") },
+                        onCaptureClick = { checkAndStartCapture("back") },
                         onClearClick = { dniBackUri = null },
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.AddAPhoto
@@ -142,7 +186,7 @@ fun EditClienteDialog(
                 PhotoCaptureField(
                     label = "Rostro del Cliente",
                     imageUri = faceUri ?: (if (cliente.fotoRostroUrl != null) Uri.parse(cliente.fotoRostroUrl) else null),
-                    onCaptureClick = { startCapture("face") },
+                    onCaptureClick = { checkAndStartCapture("face") },
                     onClearClick = { faceUri = null },
                     icon = Icons.Default.Face
                 )

@@ -122,6 +122,15 @@ fun AddItemScreen(
             Text(strings.basicInfo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = uiState.nombre, onValueChange = viewModel::onNombreChange, label = { Text(strings.itemName) }, modifier = Modifier.fillMaxWidth().testTag("item_nombre_input"), shape = MaterialTheme.shapes.large)
 
+            OutlinedTextField(
+                value = uiState.descripcion,
+                onValueChange = viewModel::onDescripcionChange,
+                label = { Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Descripción" else "Description") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                maxLines = 3
+            )
+
             // Campo de Código/SKU en su propia fila para evitar que se apriete
             OutlinedTextField(
                 value = uiState.codigo,

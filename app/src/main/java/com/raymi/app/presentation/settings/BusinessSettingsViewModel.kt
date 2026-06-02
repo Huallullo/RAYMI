@@ -84,6 +84,10 @@ class BusinessSettingsViewModel @Inject constructor(
     
     fun onDescripcionChange(v: String) = _uiState.update { it.copy(descripcion = v) }
     fun onMonedaChange(v: String) = _uiState.update { it.copy(moneda = v) }
+    
+    // ✅ FEATURE 3 FIX: Handlers for legal policies
+    fun onTerminosChange(v: String) = _uiState.update { it.copy(terminosCondiciones = v) }
+    fun onPoliticaChange(v: String) = _uiState.update { it.copy(politicaPenalidades = v) }
 
     /**
      * Captura la ubicación actual con estrategia de respaldo (Fallback).
@@ -223,7 +227,10 @@ class BusinessSettingsViewModel @Inject constructor(
             descripcion = _uiState.value.descripcion,
             logoUrl = _uiState.value.logoUrl,
             moneda = _uiState.value.moneda,
-            googleMapsUrl = _uiState.value.googleMapsUrl
+            googleMapsUrl = _uiState.value.googleMapsUrl,
+            // ✅ FEATURE 3 FIX: Sincronizar políticas legales al guardar
+            terminosCondiciones = _uiState.value.terminosCondiciones,
+            politicaPenalidades = _uiState.value.politicaPenalidades
         )
 
         viewModelScope.launch {

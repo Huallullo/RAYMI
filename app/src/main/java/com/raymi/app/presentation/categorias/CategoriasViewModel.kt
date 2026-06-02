@@ -112,8 +112,9 @@ class CategoriasViewModel @Inject constructor(
         when (result) {
             is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null, successMessage = null) }
             is Resource.Success -> {
+                // ✅ COSTO 3 FIX: Removed cargarCategorias() redundant call. 
+                // The real-time listener (if configured) or the invalidated cache refresh will handle it.
                 _uiState.update { it.copy(isLoading = false, successMessage = successMsg) }
-                cargarCategorias()
             }
             is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
         }

@@ -100,7 +100,7 @@ class RentalDataSource @Inject constructor(
                     "referencia" to "Pago Inicial",
                     "fecha" to FieldValue.serverTimestamp()
                 ))
-                transaction.update(statsRef, "totalIngresos", FieldValue.increment(adelanto))
+                // BUG 1 FIX: Removed transaction.update(statsRef, "totalIngresos", FieldValue.increment(adelanto))
             }
 
             // Actualizar Estadísticas extendidas
@@ -186,6 +186,9 @@ class RentalDataSource @Inject constructor(
         val alqRef = negocioRef.collection("alquileres").document(alquilerId)
         val statsRef = negocioRef.collection("metadata").document("stats")
 
+        // ✅ BUG 5 FIX: Obtener referencias de todos los pagos para borrarlos en la misma transacción
+        val pagosSnapshot = alqRef.collection("pagos").get().await()
+
         firestore.runTransaction { transaction ->
             // 1. LEER Alquiler
             val snapshot = transaction.get(alqRef)
@@ -214,6 +217,11 @@ class RentalDataSource @Inject constructor(
                 }
                 transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
             }
+            
+            // Borrar subcolección de pagos
+            pagosSnapshot.documents.forEach { transaction.delete(it.reference) }
+            
+            // Borrar Alquiler
             transaction.delete(alqRef)
         }.await()
     }
@@ -255,11 +263,21 @@ class RentalDataSource @Inject constructor(
             val statusTag = if (esDevolucionParcial) "[Devolución Parcial ($cantidadADevolverEfectiva)]" else "[Devolución Total]"
             val newObs = if (observaciones.isNotBlank()) "$prevObs\n$statusTag: $observaciones$infoG" else "$prevObs\n$statusTag$infoG"
 
-            // Si es parcial, actualizamos el campo 'items' con las nuevas unidades devueltas
+            // ✅ BUG 4 FIX: Distribuir unidades devueltas entre los ítems (No aplicar el total a cada uno)
+            var restando = cantidadADevolverEfectiva
+            val itemDevolucionesMap = mutableMapOf<String, Int>() // Para saber cuánto descontar de stock luego
+
             val nuevosItems = itemsOriginales.map { itemData ->
+                val itemId = itemData["itemId"] as? String ?: ""
+                val totalCant = (itemData["cantidad"] as? Number)?.toInt() ?: 1
                 val actualDevueltas = (itemData["unidadesDevueltas"] as? Number)?.toInt() ?: 0
-                // En esta lógica simplificada (asumiendo 1 item principal por ahora o prorrateo):
-                itemData + mapOf("unidadesDevueltas" to (actualDevueltas + cantidadADevolverEfectiva))
+                val pendiente = totalCant - actualDevueltas
+                
+                val aDevolverEnEsteItem = if (restando > 0) minOf(pendiente, restando) else 0
+                restando -= aDevolverEnEsteItem
+                itemDevolucionesMap[itemId] = (itemDevolucionesMap[itemId] ?: 0) + aDevolverEnEsteItem
+                
+                itemData + mapOf("unidadesDevueltas" to (actualDevueltas + aDevolverEnEsteItem))
             }
 
             val todasDevueltas = nuevosItems.all { 
@@ -289,9 +307,12 @@ class RentalDataSource @Inject constructor(
                 val id = itemData["itemId"] as? String ?: return@forEach
                 val itemSnap = itemSnapshots[id]
                 if (itemSnap != null && itemSnap.exists()) {
+                    val cantidadEfectivaItem = itemDevolucionesMap[id] ?: 0
+                    if (cantidadEfectivaItem <= 0) return@forEach // Nada que devolver de este item
+
                     val stockTotal = (itemSnap.get("cantidad") as? Number)?.toInt() ?: 1
                     val currentAlquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
-                    val nuevasAlquiladas = (currentAlquiladas - cantidadADevolverEfectiva).coerceAtLeast(0)
+                    val nuevasAlquiladas = (currentAlquiladas - cantidadEfectivaItem).coerceAtLeast(0)
                     
                     val currentEstado = itemSnap.getString("estado") ?: "DISPONIBLE"
                     val nuevoEstado = when {

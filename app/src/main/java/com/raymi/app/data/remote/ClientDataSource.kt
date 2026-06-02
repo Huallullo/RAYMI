@@ -46,6 +46,9 @@ class ClientDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
+            // ✅ BUG 6 FIX: Verificar existencia antes de decrementar estadísticas
+            if (!transaction.get(clienteRef).exists()) return@runTransaction
+
             transaction.delete(clienteRef)
             transaction.delete(dniIndexRef)
             transaction.set(statsRef, mapOf("totalClientes" to com.google.firebase.firestore.FieldValue.increment(-1)), com.google.firebase.firestore.SetOptions.merge())

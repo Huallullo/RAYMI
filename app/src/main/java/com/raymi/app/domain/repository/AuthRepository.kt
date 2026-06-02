@@ -55,6 +55,11 @@ interface AuthRepository {
     suspend fun changePassword(newPassword: String): Flow<Resource<Unit>>
 
     /**
+     * Actualiza el token de notificaciones push para el usuario actual
+     */
+    suspend fun updateFcmToken(token: String): Flow<Resource<Unit>>
+
+    /**
      * Verifica si hay un usuario autenticado (síncrono, no suspendido)
      */
     fun isUserAuthenticated(): Boolean

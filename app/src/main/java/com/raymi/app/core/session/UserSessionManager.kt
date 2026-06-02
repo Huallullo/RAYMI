@@ -32,8 +32,11 @@ class UserSessionManager @Inject constructor(
         }
     }
 
+    private var planJob: kotlinx.coroutines.Job? = null
+
     private fun observeUserPlan(uid: String) {
-        scope.launch {
+        planJob?.cancel() // ✅ BUG 4 FIX: Cancel previous job before starting a new one
+        planJob = scope.launch {
             userPlanRepository.getUserPlan(uid).collect { result ->
                 if (result is Resource.Success) {
                     _userPlan.value = result.data
