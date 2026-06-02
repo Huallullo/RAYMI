@@ -59,6 +59,12 @@ interface ItemRepository {
     suspend fun getItemsByCategoria(workspaceId: String, categoriaId: String): Flow<Resource<List<Item>>>
 
     /**
+     * Actualiza solo el estado de un ítem sin leer el documento completo.
+     * OPTIMIZACIÓN: Ahorra 1 lectura Firestore.
+     */
+    suspend fun updateEstadoItem(workspaceId: String, itemId: String, estado: String): Resource<Unit>
+
+    /**
      * Limpia la cache local del workspace
      */
     suspend fun invalidateCache(workspaceId: String)

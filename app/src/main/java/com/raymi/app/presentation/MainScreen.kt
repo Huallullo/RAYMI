@@ -80,24 +80,29 @@ fun MainScreen(
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
-                if (!isConnected) {
+                // ✅ MEJORA C: Banner Offline mejorado y persistente en el Scaffold Maestro
+                AnimatedVisibility(
+                    visible = !isConnected,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
                     Surface(
-                        color = Color(0xFFFFF7ED), // Ambar muy claro
+                        color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.fillMaxWidth().statusBarsPadding(),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFED7AA))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(vertical = 4.dp),
+                            modifier = Modifier.padding(vertical = 6.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(14.dp), tint = Color(0xFFC2410C))
-                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Default.WifiOff, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(12.dp))
                             Text(
-                                text = if (strings is SpanishStrings) "Modo sin conexión" else "Offline mode",
+                                text = if (strings is SpanishStrings) "Sin conexión a Internet" else "No Internet Connection",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFC2410C),
-                                fontWeight = FontWeight.Bold
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Black
                             )
                         }
                     }

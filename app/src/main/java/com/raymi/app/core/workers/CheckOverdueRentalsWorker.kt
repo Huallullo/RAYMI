@@ -5,7 +5,6 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.Timestamp
-import com.raymi.app.core.utils.Constants.COLLECTION_CLIENTES
 import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.core.notifications.NotificationHelper
 import com.raymi.app.domain.model.Alquiler
@@ -36,16 +35,22 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
             }
 
             val notificationHelper = NotificationHelper(applicationContext)
+            val stringsCache = mutableMapOf<String, com.raymi.app.core.lang.RaymiStrings>()
+
             vencidos.forEach { alquiler ->
-                // Obtener idioma del negocio para la notificación
-                val strings = obtenerStringsParaNegocio(alquiler.workspaceId)
+                // ✅ FIX PROBLEM 8b: Memoizar lectura de idioma por negocio (Solo 1 read por negocio único)
+                val strings = stringsCache.getOrPut(alquiler.workspaceId) {
+                    obtenerStringsParaNegocio(alquiler.workspaceId)
+                }
                 
                 notificarClienteVencido(alquiler)
                 marcarComoVencidoEnFirestore(alquiler)
                 notificationHelper.sendOverdueNotification(
                     alquilerId = alquiler.id,
                     title = strings.overdueDetected,
-                    content = if (strings is com.raymi.app.core.lang.SpanishStrings) "El alquiler de ${alquiler.clienteNombre} ha vencido." else "Rental for ${alquiler.clienteNombre} has expired."
+                    content = if (strings is com.raymi.app.core.lang.SpanishStrings) 
+                        "El alquiler de ${alquiler.clienteNombre} ha vencido." 
+                        else "Rental for ${alquiler.clienteNombre} has expired."
                 )
             }
 
@@ -98,7 +103,8 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
 
     private suspend fun notificarClienteVencido(alquiler: Alquiler) {
         try {
-            val telefonoCliente = obtenerTelefonoCliente(alquiler.clienteId)
+            // ✅ FIX PROBLEM 8a: Usar el teléfono guardado en el alquiler (0 reads Firestore)
+            val telefonoCliente = alquiler.clienteTelefono
             if (telefonoCliente.isBlank()) return
 
             enviarMensajeUseCase.enviarRecordatorioDevolucion(
@@ -118,14 +124,6 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
         } catch (_: Exception) {
             com.raymi.app.core.lang.SpanishStrings()
         }
-    }
-
-    private suspend fun obtenerTelefonoCliente(clienteId: String): String {
-        if (clienteId.isBlank()) return ""
-        return try {
-            val data = firebaseDataSource.getDocument(COLLECTION_CLIENTES, clienteId)
-            data?.get("telefono") as? String ?: ""
-        } catch (_: Exception) { "" }
     }
 
     private fun mapToAlquiler(id: String, data: Map<String, Any>): Alquiler? {
@@ -157,7 +155,8 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 },
                 observaciones   = data["observaciones"]   as? String    ?: "",
                 createdAt       = data["createdAt"]       as? Timestamp ?: Timestamp.now(),
-                updatedAt       = data["updatedAt"]       as? Timestamp ?: Timestamp.now()
+                updatedAt       = data["updatedAt"]       as? Timestamp ?: Timestamp.now(),
+                clienteTelefono = data["clienteTelefono"] as? String    ?: ""
             )
         } catch (_: Exception) { null }
     }

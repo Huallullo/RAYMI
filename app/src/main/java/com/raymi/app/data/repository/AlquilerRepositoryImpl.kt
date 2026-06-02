@@ -251,6 +251,29 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getAlquileresCerrados(
+        workspaceId: String,
+        limit: Long,
+        lastSnapshot: Any?
+    ): Resource<List<Alquiler>> {
+        return try {
+            var query = firestore.collection("negocios").document(workspaceId).collection("alquileres")
+                .whereIn("estado", listOf("DEVUELTO", "CANCELADO"))
+                .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(limit)
+
+            (lastSnapshot as? com.google.firebase.firestore.DocumentSnapshot)?.let { 
+                query = query.startAfter(it) 
+            }
+
+            val snap = query.get().await()
+            val list = snap.documents.map { AlquilerDto.fromMap(it.id, it.data!!).toDomain() }
+            Resource.Success(list, cursor = snap.documents.lastOrNull())
+        } catch (e: Exception) { 
+            Resource.Error(FirebaseErrorMapper.mapError(e))
+        }
+    }
+
     override suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {

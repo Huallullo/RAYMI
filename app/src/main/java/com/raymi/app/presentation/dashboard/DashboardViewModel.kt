@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.google.firebase.Timestamp
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -31,6 +32,8 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    private var planJob: kotlinx.coroutines.Job? = null // ✅ FIX PROBLEM 6a: Job para cancelar suscripción anterior
+
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.currentPlan)
 
     init {
@@ -38,6 +41,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             workspaceManager.currentWorkspace.filterNotNull().first().let {
                 refreshData()
+                cargarVencimientosHoy() // ✅ MEJORA B
             }
         }
     }
@@ -141,7 +145,14 @@ class DashboardViewModel @Inject constructor(
             
             updateWorkspaceUseCase.updateStats(workspaceId, repairData)
             handleStatsResult(repairData)
-            _uiState.update { it.copy(isLoading = false, successMessage = "Estadísticas sincronizadas") }
+            
+            // ✅ FIX PROBLEM 6c: Guardar datos en el estado para exportaciones sin re-lectura
+            _uiState.update { it.copy(
+                isLoading = false, 
+                successMessage = "Estadísticas sincronizadas",
+                ultimosAlquileres = alquileres,
+                ultimosPagos = allPagos
+            ) }
         }
     }
 
@@ -163,6 +174,18 @@ class DashboardViewModel @Inject constructor(
         val ingresosAnterior = (data[mesAntKey] as? Number)?.toDouble() ?: 0.0
         val variacion = if (ingresosAnterior > 0) ((ingresosActual - ingresosAnterior) / ingresosAnterior) * 100 else 0.0
 
+        // ✅ MEJORA A: Extraer ingresos de los últimos 6 meses para la gráfica
+        val historicoIngresos = mutableListOf<Pair<String, Double>>()
+        val tempCal = Calendar.getInstance()
+        for (i in 0..5) {
+            val y = tempCal.get(Calendar.YEAR)
+            val m = tempCal.get(Calendar.MONTH)
+            val valIngreso = (data["ingresos_${y}_$m"] as? Number)?.toDouble() ?: 0.0
+            val label = tempCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.getDefault()) ?: ""
+            historicoIngresos.add(label to valIngreso)
+            tempCal.add(Calendar.MONTH, -1)
+        }
+
         updateEstadisticas {
             copy(
                 totalClientes = (data["totalClientes"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0,
@@ -177,11 +200,15 @@ class DashboardViewModel @Inject constructor(
                 devolucionesHoy = (hoyData["devoluciones"] as? Number)?.toInt() ?: 0
             )
         }
-        _uiState.update { it.copy(variacionMensualPct = variacion) }
+        _uiState.update { it.copy(
+            variacionMensualPct = variacion,
+            ingresosHistoricos = historicoIngresos.reversed() 
+        ) }
     }
 
     private fun cargarPlan(ownerId: String) {
-        viewModelScope.launch {
+        planJob?.cancel() // ✅ Cancelar el Job anterior si existe
+        planJob = viewModelScope.launch {
             userPlanRepository.getUserPlan(ownerId).collect { result ->
                 if (result is Resource.Success) {
                     _uiState.update { it.copy(currentPlan = result.data) }
@@ -196,24 +223,34 @@ class DashboardViewModel @Inject constructor(
 
     fun exportarResumenFinancieroPdf() {
         val workspace = workspaceManager.currentWorkspace.value ?: return
+        val currentAlquileres = _uiState.value.ultimosAlquileres
+        val currentPagos = _uiState.value.ultimosPagos
+        
         viewModelScope.launch {
             _uiState.update { it.copy(isExportingPdf = true) }
-            val result = alquilerRepository.getAlquileresOnce(workspace.id)
-            if (result is Resource.Success) {
-                val alquileres = result.data ?: emptyList()
+            
+            // ✅ FIX PROBLEM 6b: Usar datos ya cargados si existen
+            val alquileres: List<Alquiler>
+            val pagos: List<Pago>
+            
+            if (currentAlquileres.isNotEmpty()) {
+                alquileres = currentAlquileres
+                pagos = currentPagos
+            } else {
+                // Solo si no hay nada en memoria (raro en dashboard), leemos
+                val result = alquilerRepository.getAlquileresOnce(workspace.id)
+                alquileres = (result as? Resource.Success)?.data ?: emptyList()
                 val ids = alquileres.map { it.id }
-                
-                // Fetch pagos para el reporte
                 val pagosResult = alquilerRepository.getPagosDeAlquileres(workspace.id, ids)
-                val allPagos = (pagosResult as? Resource.Success)?.data ?: emptyList()
+                pagos = (pagosResult as? Resource.Success)?.data ?: emptyList()
+            }
                 
-                val anioActual = Calendar.getInstance().get(Calendar.YEAR)
-                generarPdfResumenFinancieroUseCase.generarPdf(alquileres, allPagos, anioActual).collect { pdfResult ->
-                    if (pdfResult is Resource.Success) {
-                        _uiState.update { it.copy(isExportingPdf = false, successMessage = "Resumen generado", pdfResumenUri = pdfResult.data) }
-                    } else if (pdfResult is Resource.Error) {
-                        _uiState.update { it.copy(isExportingPdf = false, error = pdfResult.message) }
-                    }
+            val anioActual = Calendar.getInstance().get(Calendar.YEAR)
+            generarPdfResumenFinancieroUseCase.generarPdf(alquileres, pagos, anioActual).collect { pdfResult ->
+                if (pdfResult is Resource.Success) {
+                    _uiState.update { it.copy(isExportingPdf = false, successMessage = "Resumen generado", pdfResumenUri = pdfResult.data) }
+                } else if (pdfResult is Resource.Error) {
+                    _uiState.update { it.copy(isExportingPdf = false, error = pdfResult.message) }
                 }
             }
         }
@@ -230,12 +267,36 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    /**
+     * MEJORA B: Cargar alquileres que vencen hoy para mostrar en Dashboard.
+     */
+    fun cargarVencimientosHoy() {
+        val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        viewModelScope.launch {
+            val hoy = Calendar.getInstance()
+            hoy.set(Calendar.HOUR_OF_DAY, 0); hoy.set(Calendar.MINUTE, 0); hoy.set(Calendar.SECOND, 0)
+            val start = Timestamp(hoy.time)
+            hoy.set(Calendar.HOUR_OF_DAY, 23); hoy.set(Calendar.MINUTE, 59); hoy.set(Calendar.SECOND, 59)
+            val end = Timestamp(hoy.time)
+
+            alquilerRepository.getAlquileresByDateRange(workspaceId, start, end).collect { result ->
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(vencimientosHoy = result.data ?: emptyList()) }
+                }
+            }
+        }
+    }
+
     fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 
     data class DashboardUiState(
         val currentWorkspace: Workspace? = null,
         val currentPlan: UserPlan? = null,
         val estadisticas: Estadisticas = Estadisticas(),
+        val ultimosAlquileres: List<Alquiler> = emptyList(),
+        val ultimosPagos: List<Pago> = emptyList(),
+        val ingresosHistoricos: List<Pair<String, Double>> = emptyList(), // ✅ MEJORA A
+        val vencimientosHoy: List<Alquiler> = emptyList(),                // ✅ MEJORA B
         val actividadSemanal: Map<String, Int> = emptyMap(),
         val isLoading: Boolean = false,
         val error: String? = null,

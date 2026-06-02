@@ -112,6 +112,24 @@ fun DashboardScreen(
                     labelCobros = strings.pendingPayments
                 )
 
+                // ✅ MEJORA B: Alquileres que vencen HOY
+                if (uiState.vencimientosHoy.isNotEmpty()) {
+                    VencimientosHoySection(
+                        vencimientos = uiState.vencimientosHoy,
+                        onAlquilerClick = { onNavigateToAlquileres() } // Navegar a la lista general por ahora
+                    )
+                }
+
+                // ✅ MEJORA A: Gráfica de Tendencia de Ingresos (6 meses)
+                if (uiState.ingresosHistoricos.isNotEmpty()) {
+                    Text(
+                        if (strings is com.raymi.app.core.lang.SpanishStrings) "Tendencia de Ingresos" else "Earnings Trend",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IncomeTrendChart(uiState.ingresosHistoricos)
+                }
+
                 if (uiState.actividadSemanal.isNotEmpty()) {
                     Text(strings.weeklyActivity, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     WeeklyActivityChart(uiState.actividadSemanal)
@@ -170,6 +188,80 @@ fun DashboardScreen(
                 showLanguageDialog = false
             }
         )
+    }
+}
+
+@Composable
+fun IncomeTrendChart(historico: List<Pair<String, Double>>) {
+    val maxVal = historico.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
+    
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(140.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                historico.forEach { (mes, monto) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                        val barHeight = (monto / maxVal) * 100
+                        
+                        Box(
+                            modifier = Modifier
+                                .width(28.dp)
+                                .height(barHeight.dp.coerceAtLeast(4.dp))
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            mes, 
+                            style = MaterialTheme.typography.labelSmall, 
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VencimientosHoySection(vencimientos: List<com.raymi.app.domain.model.Alquiler>, onAlquilerClick: (com.raymi.app.domain.model.Alquiler) -> Unit) {
+    val strings = LocalRaymiStrings.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (strings is com.raymi.app.core.lang.SpanishStrings) "Vencen Hoy" else "Expires Today",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        vencimientos.forEach { alq ->
+            Surface(
+                onClick = { onAlquilerClick(alq) },
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+            ) {
+                Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(alq.clienteNombre, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(alq.itemNombre, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(alq.saldoFormateado, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
     }
 }
 

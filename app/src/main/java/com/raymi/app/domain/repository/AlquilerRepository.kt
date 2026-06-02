@@ -104,6 +104,16 @@ interface AlquilerRepository {
     ): Flow<Resource<Unit>>
 
     /**
+     * Obtiene alquileres cerrados (DEVUELTO o CANCELADO) con paginación real.
+     * OPTIMIZACIÓN: Evita descargar datos ACTIVOS en el historial.
+     */
+    suspend fun getAlquileresCerrados(
+        workspaceId: String,
+        limit: Long = 50,
+        lastSnapshot: Any? = null
+    ): Resource<List<Alquiler>>
+
+    /**
      * Elimina un alquiler
      */
     suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>

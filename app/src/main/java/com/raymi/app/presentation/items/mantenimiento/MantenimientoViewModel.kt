@@ -69,9 +69,8 @@ class MantenimientoViewModel @Inject constructor(
     private fun actualizarEstadoItem(nuevoEstado: String) {
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-            itemRepository.getItemById(workspaceId, itemId).first().data?.let { item ->
-                itemRepository.updateItem(item.copy(estado = nuevoEstado)).collect()
-            }
+            // ✅ FIX PROBLEM 9: Usar actualización parcial en lugar de lectura completa
+            itemRepository.updateEstadoItem(workspaceId, itemId, nuevoEstado)
         }
     }
 

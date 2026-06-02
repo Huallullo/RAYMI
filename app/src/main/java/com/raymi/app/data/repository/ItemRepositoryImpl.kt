@@ -131,10 +131,14 @@ class ItemRepositoryImpl @Inject constructor(
                 val docs = dataSource.getBusinessDocumentsPaged("items", limit = 25, negocioId = workspaceId)
                 Resource.Success(docs.map { ItemDto.fromMap(it.id, it.data!!).toDomain() })
             } else {
-                val docs = dataSource.queryBusinessArrayContainsLimited("items", "searchTerms", query.lowercase().trim(), limit = 25)
-                // ✅ Corregido: Filtrar por workspaceId si la búsqueda es por términos (ArrayContains no soporta multi-tenant nativo sin índice compuesto)
+                val docs = dataSource.queryBusinessArrayContainsLimited(
+                    collection = "items", 
+                    field = "searchTerms", 
+                    value = query.lowercase().trim(), 
+                    limit = 25,
+                    negocioId = workspaceId
+                )
                 val items = docs.map { (id, data) -> ItemDto.fromMap(id, data).toDomain() }
-                    .filter { it.workspaceId == workspaceId }
                 Resource.Success(items)
             }
         } catch (e: Exception) {
@@ -155,6 +159,20 @@ class ItemRepositoryImpl @Inject constructor(
             Resource.Error("Error al filtrar: ${e.message}")
         }
         emit(result)
+    }
+
+    override suspend fun updateEstadoItem(workspaceId: String, itemId: String, estado: String): Resource<Unit> {
+        return try {
+            val data = mapOf(
+                "estado" to estado,
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+            dataSource.updateBusinessDocument("items", itemId, data, workspaceId)
+            invalidateCache(workspaceId)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Fallo al actualizar estado: ${e.message}")
+        }
     }
 
     override suspend fun invalidateCache(workspaceId: String) {

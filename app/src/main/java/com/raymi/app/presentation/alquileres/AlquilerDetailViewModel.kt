@@ -200,16 +200,18 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun updateAlquiler(alquiler: Alquiler) {
-        val anterior = _uiState.value.alquiler ?: return
-        val diff = alquiler.cantidad - anterior.cantidad
-
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessing = true) }
+            val diff = alquiler.cantidad - (_uiState.value.alquiler?.cantidad ?: 0)
             updateAlquilerUseCase(alquiler, diff).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        _uiState.update { it.copy(isProcessing = false, successMessage = "Alquiler actualizado correctamente") }
-                        loadAlquiler()
+                        // ✅ UPDATE OPTIMISTA
+                        _uiState.update { it.copy(
+                            isProcessing = false, 
+                            successMessage = "Alquiler actualizado correctamente",
+                            alquiler = alquiler 
+                        ) }
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                     else -> {}

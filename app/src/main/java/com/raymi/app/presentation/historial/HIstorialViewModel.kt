@@ -76,8 +76,9 @@ class HistorialViewModel @Inject constructor(
             it.copy(
                 allAlquileres = todos,
                 filteredAlquileres = filtrados,
-                // ✅ Corregido: 'adelanto' ya incluye abonos + penalidades por lógica transaccional
-                totalRecaudado = todos.sumOf { a -> a.adelanto },
+                // ✅ FIX PROBLEM 10: Sumar solo los filtrados
+                totalRecaudado = filtrados.sumOf { a -> a.adelanto },
+                totalTransacciones = filtrados.size,
                 isLoading = false
             )
         }
@@ -136,6 +137,7 @@ data class HistorialUiState(
     val filteredAlquileres: List<Alquiler> = emptyList(),
     val query: String = "",
     val totalRecaudado: Double = 0.0,
+    val totalTransacciones: Int = 0,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null

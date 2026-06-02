@@ -37,7 +37,12 @@ class BusinessSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BusinessSettingsUiState())
     val uiState: StateFlow<BusinessSettingsUiState> = _uiState.asStateFlow()
 
+    // ✅ FIX PROBLEM 7: Evitar fugas de memoria del GPS
+    private var nativeLocationManager: LocationManager? = null
+    private var nativeLocationListener: LocationListener? = null
+
     init {
+        // ... (rest of init)
         // Observar conexión a internet
         connectivityObserver.isConnected
             .onEach { connected ->
@@ -123,10 +128,11 @@ class BusinessSettingsViewModel @Inject constructor(
             val provider = if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) 
                 LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
             
-            val listener = object : LocationListener {
+            nativeLocationManager = manager
+            nativeLocationListener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     applyLocation(location)
-                    manager.removeUpdates(this)
+                    removeGpsUpdates()
                 }
                 @Deprecated("Deprecated in Java")
                 override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
@@ -134,12 +140,12 @@ class BusinessSettingsViewModel @Inject constructor(
                 override fun onProviderDisabled(p: String) {}
             }
 
-            manager.requestLocationUpdates(provider, 0L, 0f, listener)
+            manager.requestLocationUpdates(provider, 0L, 0f, nativeLocationListener!!)
             
             viewModelScope.launch {
-                delay(12000) // Un poco más de tiempo para el sensor nativo
+                delay(12000)
                 if (_uiState.value.isLoading) {
-                    manager.removeUpdates(listener)
+                    removeGpsUpdates()
                     _uiState.update { it.copy(isLoading = false, error = "El GPS está tardando demasiado. Asegúrate de estar en un lugar despejado.") }
                 }
             }
@@ -148,6 +154,16 @@ class BusinessSettingsViewModel @Inject constructor(
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, error = "Error técnico al acceder al GPS nativo.") }
         }
+    }
+
+    private fun removeGpsUpdates() {
+        nativeLocationListener?.let { nativeLocationManager?.removeUpdates(it) }
+        nativeLocationListener = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        removeGpsUpdates()
     }
 
     private fun applyLocation(location: Location) {

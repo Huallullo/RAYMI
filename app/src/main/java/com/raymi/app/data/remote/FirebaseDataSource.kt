@@ -227,9 +227,11 @@ class FirebaseDataSource @Inject constructor(
         collection: String,
         field: String,
         value: String,
-        limit: Long = DEFAULT_QUERY_LIMIT
+        limit: Long = DEFAULT_QUERY_LIMIT,
+        negocioId: String? = null
     ): List<Pair<String, Map<String, Any>>> {
-        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(getCurrentBusinessId()).collection(collection)
+        val targetId = negocioId ?: getCurrentBusinessId()
+        val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(targetId).collection(collection)
             .whereArrayContains(field, value)
             .limit(limit)
             .get()

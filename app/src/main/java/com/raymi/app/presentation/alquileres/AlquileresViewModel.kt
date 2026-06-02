@@ -99,19 +99,17 @@ class AlquileresViewModel @Inject constructor(
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             // ✅ OPTIMIZACIÓN: Actualizar todos en un solo batch atómico
-            alquilerRepository.updateAlquileresEstadoBatch(workspaceId, vencidosIds, EstadoAlquiler.VENCIDO).collect { result ->
-                if (result is Resource.Success) {
-                    // Actualizar estado localmente para reflejar el cambio sin recargar todo
-                    _uiState.update { state ->
-                        val updatedList = state.alquileres.map { alq ->
-                            if (vencidosIds.contains(alq.id)) alq.copy(estado = EstadoAlquiler.VENCIDO) else alq
-                        }
-                        state.copy(
-                            alquileres = updatedList,
-                            filteredAlquileres = filterAlquileres(updatedList, state.searchQuery, state.selectedEstado)
-                        )
-                    }
+            alquilerRepository.updateAlquileresEstadoBatch(workspaceId, vencidosIds, EstadoAlquiler.VENCIDO).collect()
+            
+            // Actualizar estado localmente para reflejar el cambio sin recargar todo
+            _uiState.update { state ->
+                val updatedList = state.alquileres.map { alq ->
+                    if (vencidosIds.contains(alq.id)) alq.copy(estado = EstadoAlquiler.VENCIDO) else alq
                 }
+                state.copy(
+                    alquileres = updatedList,
+                    filteredAlquileres = filterAlquileres(updatedList, state.searchQuery, state.selectedEstado)
+                )
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.raymi.app.presentation.alquileres
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -117,9 +120,10 @@ fun AlquileresScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(uiState.filteredAlquileres, key = { it.id }) { alquiler ->
-                                    PremiumAlquilerCard(
+                                    SwipeableAlquilerItem(
                                         alquiler = alquiler,
-                                        onClick = { onAlquilerClick(alquiler.id) }
+                                        onDetailClick = { onAlquilerClick(alquiler.id) },
+                                        onQuickPayClick = { /* Abrir diálogo de pago rápido */ }
                                     )
                                 }
                             }
@@ -166,7 +170,49 @@ fun FilterOption(label: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PremiumAlquilerCard(alquiler: Alquiler, onClick: () -> Unit) {
+fun SwipeableAlquilerItem(
+    alquiler: com.raymi.app.domain.model.Alquiler,
+    onDetailClick: () -> Unit,
+    onQuickPayClick: () -> Unit
+) {
+    val state = rememberSwipeToDismissBoxState()
+    
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            val color = when (state.dismissDirection) {
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.secondaryContainer
+                else -> Color.Transparent
+            }
+            Box(
+                modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.large).background(color).padding(horizontal = 20.dp),
+                contentAlignment = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                    Icon(Icons.Default.Payments, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                } else if (state.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                    Icon(Icons.Default.Visibility, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+            }
+        }
+    ) {
+        LaunchedEffect(state.currentValue) {
+            if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
+                onQuickPayClick()
+                state.reset()
+            } else if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                onDetailClick()
+                state.reset()
+            }
+        }
+        PremiumAlquilerCard(alquiler = alquiler, onClick = onDetailClick)
+    }
+}
+
+@Composable
+fun PremiumAlquilerCard(alquiler: com.raymi.app.domain.model.Alquiler, onClick: () -> Unit) {
     AlquilerItem(alquiler = alquiler, onClick = onClick)
 }

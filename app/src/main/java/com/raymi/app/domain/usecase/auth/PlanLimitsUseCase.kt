@@ -53,6 +53,8 @@ class PlanLimitsUseCase @Inject constructor(
         return currentItems < plan.itemsLimit
     }
 
+    fun getCachedPlan(): UserPlan? = planCache.get()
+
     suspend fun invalidateCache() {
         planCache.invalidate()
     }
