@@ -82,7 +82,7 @@ fun DashboardScreen(
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.refreshData(forceRefresh = true) },
+            onRefresh = { viewModel.refreshData() },
             modifier = Modifier.padding(paddingValues)
         ) {
             Column(

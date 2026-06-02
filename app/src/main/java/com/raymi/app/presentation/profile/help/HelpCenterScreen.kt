@@ -153,6 +153,24 @@ fun HelpCenterScreen(
                 )
             )
 
+            // 5. MANTENIMIENTO Y SINCRONIZACIÓN (Auditoría)
+            HelpCategory(
+                title = if (isSpanish) "5. Sincronización Total (Reparación)" else "5. Total Synchronization (Repair)",
+                icon = Icons.Default.CloudSync,
+                description = if (isSpanish) "La herramienta definitiva ante errores de datos." else "The ultimate tool for data errors.",
+                details = if (isSpanish) listOf(
+                    "¿Por qué existe este botón?: En el plan gratuito de Firebase, a veces las actualizaciones rápidas pueden fallar si el internet es inestable. Este botón ignora los resúmenes y recalcula todo desde cero.",
+                    "¿Qué repara?: Suma cada pago real en cada contrato para corregir el Dashboard, busca datos de versiones antiguas y les asigna su ID de negocio, y limpia la memoria temporal de tu teléfono.",
+                    "Costo de Uso: Este proceso es 'pesado' en lectura de datos. Úsalo solo una vez para arreglar datos viejos o cuando veas que un monto no coincide con tu caja física.",
+                    "Cuándo usarlo: Úsalo como un 'Cierre de Caja Maestro' al final del mes o tras una migración de datos."
+                ) else listOf(
+                    "Why does this button exist?: In Firebase's free plan, quick updates can sometimes fail if internet is unstable. This button ignores summaries and recalculates everything from scratch.",
+                    "What does it repair?: It sums every real payment in every contract to fix the Dashboard, looks for data from old versions and assigns their business ID, and clears your phone's temporary memory.",
+                    "Usage Cost: This process is 'heavy' on data reading. Use it only once to fix old data or when you see an amount doesn't match your physical cash.",
+                    "When to use it: Use it as a 'Master Cash Closing' at the end of the month or after a data migration."
+                )
+            )
+
             // SOPORTE
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),

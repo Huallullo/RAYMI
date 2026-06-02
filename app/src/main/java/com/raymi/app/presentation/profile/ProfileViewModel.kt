@@ -19,7 +19,9 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val userPlanRepository: UserPlanRepository
+    private val userPlanRepository: UserPlanRepository,
+    private val performFullAuditUseCase: com.raymi.app.domain.usecase.workspace.PerformFullAuditUseCase,
+    private val workspaceManager: com.raymi.app.core.workspace.WorkspaceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -28,6 +30,21 @@ class ProfileViewModel @Inject constructor(
     init {
         cargarDatosPerfil()
     }
+
+    fun sincronizacionTotal() {
+        val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        viewModelScope.launch {
+            performFullAuditUseCase(workspaceId).collect { result ->
+                when (result) {
+                    is Resource.Loading -> _uiState.update { it.copy(isSyncing = true) }
+                    is Resource.Success -> _uiState.update { it.copy(isSyncing = false, successMessage = "Base de datos sincronizada y reparada") }
+                    is Resource.Error -> _uiState.update { it.copy(isSyncing = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun clearMessages() = _uiState.update { it.copy(error = null, successMessage = null) }
 
     private fun cargarDatosPerfil() {
         viewModelScope.launch {
@@ -64,6 +81,8 @@ data class ProfileUiState(
     val user: FirebaseUser? = null,
     val plan: UserPlan? = null,
     val isLoading: Boolean = false,
+    val isSyncing: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val loggedOut: Boolean = false
 )

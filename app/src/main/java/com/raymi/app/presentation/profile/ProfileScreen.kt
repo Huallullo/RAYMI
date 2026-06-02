@@ -41,7 +41,13 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
     val strings = LocalRaymiStrings.current
+
+    LaunchedEffect(uiState.successMessage, uiState.error) {
+        uiState.successMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        uiState.error?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+    }
 
     if (uiState.loggedOut) {
         LaunchedEffect(Unit) { onLogout() }
@@ -130,7 +136,46 @@ fun ProfileScreen(
                         )
                     }
 
-                    // 5. Botón de Cerrar Sesión
+                    // 5. HERRAMIENTA DE MANTENIMIENTO (Sincronización Total)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                if (strings is com.raymi.app.core.lang.SpanishStrings) "Sincronización Total" else "Total Synchronization",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                if (strings is com.raymi.app.core.lang.SpanishStrings) 
+                                    "Repara inconsistencias financieras, corrige datos antiguos y recalcula tu Dashboard leyendo directamente la base de datos." 
+                                    else "Fix financial inconsistencies, repair old data, and recalculate your Dashboard by reading directly from the database.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { viewModel.sincronizacionTotal() },
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                shape = MaterialTheme.shapes.large,
+                                enabled = !uiState.isSyncing
+                            ) {
+                                if (uiState.isSyncing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.CloudSync, null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "EJECUTAR AUDITORÍA" else "RUN AUDIT", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    // 6. Botón de Cerrar Sesión
                     OutlinedButton(
                         onClick = { viewModel.cerrarSesion() },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
