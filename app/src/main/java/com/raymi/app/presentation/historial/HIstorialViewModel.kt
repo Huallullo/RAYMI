@@ -45,18 +45,19 @@ class HistorialViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                // OPTIMIZACIÓN: Auditoría completa del historial en una sola pasada (Snapshot)
-                val result = alquilerRepository.getAlquileresOnce(workspaceId)
-                if (result is Resource.Success) {
-                    val todos = result.data ?: emptyList()
-                    // Filtramos solo los cerrados para el historial
-                    val historial = todos.filter { it.estado == EstadoAlquiler.DEVUELTO || it.estado == EstadoAlquiler.CANCELADO }
-                        .sortedByDescending { it.updatedAt }
-                    
-                    historialCache.set(historial, ttlMs = 60 * 60 * 1000)
-                    aplicarFiltro(historial, _uiState.value.query)
-                } else {
-                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                // ✅ OPTIMIZACIÓN: Cargar solo DEVUELTOS y CANCELADOS en una sola query
+                alquilerRepository.getAlquileresByEstados(
+                    workspaceId = workspaceId,
+                    estados = listOf(EstadoAlquiler.DEVUELTO, EstadoAlquiler.CANCELADO),
+                    limit = 50
+                ).collect { result ->
+                    if (result is Resource.Success) {
+                        val todos = result.data ?: emptyList()
+                        historialCache.set(todos, ttlMs = 60 * 60 * 1000) // 1 hora
+                        aplicarFiltro(todos, _uiState.value.query)
+                    } else if (result is Resource.Error) {
+                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }

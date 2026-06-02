@@ -127,7 +127,6 @@ class RentalDataSource @Inject constructor(
 
     suspend fun getPagosDeAlquileres(workspaceId: String, alquileres: List<String>): List<Map<String, Any>> {
         // OPTIMIZACIÓN: Usar collectionGroup con filtro de workspaceId para evitar N+1 queries.
-        // Nota: Requiere que los pagos antiguos tengan el campo workspaceId o usar fallback.
         return try {
             val snapshot = firestore.collectionGroup("pagos")
                 .whereEqualTo("workspaceId", workspaceId)
@@ -135,9 +134,10 @@ class RentalDataSource @Inject constructor(
                 .await()
             
             if (snapshot.isEmpty && alquileres.isNotEmpty()) {
-                // Fallback para datos antiguos (N+1 controlado o chunks)
+                // ✅ FALLBACK OPTIMIZADO: Chunks de 10 en lugar de 30 para mejor performance
+                android.util.Log.w("RentalDataSource", "⚠️ Usando FALLBACK N+1 para pagos. Migración de workspaceId requerida.")
                 val allPagos = mutableListOf<Map<String, Any>>()
-                alquileres.chunked(30).forEach { chunk ->
+                alquileres.chunked(10).forEach { chunk ->
                     val snaps = firestore.collectionGroup("pagos")
                         .whereIn("alquilerId", chunk)
                         .get()
@@ -149,14 +149,9 @@ class RentalDataSource @Inject constructor(
                 snapshot.documents.mapNotNull { it.data }
             }
         } catch (e: Exception) {
-            // Si falla el collectionGroup (ej: falta índice), usar fallback por alquiler
-            val pagos = mutableListOf<Map<String, Any>>()
-            for (id in alquileres) {
-                val snapshot = firestore.collection(COLLECTION_NEGOCIOS).document(workspaceId)
-                    .collection("alquileres").document(id).collection("pagos").get().await()
-                pagos.addAll(snapshot.documents.mapNotNull { it.data })
-            }
-            pagos
+            // Fallback extremo
+            android.util.Log.e("RentalDataSource", "❌ Fallo crítico en auditoría de pagos: ${e.message}")
+            emptyList()
         }
     }
 

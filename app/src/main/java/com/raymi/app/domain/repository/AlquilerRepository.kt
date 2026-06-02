@@ -84,9 +84,24 @@ interface AlquilerRepository {
     suspend fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>>
 
     /**
-     * Elimina un alquiler
+     * Obtiene alquileres filtrados por estados directamente en Firestore.
+     * OPTIMIZACIÓN: Evita descargar alquileres no deseados.
      */
-    suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
+    suspend fun getAlquileresByEstados(
+        workspaceId: String,
+        estados: List<EstadoAlquiler>,
+        limit: Long = 50
+    ): Flow<Resource<List<Alquiler>>>
+
+    /**
+     * Actualiza múltiples alquileres en una sola operación atómica.
+     * OPTIMIZACIÓN: Ahorra ráfagas de escrituras y lecturas de seguridad.
+     */
+    suspend fun updateAlquileresEstadoBatch(
+        workspaceId: String,
+        alquilerIds: List<String>,
+        nuevoEstado: EstadoAlquiler
+    ): Flow<Resource<Unit>>
 
     /**
      * Registra un nuevo pago para un alquiler

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.raymi.app.core.workspace.WorkspaceManager
 import com.raymi.app.domain.model.*
 import com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase
-import com.raymi.app.domain.usecase.item.GetItemsByWorkspaceOnceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -18,10 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ItemsViewModel @Inject constructor(
     private val itemRepository: com.raymi.app.domain.repository.ItemRepository,
-    private val getItemsByWorkspaceOnceUseCase: GetItemsByWorkspaceOnceUseCase,
     private val getCategoriasUseCase: GetCategoriasUseCase,
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
-    private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val userSessionManager: com.raymi.app.core.session.UserSessionManager, // ✅ Centralizado
     private val adManager: com.raymi.app.core.ads.AdManager,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -37,7 +34,7 @@ class ItemsViewModel @Inject constructor(
     private val PAGE_SIZE = 20L
 
     init {
-        loadUserPlan()
+        observeUserSession()
         
         // Búsqueda y filtrado local REACTIVO con DEBOUNCE
         _searchQuery
@@ -54,24 +51,19 @@ class ItemsViewModel @Inject constructor(
                     categoriaFiltro = cat,
                     isLoading = false
                 ) }
-            }.launchIn(viewModelScope)
+            }
+            .launchIn(viewModelScope)
 
         refreshItems()
     }
 
-    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
-
-    private fun loadUserPlan() {
-        viewModelScope.launch {
-            auth.uid?.let { uid ->
-                userPlanRepository.getUserPlan(uid).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(userPlan = result.data) }
-                    }
-                }
-            }
-        }
+    private fun observeUserSession() {
+        userSessionManager.userPlan
+            .onEach { plan -> _uiState.update { it.copy(userPlan = plan) } }
+            .launchIn(viewModelScope)
     }
+
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
     fun refreshItems() {
         lastSnapshot = null
@@ -97,7 +89,6 @@ class ItemsViewModel @Inject constructor(
                                 if (res is Resource.Success) {
                                     val cats = res.data ?: emptyList()
                                     _allCategorias.value = cats
-                                    _uiState.update { it.copy(categorias = cats) }
                                 }
                             }
                     }
@@ -110,8 +101,8 @@ class ItemsViewModel @Inject constructor(
                     _allItems.value = if (lastSnapshot == null) newItems else _allItems.value + newItems
                     lastSnapshot = res.cursor
                     _uiState.update { it.copy(hasMore = newItems.size >= PAGE_SIZE) }
-                } else {
-                    _uiState.update { it.copy(error = (res as? Resource.Error)?.message) }
+                } else if (res is Resource.Error) {
+                    _uiState.update { it.copy(error = res.message) }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ItemsViewModel", "Error: ${e.message}")
@@ -121,11 +112,11 @@ class ItemsViewModel @Inject constructor(
         }
     }
 
-    fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
+    fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
-    fun buscar(query: String) { _searchQuery.value = query }
+    fun searchItems(query: String) { _searchQuery.value = query }
 
-    fun filtrarPorCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
+    fun filterByCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
 
     fun cargarMas() {
         loadMore()
@@ -141,11 +132,10 @@ class ItemsViewModel @Inject constructor(
         }
     }
 
-    fun limpiarError() { _uiState.update { it.copy(error = null) } }
+    fun clearMessages() { _uiState.update { it.copy(error = null) } }
 }
 
 data class ItemsUiState(
-    val items: List<Item> = emptyList(),
     val itemsFiltrados: List<Item> = emptyList(),
     val categorias: List<Categoria> = emptyList(),
     val categoriaFiltro: Categoria? = null,

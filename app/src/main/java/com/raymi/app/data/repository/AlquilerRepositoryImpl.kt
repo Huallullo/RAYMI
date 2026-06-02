@@ -11,11 +11,13 @@ import com.raymi.app.domain.model.*
 import com.raymi.app.domain.repository.AlquilerRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AlquilerRepositoryImpl @Inject constructor(
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore, // ✅ Inyectado directamente para batches
     private val dataSource: FirebaseDataSource,
     private val rentalDataSource: RentalDataSource,
     private val workspaceManager: WorkspaceManager
@@ -197,6 +199,56 @@ class AlquilerRepositoryImpl @Inject constructor(
             Resource.Error(FirebaseErrorMapper.mapError(e))
         }
         emit(result)
+    }
+
+    override suspend fun getAlquileresByEstados(
+        workspaceId: String,
+        estados: List<EstadoAlquiler>,
+        limit: Long
+    ): Flow<Resource<List<Alquiler>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val statusNames = estados.map { it.name }
+            val snapshot = firestore.collection("negocios")
+                .document(workspaceId)
+                .collection("alquileres")
+                .whereIn("estado", statusNames)
+                .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(limit)
+                .get()
+                .await()
+            
+            val list = snapshot.documents.map { doc -> AlquilerDto.fromMap(doc.id, doc.data!!).toDomain() }
+            emit(Resource.Success(list))
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error(FirebaseErrorMapper.mapError(e)))
+        }
+    }
+
+    override suspend fun updateAlquileresEstadoBatch(
+        workspaceId: String,
+        alquilerIds: List<String>,
+        nuevoEstado: EstadoAlquiler
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val negocioRef = firestore.collection("negocios").document(workspaceId)
+            val batch = firestore.batch()
+            val now = Timestamp.now()
+
+            alquilerIds.forEach { id ->
+                val ref = negocioRef.collection("alquileres").document(id)
+                batch.update(ref, mapOf("estado" to nuevoEstado.name, "updatedAt" to now))
+            }
+
+            batch.commit().await()
+            getCacheFor(workspaceId).invalidate()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error(FirebaseErrorMapper.mapError(e)))
+        }
     }
 
     override suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>> = flow {

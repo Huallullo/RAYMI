@@ -13,6 +13,7 @@ import com.raymi.app.core.ads.AdManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import java.util.*
 import javax.inject.Inject
 
@@ -23,12 +24,12 @@ class CreateAlquilerViewModel @Inject constructor(
     private val getCategoriasUseCase: com.raymi.app.domain.usecase.categoria.GetCategoriasUseCase,
     private val createAlquilerUseCase: CreateAlquilerUseCase,
     private val enviarMensajeUseCase: EnviarMensajeUseCase,
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val userSessionManager: com.raymi.app.core.session.UserSessionManager, // ✅ Centralizado
     private val auth: com.google.firebase.auth.FirebaseAuth,
     private val analytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val connectivityObserver: com.raymi.app.core.utils.ConnectivityObserver,
     private val workspaceManager: WorkspaceManager,
-    private val adManager: com.raymi.app.core.ads.AdManager, // OPTIMIZACIÓN: Inyección vía constructor
+    private val adManager: com.raymi.app.core.ads.AdManager,
     savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
@@ -40,36 +41,55 @@ class CreateAlquilerViewModel @Inject constructor(
 
     init {
         cargarDatosIniciales()
+        observeUserSession()
+    }
+
+    private fun observeUserSession() {
+        userSessionManager.userPlan
+            .onEach { plan -> _uiState.update { it.copy(userPlan = plan) } }
+            .launchIn(viewModelScope)
     }
 
     private fun cargarDatosIniciales() {
         viewModelScope.launch {
-            workspaceManager.currentWorkspace.collectLatest { workspace ->
-                if (workspace != null) {
-                    val workspaceId = workspace.id
-                    launch {
-                        getCategoriasUseCase(workspaceId).collect { result ->
-                            if (result is Resource.Success) {
-                                _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
-                            }
+            // ✅ OPTIMIZACIÓN: take(1) para cargar solo 1 vez y evitar ráfagas
+            val workspace = workspaceManager.currentWorkspace.filterNotNull().first()
+            val workspaceId = workspace.id
+            
+            _uiState.update { it.copy(isLoading = true) }
+
+            // ✅ OPTIMIZACIÓN: Cargas en PARALELO para reducir tiempo de espera
+            coroutineScope {
+                launch {
+                    getCategoriasUseCase(workspaceId).collect { result ->
+                        if (result is Resource.Success) {
+                            _uiState.update { it.copy(categorias = result.data ?: emptyList()) }
                         }
                     }
-                    launch {
-                        getClientesUseCase().collect { result ->
-                            if (result is Resource.Success) {
-                                _uiState.update { it.copy(clientes = result.data ?: emptyList()) }
-                            }
+                }
+                launch {
+                    getClientesUseCase().collect { result ->
+                        if (result is Resource.Success) {
+                            _uiState.update { it.copy(clientes = result.data ?: emptyList()) }
                         }
                     }
-                    launch {
-                        getItemsUseCase(workspaceId).collect { result ->
-                            if (result is Resource.Success) {
-                                val data = result.data ?: emptyList()
-                                _uiState.update { it.copy(itemsTotales = data, itemsDisponibles = aplicarFiltroCategoria(data, it.categoriaFiltro)) }
-                                if (!preselectedItemId.isNullOrBlank() && _uiState.value.selectedItems.isEmpty()) {
-                                    data.find { it.id == preselectedItemId }?.let { agregarItem(it) }
-                                }
+                }
+                launch {
+                    getItemsUseCase(workspaceId).collect { result ->
+                        if (result is Resource.Success) {
+                            val data = result.data ?: emptyList()
+                            _uiState.update { it.copy(
+                                itemsTotales = data, 
+                                itemsDisponibles = aplicarFiltroCategoria(data, it.categoriaFiltro),
+                                isLoading = false 
+                            ) }
+                            
+                            // Seleccionar item preseleccionado si viene de detalle
+                            if (!preselectedItemId.isNullOrBlank() && _uiState.value.selectedItems.isEmpty()) {
+                                data.find { it.id == preselectedItemId }?.let { agregarItem(it) }
                             }
+                        } else if (result is Resource.Error) {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
                         }
                     }
                 }
@@ -217,16 +237,9 @@ class CreateAlquilerViewModel @Inject constructor(
     }
 
     private fun verificarYMostrarAd() {
-        viewModelScope.launch {
-            auth.uid?.let { uid ->
-                userPlanRepository.getUserPlan(uid).collect { result ->
-                    if (result is Resource.Success) {
-                        val plan = result.data
-                        if (debeMostrarAnuncios(plan)) {
-                            _uiState.update { it.copy(shouldShowInterstitial = true) }
-                        }
-                    }
-                }
+        _uiState.value.userPlan?.let { plan ->
+            if (debeMostrarAnuncios(plan)) {
+                _uiState.update { it.copy(shouldShowInterstitial = true) }
             }
         }
     }
@@ -250,6 +263,7 @@ data class CreateAlquilerUiState(
     val categorias: List<Categoria> = emptyList(),
     val selectedCliente: Cliente? = null,
     val selectedItems: List<AlquilerItem> = emptyList(),
+    val userPlan: UserPlan? = null, // ✅ Plan centralizado
     val categoriaFiltro: Categoria? = null,
     val fechaInicio: Date? = Date(),
     val fechaFin: Date? = null,

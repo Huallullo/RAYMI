@@ -22,8 +22,7 @@ class AlquileresViewModel @Inject constructor(
     private val getAlquileresUseCase: GetAlquileresUseCase,
     private val getAlquileresOnceUseCase: com.raymi.app.domain.usecase.alquiler.GetAlquileresOnceUseCase,
     private val alquilerRepository: com.raymi.app.domain.repository.AlquilerRepository,
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
-    private val auth: com.google.firebase.auth.FirebaseAuth,
+    private val userSessionManager: com.raymi.app.core.session.UserSessionManager, // ✅ Inyectado
     private val adManager: com.raymi.app.core.ads.AdManager,
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
@@ -39,19 +38,13 @@ class AlquileresViewModel @Inject constructor(
 
     init {
         refreshAlquileres()
-        loadUserPlan()
+        observeUserSession()
     }
 
-    private fun loadUserPlan() {
-        viewModelScope.launch {
-            auth.uid?.let { uid ->
-                userPlanRepository.getUserPlan(uid).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(userPlan = result.data) }
-                    }
-                }
-            }
-        }
+    private fun observeUserSession() {
+        userSessionManager.userPlan
+            .onEach { plan -> _uiState.update { it.copy(userPlan = plan) } }
+            .launchIn(viewModelScope)
     }
 
     /**
@@ -98,13 +91,28 @@ class AlquileresViewModel @Inject constructor(
     }
 
     private fun verificarVencidos(alquileres: List<Alquiler>) {
+        val vencidosIds = alquileres.filter { it.estaVencido && it.estado == EstadoAlquiler.ACTIVO }
+            .map { it.id }
+        
+        if (vencidosIds.isEmpty()) return
+
         viewModelScope.launch {
-            alquileres.filter { it.estaVencido && it.estado == EstadoAlquiler.ACTIVO }
-                .forEach { alquiler ->
-                    launch {
-                        alquilerRepository.updateEstadoAlquiler(alquiler.id, EstadoAlquiler.VENCIDO).first()
+            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+            // ✅ OPTIMIZACIÓN: Actualizar todos en un solo batch atómico
+            alquilerRepository.updateAlquileresEstadoBatch(workspaceId, vencidosIds, EstadoAlquiler.VENCIDO).collect { result ->
+                if (result is Resource.Success) {
+                    // Actualizar estado localmente para reflejar el cambio sin recargar todo
+                    _uiState.update { state ->
+                        val updatedList = state.alquileres.map { alq ->
+                            if (vencidosIds.contains(alq.id)) alq.copy(estado = EstadoAlquiler.VENCIDO) else alq
+                        }
+                        state.copy(
+                            alquileres = updatedList,
+                            filteredAlquileres = filterAlquileres(updatedList, state.searchQuery, state.selectedEstado)
+                        )
                     }
                 }
+            }
         }
     }
 

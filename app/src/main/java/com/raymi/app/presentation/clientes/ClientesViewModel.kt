@@ -31,7 +31,7 @@ class ClientesViewModel @Inject constructor(
     private val deleteClienteUseCase: DeleteClienteUseCase,
     private val consultarReniecUseCase: ConsultarReniecUseCase,
     private val planLimitsUseCase: com.raymi.app.domain.usecase.auth.PlanLimitsUseCase, // OPTIMIZACIÓN: Consolidar límites
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val userSessionManager: com.raymi.app.core.session.UserSessionManager, // ✅ Centralizado
     private val auth: com.google.firebase.auth.FirebaseAuth,
     private val storageDataSource: StorageDataSource,
     private val adManager: com.raymi.app.core.ads.AdManager,
@@ -50,6 +50,8 @@ class ClientesViewModel @Inject constructor(
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     init {
+        observeUserSession()
+        
         // OPTIMIZACIÓN: Debounce en búsqueda para evitar recomposiciones innecesarias
         _searchQuery
             .debounce(300)
@@ -70,19 +72,12 @@ class ClientesViewModel @Inject constructor(
             }.launchIn(viewModelScope)
 
         refreshClientes()
-        loadUserPlan()
     }
 
-    private fun loadUserPlan() {
-        viewModelScope.launch {
-            auth.uid?.let { uid ->
-                userPlanRepository.getUserPlan(uid).collect { result ->
-                    if (result is Resource.Success) {
-                        _uiState.update { it.copy(userPlan = result.data) }
-                    }
-                }
-            }
-        }
+    private fun observeUserSession() {
+        userSessionManager.userPlan
+            .onEach { plan -> _uiState.update { it.copy(userPlan = plan) } }
+            .launchIn(viewModelScope)
     }
 
     fun refreshClientes() {

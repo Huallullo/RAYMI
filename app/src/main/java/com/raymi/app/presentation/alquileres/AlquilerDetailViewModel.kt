@@ -44,32 +44,31 @@ class AlquilerDetailViewModel @Inject constructor(
 
     fun loadAlquiler() {
         viewModelScope.launch {
-            workspaceManager.currentWorkspace.collectLatest { workspace ->
-                if (workspace != null && alquilerId.isNotBlank()) {
-                    _uiState.update { it.copy(isLoading = true) }
-                    // OPTIMIZACIÓN: coroutineScope asegura que los hijos se cancelen si collectLatest reinicia
-                    coroutineScope {
-                        launch {
-                            getAlquilerByIdUseCase(alquilerId).collect { result ->
-                                when (result) {
-                                    is Resource.Success -> _uiState.update { it.copy(alquiler = result.data, isLoading = false) }
-                                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
-                                    else -> {}
-                                }
+            // OPTIMIZACIÓN: Cargar solo 1 vez al iniciar para evitar ráfagas por recomposición
+            val workspace = workspaceManager.currentWorkspace.filterNotNull().first()
+            if (alquilerId.isNotBlank()) {
+                _uiState.update { it.copy(isLoading = true) }
+                coroutineScope {
+                    launch {
+                        getAlquilerByIdUseCase(alquilerId).collect { result ->
+                            when (result) {
+                                is Resource.Success -> _uiState.update { it.copy(alquiler = result.data, isLoading = false) }
+                                is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                                else -> {}
                             }
                         }
-                        launch {
-                            getPagosUseCase(workspace.id, alquilerId).collect { result ->
-                                if (result is Resource.Success) {
-                                    _uiState.update { it.copy(pagos = result.data ?: emptyList()) }
-                                }
+                    }
+                    launch {
+                        getPagosUseCase(workspace.id, alquilerId).collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(pagos = result.data ?: emptyList()) }
                             }
                         }
-                        launch {
-                            comprobanteRepository.getComprobantesByAlquiler(workspace.id, alquilerId).collect { result ->
-                                if (result is Resource.Success) {
-                                    _uiState.update { it.copy(comprobantes = result.data ?: emptyList()) }
-                                }
+                    }
+                    launch {
+                        comprobanteRepository.getComprobantesByAlquiler(workspace.id, alquilerId).collect { result ->
+                            if (result is Resource.Success) {
+                                _uiState.update { it.copy(comprobantes = result.data ?: emptyList()) }
                             }
                         }
                     }
@@ -80,15 +79,26 @@ class AlquilerDetailViewModel @Inject constructor(
 
     fun registrarPago(monto: Double, metodo: MetodoPago, referencia: String = "") {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
-        val pago = Pago(alquilerId = alquilerId, monto = monto, metodoPago = metodo, referencia = referencia)
+        val currentAlq = _uiState.value.alquiler ?: return
+        val pago = Pago(alquilerId = alquilerId, monto = monto, metodoPago = metodo, referencia = referencia, fecha = com.google.firebase.Timestamp.now())
 
         viewModelScope.launch {
             addPagoUseCase(workspaceId, alquilerId, pago).collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
                     is Resource.Success -> {
-                        _uiState.update { it.copy(isProcessing = false, successMessage = "Abono registrado") }
-                        loadAlquiler() // OPTIMIZACIÓN: Refrescar datos tras pago exitoso
+                        // ✅ OPTIMISTIC UPDATE: Actualizar UI localmente sin recargar Firestore
+                        _uiState.update { state ->
+                            state.copy(
+                                isProcessing = false, 
+                                successMessage = "Abono registrado",
+                                pagos = listOf(pago) + state.pagos,
+                                alquiler = currentAlq.copy(
+                                    adelanto = currentAlq.adelanto + monto,
+                                    saldo = (currentAlq.precioTotal - (currentAlq.adelanto + monto)).coerceAtLeast(0.0)
+                                )
+                            )
+                        }
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }
@@ -110,13 +120,28 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun registrarDevolucion(penalidad: Double = 0.0, observaciones: String = "", montoGarantiaRetenida: Double = 0.0, unidadesARetornar: Int = 0) {
+        val currentAlq = _uiState.value.alquiler ?: return
         viewModelScope.launch {
             registrarDevolucionUseCase(alquilerId, penalidad, observaciones, montoGarantiaRetenida, unidadesARetornar).collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
                     is Resource.Success -> {
-                        _uiState.update { it.copy(isProcessing = false, successMessage = "Devolución registrada correctamente") }
-                        loadAlquiler()
+                        // ✅ OPTIMISTIC UPDATE: Marcar como devuelto o actualizar cantidades
+                        _uiState.update { state ->
+                            val totalCant = currentAlq.cantidad
+                            val devueltas = if (unidadesARetornar <= 0) totalCant else unidadesARetornar
+                            val esTotal = devueltas >= totalCant
+                            
+                            state.copy(
+                                isProcessing = false, 
+                                successMessage = "Devolución registrada correctamente",
+                                alquiler = currentAlq.copy(
+                                    estado = if (esTotal) EstadoAlquiler.DEVUELTO else EstadoAlquiler.ACTIVO,
+                                    penalidad = currentAlq.penalidad + penalidad + montoGarantiaRetenida,
+                                    adelanto = currentAlq.adelanto + penalidad + montoGarantiaRetenida
+                                )
+                            )
+                        }
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }
@@ -125,13 +150,20 @@ class AlquilerDetailViewModel @Inject constructor(
     }
 
     fun cancelarAlquiler(motivo: String) {
+        val currentAlq = _uiState.value.alquiler ?: return
         viewModelScope.launch {
             cancelarAlquilerUseCase(alquilerId, motivo).collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
                     is Resource.Success -> {
-                        _uiState.update { it.copy(isProcessing = false, successMessage = "Alquiler cancelado correctamente") }
-                        loadAlquiler()
+                        // ✅ OPTIMISTIC UPDATE
+                        _uiState.update { state ->
+                            state.copy(
+                                isProcessing = false, 
+                                successMessage = "Alquiler cancelado correctamente",
+                                alquiler = currentAlq.copy(estado = EstadoAlquiler.CANCELADO)
+                            )
+                        }
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }
@@ -193,8 +225,13 @@ class AlquilerDetailViewModel @Inject constructor(
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isProcessing = true) }
                     is Resource.Success -> {
-                        _uiState.update { it.copy(isProcessing = false, successMessage = "Comprobante anulado") }
-                        loadAlquiler()
+                        // ✅ OPTIMISTIC UPDATE: Marcar comprobante como anulado localmente
+                        _uiState.update { state ->
+                            val list = state.comprobantes.map { 
+                                if (it.id == comprobanteId) it.copy(estado = EstadoComprobante.ANULADO) else it 
+                            }
+                            state.copy(isProcessing = false, successMessage = "Comprobante anulado", comprobantes = list)
+                        }
                     }
                     is Resource.Error -> _uiState.update { it.copy(isProcessing = false, error = result.message) }
                 }

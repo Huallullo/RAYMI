@@ -5,6 +5,8 @@ import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +20,13 @@ class GetWorkspaceStatsUseCase @Inject constructor(
 ) {
     private val statsCache = mutableMapOf<String, SmartCache<Map<String, Any>>>()
     private val TTL_3_MIN = 3 * 60 * 1000L
+    private val mutex = Mutex() // ✅ Thread-safety para el mapa de caches
 
-    private fun getCacheFor(workspaceId: String) = statsCache.getOrPut(workspaceId) { SmartCache() }
+    private suspend fun getCacheFor(workspaceId: String): SmartCache<Map<String, Any>> {
+        return mutex.withLock {
+            statsCache.getOrPut(workspaceId) { SmartCache() }
+        }
+    }
 
     suspend operator fun invoke(workspaceId: String, forceRefresh: Boolean = false): Flow<Resource<Map<String, Any>>> = flow {
         emit(Resource.Loading())

@@ -88,16 +88,16 @@ class DashboardViewModel @Inject constructor(
             // 1. Invalidar caches
             itemRepository.invalidateCache(workspaceId)
             
-            // 2. Fetch Alquileres y Pagos (Heavy)
-            val resAlq = alquilerRepository.getAlquileresOnce(workspaceId)
+            // 2. Fetch Alquileres y Pagos (Limitado para optimizar costos)
+            val resAlq = alquilerRepository.getAlquileresOnce(workspaceId, limit = 100)
             val alquileres = (resAlq as? Resource.Success)?.data ?: emptyList()
             val ids = alquileres.map { it.id }
             
             val pagosResult = alquilerRepository.getPagosDeAlquileres(workspaceId, ids)
             val allPagos = (pagosResult as? Resource.Success)?.data ?: emptyList()
 
-            // 3. Fetch Items reales
-            val resItems = itemRepository.getItemsByWorkspaceOnce(workspaceId, 500)
+            // 3. Fetch Items reales (Máximo 200 para auditoría puntual)
+            val resItems = itemRepository.getItemsByWorkspaceOnce(workspaceId, 200)
             val items = (resItems as? Resource.Success)?.data ?: emptyList()
             
             // 4. Fetch Clientes reales
