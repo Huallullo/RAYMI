@@ -26,6 +26,9 @@ class HistorialViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HistorialUiState())
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
 
+    private var lastSnapshot: Any? = null
+    private val PAGE_SIZE = 50L
+
     // Cache en memoria para esta sesión — historial no cambia mientras usas la app
     private val historialCache = SmartCache<List<Alquiler>>()
 
@@ -33,35 +36,58 @@ class HistorialViewModel @Inject constructor(
         cargarHistorial()
     }
 
-    fun cargarHistorial() {
+    fun cargarHistorial(refresh: Boolean = false) {
+        if (refresh) {
+            lastSnapshot = null
+            _uiState.update { it.copy(allAlquileres = emptyList()) }
+        }
+
         viewModelScope.launch {
-            val cached = historialCache.get()
-            if (cached != null) {
-                aplicarFiltro(cached, _uiState.value.query)
-                return@launch
+            // Si es la primera carga y hay cache, úsalo (Solo si no es refresh forzado)
+            if (lastSnapshot == null && !refresh) {
+                val cached = historialCache.get()
+                if (cached != null) {
+                    aplicarFiltro(cached, _uiState.value.query)
+                    return@launch
+                }
             }
 
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                // ✅ OPTIMIZACIÓN: Cargar solo DEVUELTOS y CANCELADOS en una sola query
-                alquilerRepository.getAlquileresByEstados(
+                // ✅ FEATURE 1 FIX: Paginación real en historial
+                val result = alquilerRepository.getAlquileresCerrados(
                     workspaceId = workspaceId,
-                    estados = listOf(EstadoAlquiler.DEVUELTO, EstadoAlquiler.CANCELADO),
-                    limit = 50
-                ).collect { result ->
-                    if (result is Resource.Success) {
-                        val todos = result.data ?: emptyList()
-                        historialCache.set(todos, ttlMs = 60 * 60 * 1000) // 1 hora
-                        aplicarFiltro(todos, _uiState.value.query)
-                    } else if (result is Resource.Error) {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    limit = PAGE_SIZE,
+                    lastSnapshot = lastSnapshot
+                )
+                
+                if (result is Resource.Success) {
+                    val newItems = result.data ?: emptyList()
+                    val totalList = if (lastSnapshot == null) newItems else _uiState.value.allAlquileres + newItems
+                    lastSnapshot = result.cursor
+                    
+                    if (lastSnapshot == null && !refresh) {
+                        historialCache.set(totalList, ttlMs = 60 * 60 * 1000)
                     }
+                    
+                    _uiState.update { it.copy(hasMore = newItems.size >= PAGE_SIZE) }
+                    aplicarFiltro(totalList, _uiState.value.query)
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
+        }
+    }
+
+    fun cargarMas() {
+        if (!_uiState.value.isLoading && _uiState.value.hasMore) {
+            cargarHistorial()
         }
     }
 
@@ -76,8 +102,8 @@ class HistorialViewModel @Inject constructor(
             it.copy(
                 allAlquileres = todos,
                 filteredAlquileres = filtrados,
-                // ✅ FIX PROBLEM 10: Sumar solo los filtrados
-                totalRecaudado = filtrados.sumOf { a -> a.adelanto },
+                // ✅ FEATURE 2 FIX: Sumar lo realmente pagado (incluyendo penalidades si adelanto las tiene)
+                totalRecaudado = filtrados.sumOf { a -> a.precioTotal + a.penalidad - a.saldo },
                 totalTransacciones = filtrados.size,
                 isLoading = false
             )
@@ -138,6 +164,7 @@ data class HistorialUiState(
     val query: String = "",
     val totalRecaudado: Double = 0.0,
     val totalTransacciones: Int = 0,
+    val hasMore: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null
