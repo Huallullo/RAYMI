@@ -112,9 +112,6 @@ class GenerateComprobanteViewModel @Inject constructor(
              return
         }
 
-        android.util.Log.d("RAYMI_BILLING", "Generando comprobante: ${state.tipo} para alquiler ${alquiler.id} en workspace ${workspace.id}")
-        android.util.Log.d("RAYMI_BILLING", "Workspace data: RUC=${workspace.ruc}, SerieTicket=${workspace.serieTicket}")
-
         // REGLA SAAS: Solo PRO puede emitir Boletas y Facturas
         if (state.tipo != TipoComprobante.TICKET) {
             val plan = state.userPlan?.plan ?: PlanType.FREE
@@ -158,7 +155,6 @@ class GenerateComprobanteViewModel @Inject constructor(
 
         viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.uid ?: "admin"
-            android.util.Log.d("RAYMI_BILLING", "Llamando a generateComprobanteUseCase...")
             
             val comprobante = Comprobante(
                 workspaceId = workspace.id,
@@ -188,11 +184,14 @@ class GenerateComprobanteViewModel @Inject constructor(
             )
 
             generateComprobanteUseCase(comprobante, alquiler, workspace).collect { result ->
-                android.util.Log.d("RAYMI_BILLING", "Resultado en ViewModel: ${result::class.simpleName}")
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isSaving = true) }
                     is Resource.Success -> {
-                        val data = result.data!!
+                        // ✅ FIX [B-03]: Safe null handling
+                        val data = result.data ?: run {
+                            _uiState.update { it.copy(isSaving = false, error = "Error interno al generar el PDF") }
+                            return@collect
+                        }
                         _uiState.update { it.copy(
                             isSaving = false, 
                             isSuccess = true, 

@@ -9,6 +9,7 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.ItemRepository
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -84,7 +85,7 @@ class ItemRepositoryImpl @Inject constructor(
             } else item
             
             val dto = ItemDto.fromDomain(itemWithDate)
-            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            val data = dto.toMapForCreate().filterValues { it != null }.mapValues { it.value!! }
             val id = itemDataSource.addItemTransactional(item.workspaceId, data, item.codigo)
             
             invalidateCache(item.workspaceId) // Ahora es suspend y thread-safe
@@ -99,8 +100,29 @@ class ItemRepositoryImpl @Inject constructor(
     override suspend fun updateItem(item: Item): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
+            val workspaceId = item.workspaceId
+            
+            // ✅ [A-06] Actualizar índice de códigos si cambió
+            val oldItemSnap = dataSource.getBusinessDocument("items", item.id, workspaceId)
+            val oldCodigo = oldItemSnap?.get("codigo") as? String
+            
+            if (oldCodigo != null && oldCodigo != item.codigo) {
+                val negocioRef = dataSource.firestore.collection("negocios").document(workspaceId)
+                dataSource.firestore.runTransaction { transaction ->
+                    val oldIndexRef = negocioRef.collection("items_codigo_index").document(oldCodigo)
+                    val newIndexRef = negocioRef.collection("items_codigo_index").document(item.codigo)
+                    
+                    if (transaction.get(newIndexRef).exists()) {
+                        throw IllegalStateException("Ya existe un producto con el código ${item.codigo}")
+                    }
+                    
+                    transaction.delete(oldIndexRef)
+                    transaction.set(newIndexRef, mapOf("itemId" to item.id, "codigo" to item.codigo))
+                }.await()
+            }
+
             val dto = ItemDto.fromDomain(item)
-            val data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
+            val data = dto.toMapForUpdate().filterValues { it != null }.mapValues { it.value!! }
             dataSource.updateBusinessDocument("items", item.id, data, item.workspaceId)
             getCacheFor(item.workspaceId).invalidate()
             Resource.Success(Unit)

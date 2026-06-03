@@ -29,6 +29,10 @@ sealed class Screen(val route: String) {
     object ItemCreate : Screen("item_create")
     object Categorias : Screen("categorias")
     object Alquileres : Screen("alquileres")
+    object AlquilerCreate : Screen("create_alquiler") {
+        fun createRoute(itemId: String? = null) = 
+            if (itemId != null) "create_alquiler?itemId=$itemId" else "create_alquiler"
+    }
     object Historial : Screen("historial")
     object Profile : Screen("profile")
     object BusinessSettings : Screen("business_settings")

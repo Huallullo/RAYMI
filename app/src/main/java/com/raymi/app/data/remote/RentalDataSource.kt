@@ -100,7 +100,6 @@ class RentalDataSource @Inject constructor(
                     "referencia" to "Pago Inicial",
                     "fecha" to FieldValue.serverTimestamp()
                 ))
-                // BUG 1 FIX: Removed transaction.update(statsRef, "totalIngresos", FieldValue.increment(adelanto))
             }
 
             // Actualizar Estadísticas extendidas
@@ -364,6 +363,7 @@ class RentalDataSource @Inject constructor(
             val snapshot = transaction.get(alqRef)
             if (!snapshot.exists()) throw IllegalStateException("Alquiler no encontrado")
             val items = (snapshot.get("items") as? List<Map<String, Any>>) ?: emptyList()
+            val estadoActual = snapshot.getString("estado") ?: "ACTIVO"
 
             // 2. LEER todos los ítems asociados
             val itemSnapshots = items.mapNotNull { itemData ->
@@ -386,7 +386,11 @@ class RentalDataSource @Inject constructor(
                     transaction.update(negocioRef.collection("items").document(id), mapOf("unidadesAlquiladas" to (current - cant).coerceAtLeast(0), "estado" to "DISPONIBLE"))
                 }
             }
-            transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
+
+            // ✅ FIX [A-03]: Solo decrementar si el estado previo era ACTIVO
+            if (estadoActual == "ACTIVO") {
+                transaction.update(statsRef, "alquileresActivos", FieldValue.increment(-1))
+            }
         }.await()
     }
 }

@@ -36,7 +36,7 @@ class CategoriasViewModel @Inject constructor(
                     return@launch
                 }
                 
-                getCategoriasUseCase(workspaceId).collect { result ->
+                getCategoriasUseCase(workspaceId).take(1).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                         is Resource.Success -> _uiState.update { it.copy(categorias = result.data ?: emptyList(), isLoading = false) }

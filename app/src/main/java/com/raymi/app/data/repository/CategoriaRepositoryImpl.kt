@@ -23,7 +23,7 @@ class CategoriaRepositoryImpl @Inject constructor(
     private fun getCacheFor(workspaceId: String) =
         cacheByWorkspace.getOrPut(workspaceId) { SmartCache() }
 
-    override suspend fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
+    override fun getCategorias(workspaceId: String): Flow<Resource<List<Categoria>>> = flow {
         emit(Resource.Loading())
         
         val result = try {
@@ -62,7 +62,7 @@ class CategoriaRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun addCategoria(categoria: Categoria): Flow<Resource<String>> = flow {
+    override fun addCategoria(categoria: Categoria): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         try {
             val dto = CategoriaDto.fromDomain(categoria)
@@ -72,13 +72,13 @@ class CategoriaRepositoryImpl @Inject constructor(
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
             getCacheFor(categoria.workspaceId).invalidate() // invalida al crear
-            Resource.Success(id)
+            emit(Resource.Success(id))
         } catch (e: Exception) {
             emit(Resource.Error("Error al crear categoría: ${e.message}"))
         }
     }
 
-    override suspend fun updateCategoria(categoria: Categoria): Flow<Resource<Unit>> = flow {
+    override fun updateCategoria(categoria: Categoria): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             val dto = CategoriaDto.fromDomain(categoria)
@@ -88,13 +88,13 @@ class CategoriaRepositoryImpl @Inject constructor(
                 data = dto.toMap().filterValues { it != null }.mapValues { it.value!! }
             )
             getCacheFor(categoria.workspaceId).invalidate() // invalida al editar
-            Resource.Success(Unit)
+            emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al actualizar: ${e.message}"))
         }
     }
 
-    override suspend fun deleteCategoria(workspaceId: String, categoriaId: String): Flow<Resource<Unit>> = flow {
+    override fun deleteCategoria(workspaceId: String, categoriaId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             dataSource.deleteBusinessDocument(
@@ -102,7 +102,7 @@ class CategoriaRepositoryImpl @Inject constructor(
                 documentId = categoriaId
             )
             getCacheFor(workspaceId).invalidate() // invalida al borrar
-            Resource.Success(Unit)
+            emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Error al eliminar: ${e.message}"))
         }

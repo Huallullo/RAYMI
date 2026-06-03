@@ -52,26 +52,6 @@ class UserPlanRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun upgradeToPro(userId: String): Flow<Resource<UserPlan>> = flow {
-        emit(Resource.Loading())
-        val result = try {
-            val proPlan = UserPlan(
-                userId = userId, 
-                plan = PlanType.PRO, 
-                workspacesLimit = 999, 
-                itemsLimit = 9999, 
-                mostrarAnuncios = false
-            )
-            val dto = UserPlanDto.fromDomain(proPlan)
-            dataSource.updateDocument(COLLECTION_USUARIOS, userId, dto.toMap().filterValues { it != null }.mapValues { it.value!! })
-            Resource.Success(proPlan)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Resource.Error("Error al subir a PRO")
-        }
-        emit(result)
-    }
-
     override suspend fun getPlanDetails(planType: PlanType): Resource<Map<String, Any>> {
         try {
             val remoteConfig = dataSource.getDocument("config", "planes")

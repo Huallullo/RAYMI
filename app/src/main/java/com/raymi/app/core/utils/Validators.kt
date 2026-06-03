@@ -37,9 +37,9 @@ object Validators {
         return when {
             nombre.isBlank() -> ValidationResult(false, "El nombre es requerido")
             nombre.length < 2 -> ValidationResult(false, "El nombre debe tener al menos 2 caracteres")
-            !nombre.all { it.isLetter() || it.isWhitespace() } -> ValidationResult(
+            !nombre.all { it.isLetter() || it.isWhitespace() || it == '-' || it == '\'' } -> ValidationResult(
                 false,
-                "El nombre solo debe contener letras"
+                "El nombre solo debe contener letras, espacios, guiones o apóstrofes"
             )
             else -> ValidationResult(true)
         }
@@ -68,7 +68,7 @@ object Validators {
             telefono.isBlank() -> ValidationResult(false, "El teléfono es requerido")
             telefono.length != 9 -> ValidationResult(
                 false,
-                "El teléfono debe tener al menos 9 dígitos"
+                "El teléfono debe tener exactamente 9 dígitos"
             )
             !telefono.all { it.isDigit() } -> ValidationResult(
                 false,
@@ -123,7 +123,7 @@ object Validators {
     fun validatePrecio(precio: Double): ValidationResult {
         return when {
             precio <= 0 -> ValidationResult(false, "El precio debe ser mayor a 0")
-            precio > 10000 -> ValidationResult(false, "El precio parece muy alto")
+            precio > 99999 -> ValidationResult(false, "El precio parece demasiado alto")
             else -> ValidationResult(true)
         }
     }

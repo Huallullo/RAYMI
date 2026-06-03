@@ -17,11 +17,6 @@ interface UserPlanRepository {
     suspend fun createFreeUserPlan(userId: String): Flow<Resource<UserPlan>>
     
     /**
-     * Actualiza plan a PRO (después de pago)
-     */
-    suspend fun upgradeToPro(userId: String): Flow<Resource<UserPlan>>
-    
-    /**
      * Obtiene detalles del plan para UI
      */
     suspend fun getPlanDetails(planType: PlanType): Resource<Map<String, Any>>

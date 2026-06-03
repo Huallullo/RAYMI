@@ -24,6 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.PlanType
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import com.raymi.app.core.lang.LocalRaymiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +38,7 @@ fun PlansScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val strings = LocalRaymiStrings.current
+    val activity = remember(context) { context.findActivity() }
 
     Scaffold(
         topBar = {
@@ -111,7 +114,7 @@ fun PlansScreen(
                 isSelected = uiState.currentPlan?.plan == PlanType.PRO,
                 isPremium = true,
                 buttonText = if (uiState.currentPlan?.plan == PlanType.PRO) (if (strings is com.raymi.app.core.lang.SpanishStrings) "Plan Actual" else "Current Plan") else strings.bePro,
-                onAction = { viewModel.startBillingFlow(context as Activity) },
+                onAction = { activity?.let { viewModel.startBillingFlow(it) } },
                 isLoading = uiState.isLoading
             )
 
@@ -124,6 +127,15 @@ fun PlansScreen(
             )
         }
     }
+}
+
+fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }
 
 @Composable

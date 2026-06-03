@@ -70,7 +70,7 @@ data class Boleta(
         get() = SimpleDateFormat("dd/MM/yyyy", Locale("es", "PE")).format(fechaEmision.toDate())
     
     val boletaCompleta: String
-        get() = "$serieNumeracion-$numeroBoleta".padEnd(7, '0')
+        get() = "$serieNumeracion-${numeroBoleta.toString().padStart(6, '0')}"
 }
 
 data class BoletaItem(

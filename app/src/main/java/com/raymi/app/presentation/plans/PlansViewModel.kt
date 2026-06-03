@@ -11,6 +11,7 @@ import com.raymi.app.domain.repository.UserPlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -70,16 +71,16 @@ class PlansViewModel @Inject constructor(
     }
 
     private fun upgradeToProAfterValidation() {
+        // [C-02] Eliminada escritura directa desde el cliente por seguridad.
+        // La promoción a PRO ahora es gestionada por Cloud Functions tras validar el recibo.
+        _uiState.update { it.copy(
+            isLoading = false, 
+            infoMessage = "Validando su compra... El plan PRO se activará en unos instantes."
+        ) }
+        // Se recomienda refrescar el plan después de unos segundos
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser() ?: return@launch
-            // TODO: Integrar Cloud Function para validar PurchaseToken en el backend
-            userPlanRepository.upgradeToPro(user.uid).collect { result ->
-                when (result) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
-                    is Resource.Success -> _uiState.update { it.copy(isLoading = false, isSuccess = true, currentPlan = result.data) }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
-                }
-            }
+            delay(5000)
+            cargarPlanActual()
         }
     }
 }
@@ -90,5 +91,6 @@ data class PlansUiState(
     val proPrice: String = PlanType.PRICE_PRO.toString(),
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val infoMessage: String? = null
 )

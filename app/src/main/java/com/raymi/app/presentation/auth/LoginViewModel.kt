@@ -88,8 +88,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun register() {
-        // MODO QA: Saltar validación de bots para pruebas automatizadas
-        // if (!validateRegisterFields()) return
+        if (!validateRegisterFields()) return
 
         viewModelScope.launch {
             val email = _uiState.value.email.trim()

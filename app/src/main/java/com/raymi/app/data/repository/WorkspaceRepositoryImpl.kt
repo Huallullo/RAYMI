@@ -107,4 +107,8 @@ class WorkspaceRepositoryImpl @Inject constructor(
     override suspend fun updateStats(workspaceId: String, data: Map<String, Any>) {
         dataSource.updateBusinessDocument("metadata", "stats", data, workspaceId)
     }
+
+    override suspend fun countWorkspacesByOwner(userId: String): Int {
+        return dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId).size
+    }
 }

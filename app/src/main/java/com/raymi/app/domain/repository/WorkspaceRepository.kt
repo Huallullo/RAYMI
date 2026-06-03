@@ -43,4 +43,9 @@ interface WorkspaceRepository {
      * Actualiza metadatos de estadísticas
      */
     suspend fun updateStats(workspaceId: String, data: Map<String, Any>)
+
+    /**
+     * [M-12] Cuenta cuántos negocios posee un usuario.
+     */
+    suspend fun countWorkspacesByOwner(userId: String): Int
 }

@@ -50,7 +50,16 @@ class ItemDataSource @Inject constructor(
         val statsRef = negocioRef.collection("metadata").document("stats")
 
         firestore.runTransaction { transaction ->
-            // 1. LEER datos necesarios (Stats)
+            // 1. LEER datos necesarios
+            val itemSnap = transaction.get(itemRef)
+            if (!itemSnap.exists()) return@runTransaction
+            
+            // ✅ [A-05] Verificación de integridad: No borrar si está alquilado
+            val unidadesAlquiladas = (itemSnap.get("unidadesAlquiladas") as? Number)?.toInt() ?: 0
+            if (unidadesAlquiladas > 0) {
+                throw IllegalStateException("No se puede eliminar: El ítem tiene $unidadesAlquiladas unidades en alquiler activo.")
+            }
+
             val statsSnap = transaction.get(statsRef)
             val currentTotal = (statsSnap.get("totalItems") as? Number)?.toInt() ?: 0
 

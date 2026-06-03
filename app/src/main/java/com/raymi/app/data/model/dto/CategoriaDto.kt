@@ -58,7 +58,6 @@ data class CategoriaDto(
     }
 
     fun toMap(): Map<String, Any?> = mapOf(
-        "id" to id,
         "workspaceId" to workspaceId,
         "negocioId" to workspaceId,
         "nombre" to nombre,

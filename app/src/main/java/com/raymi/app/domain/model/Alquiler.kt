@@ -44,13 +44,18 @@ data class Alquiler(
 ) {
     val totalConPenalidad: Double get() = precioTotal + penalidad
 
-    val saldoPendienteReal: Double get() = (totalConPenalidad - adelanto).coerceAtLeast(0.0)
+    /**
+     * [A-01] Unificación de campos de saldo para evitar inconsistencias.
+     * Preferimos el valor almacenado 'saldo' que se actualiza atómicamente.
+     */
+    val saldoPendienteReal: Double get() = saldo
 
     val diasAlquilados: Int
         get() {
             val fin = fechaDevolucion ?: Timestamp.now()
             val diffMillis = fin.toDate().time - fechaInicio.toDate().time
-            return (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
+            // [B-10] Garantizar valor positivo
+            return (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt().coerceAtLeast(1)
         }
 
     val diasRestantes: Int

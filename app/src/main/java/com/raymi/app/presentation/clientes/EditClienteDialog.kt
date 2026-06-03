@@ -62,11 +62,15 @@ fun EditClienteDialog(
     }
 
     fun startCapture(target: String) {
-        val file = File.createTempFile("edit_client_${target}_", ".jpg", context.cacheDir)
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        tempUri = uri
-        captureTarget = target
-        cameraLauncher.launch(uri)
+        try {
+            val file = File.createTempFile("edit_client_${target}_", ".jpg", context.cacheDir)
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            tempUri = uri
+            captureTarget = target
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            android.util.Log.e("EditCliente", "Error startCapture: ${e.message}")
+        }
     }
 
     // ✅ SEC 4 FIX: Add Camera Permission Check

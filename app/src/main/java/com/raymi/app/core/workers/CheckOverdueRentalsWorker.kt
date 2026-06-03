@@ -13,6 +13,7 @@ import com.raymi.app.domain.usecase.notifications.EnviarMensajeUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.tasks.await
 
 /**
  * Worker que verifica diariamente alquileres vencidos y notifica a los clientes.
@@ -62,20 +63,21 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
     }
 
     /**
-     * Obtiene todos los alquileres activos vencidos de TODOS los negocios en una sola query.
-     * Uso de Collection Group Query: Escala sin importar el número de negocios.
+     * [A-09] Obtiene todos los alquileres vencidos de TODOS los negocios.
+     * Optimización masiva: Filtro por fecha en el servidor (Firestore).
      */
     private suspend fun obtenerAlquileresVencidosSaaS(): List<Alquiler> {
         return try {
-            firebaseDataSource.queryCollectionGroup(
-                collectionId = "alquileres",
-                field = "estado",
-                value = "ACTIVO",
-                limit = 5000
-            ).mapNotNull { (id, data) ->
-                val alquiler = mapToAlquiler(id, data)
-                // Filtramos por fecha en memoria (Firestore no permite rangos en Collection Groups sin indexar cada fecha)
-                if (alquiler != null && alquiler.estaVencido) alquiler else null
+            val now = Timestamp.now()
+            val snapshot = firebaseDataSource.firestore.collectionGroup("alquileres")
+                .whereEqualTo("estado", "ACTIVO")
+                .whereLessThanOrEqualTo("fechaFinPrevista", now)
+                .limit(500) // Límite de seguridad
+                .get()
+                .await()
+                
+            snapshot.documents.mapNotNull { doc ->
+                mapToAlquiler(doc.id, doc.data ?: emptyMap())
             }
         } catch (e: Exception) {
             android.util.Log.e("CheckOverdueWorker", "Error en SaaS Collection Group query: ${e.message}")

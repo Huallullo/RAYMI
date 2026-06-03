@@ -12,6 +12,7 @@ class UpdateAlquilerUseCase @Inject constructor(
     private val alquilerRepository: AlquilerRepository
 ) {
     operator fun invoke(alquiler: Alquiler, diffCantidad: Int = 0): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
         // Validaciones
         if (alquiler.id.isBlank()) {
             emit(Resource.Error("ID de alquiler inválido"))
@@ -25,6 +26,16 @@ class UpdateAlquilerUseCase @Inject constructor(
 
         if (alquiler.adelanto < 0) {
             emit(Resource.Error("El adelanto no puede ser negativo"))
+            return@flow
+        }
+
+        // ✅ [A-11] Nuevas validaciones de integridad
+        if (alquiler.fechaFinPrevista.seconds <= alquiler.fechaInicio.seconds) {
+            emit(Resource.Error("La fecha de fin debe ser posterior a la fecha de inicio"))
+            return@flow
+        }
+        if (alquiler.adelanto > alquiler.precioTotal) {
+            emit(Resource.Error("El adelanto no puede superar el precio total"))
             return@flow
         }
 

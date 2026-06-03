@@ -17,6 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class PlanLimitsUseCase @Inject constructor(
     private val userPlanRepository: UserPlanRepository,
+    private val workspaceRepository: com.raymi.app.domain.repository.WorkspaceRepository,
     private val getWorkspaceStatsUseCase: GetWorkspaceStatsUseCase
 ) {
     private val planCache = SmartCache<UserPlan>()
@@ -44,13 +45,24 @@ class PlanLimitsUseCase @Inject constructor(
 
     suspend fun canAddMoreItems(userId: String, workspaceId: String): Boolean {
         val plan = getPlan(userId) ?: return true
-        if (plan.plan == PlanType.PRO) return true
+        if (plan.plan == com.raymi.app.domain.model.PlanType.PRO) return true
 
         val statsResult = getWorkspaceStatsUseCase(workspaceId).first { it !is Resource.Loading }
         val stats = if (statsResult is Resource.Success) statsResult.data else emptyMap()
         val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
 
         return currentItems < plan.itemsLimit
+    }
+
+    /**
+     * [M-12] Verifica si el usuario puede crear más negocios.
+     */
+    suspend fun canAddMoreWorkspaces(userId: String): Boolean {
+        val plan = getPlan(userId) ?: return true
+        if (plan.plan == com.raymi.app.domain.model.PlanType.PRO) return true
+        
+        val ownedCount = workspaceRepository.countWorkspacesByOwner(userId)
+        return ownedCount < plan.workspacesLimit
     }
 
     fun getCachedPlan(): UserPlan? = planCache.get()

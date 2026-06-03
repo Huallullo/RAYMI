@@ -143,7 +143,7 @@ class AddItemViewModel @Inject constructor(
                     imagenUrl = imageUrl
                 )
 
-                addItemUseCase(nuevoItem).collect { result ->
+                addItemUseCase(nuevoItem, user.uid).collect { result ->
                     when (result) {
                         is Resource.Success -> {
                             analytics.logEvent("item_creado", null)

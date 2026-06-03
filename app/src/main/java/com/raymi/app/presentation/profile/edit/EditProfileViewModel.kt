@@ -52,7 +52,8 @@ class EditProfileViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            authRepository.updateProfile(nombre, null).collect { result ->
+            val telefono = _uiState.value.telefono.ifBlank { null }
+            authRepository.updateProfile(nombre, telefono).collect { result ->
                 when (result) {
                     is Resource.Success -> {
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }

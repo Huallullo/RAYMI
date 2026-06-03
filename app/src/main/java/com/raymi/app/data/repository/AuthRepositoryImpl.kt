@@ -11,6 +11,7 @@ import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -132,10 +133,9 @@ class AuthRepositoryImpl @Inject constructor(
                     emit(Resource.Success(user))
                 } catch (e: Exception) {
                     AppLogger.e("AuthRepository", "Error al crear perfil en registro: ${e.message}")
-                    val detail = if (e.message?.contains("PERMISSION_DENIED") == true) 
-                        "Error de permisos en Firebase. Asegúrate de haber desplegado las reglas de Firestore correctamente." 
-                        else e.localizedMessage
-                    emit(Resource.Error("Registro exitoso en Auth, pero falló la base de datos: $detail"))
+                    // BUG 2 FIX: Cleanup orphan user if database creation fails
+                    authDataSource.getCurrentUser()?.delete()?.await()
+                    emit(Resource.Error("Registro exitoso en Auth, pero falló la base de datos. Por favor intenta de nuevo."))
                 }
             } else {
                 emit(Resource.Error("Error al registrar usuario"))
@@ -215,7 +215,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
             
             // 1. Actualizar perfil en Firebase Auth (DisplayName)
-            com.google.android.gms.tasks.Tasks.await(user.updateProfile(profileUpdates))
+            user.updateProfile(profileUpdates).await()
             
             // 2. Actualizar datos extendidos en Firestore (Nombre y Teléfono)
             val uid = user.uid

@@ -17,6 +17,7 @@ class GenerateComprobanteUseCase @Inject constructor(
         workspace: Workspace
     ): Flow<Resource<GeneratedComprobanteResult>> = flow {
         emit(Resource.Loading())
+        var comprobanteId: String? = null
         try {
             android.util.Log.d("RAYMI_BILLING", "Iniciando generación de comprobante tipo: ${comprobanteInput.tipo}")
             
@@ -35,7 +36,6 @@ class GenerateComprobanteUseCase @Inject constructor(
                 numero = numero,
                 estado = EstadoComprobante.GENERANDO
             )
-            android.util.Log.d("RAYMI_BILLING", "Número obtenido: $numero. Reservando en DB...")
 
             // Guardar registro inicial
             val saveResult = repository.saveComprobante(comprobanteConNumero)
@@ -46,8 +46,7 @@ class GenerateComprobanteUseCase @Inject constructor(
                 emit(Resource.Error("No se pudo reservar el número de comprobante."))
                 return@flow
             }
-            val comprobanteId = saveResult.data!!
-            android.util.Log.d("RAYMI_BILLING", "Comprobante reservado con ID: $comprobanteId")
+            comprobanteId = saveResult.data!!
 
             // 2. Lógica de Emisión Inteligente
             val apiResult = if (comprobanteConNumero.tipo == TipoComprobante.TICKET) {
@@ -92,11 +91,12 @@ class GenerateComprobanteUseCase @Inject constructor(
                 }
         } catch (e: Exception) {
             android.util.Log.e("RAYMI_BILLING", "Fallo técnico: ${e.message}", e)
-            // ✅ Corregido: Asegurar que el estado cambie a ERROR si ocurre una excepción inesperada
-            try {
-                // Si ya teníamos un ID reservado, marcamos error
-                // Nota: comprobanteId puede no estar inicializado si falla antes de guardarResult
-            } catch (_: Exception) {}
+            // ✅ [M-13] Asegurar que el estado cambie a ERROR si ya se reservó el ID
+            comprobanteId?.let { id ->
+                try {
+                    repository.updateEstado(id, EstadoComprobante.ERROR_GENERACION).first { it !is Resource.Loading }
+                } catch (_: Exception) {}
+            }
             emit(Resource.Error("Fallo técnico: ${e.message}"))
         }
     }

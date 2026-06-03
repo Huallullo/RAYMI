@@ -79,7 +79,7 @@ data class ItemDto(
 
     fun toMap(): Map<String, Any?> = mapOf(
         "workspaceId" to workspaceId,
-        "negocioId" to workspaceId, // QA Fix: Consistencia con reglas SaaS
+        "negocioId" to workspaceId,
         "nombre" to nombre,
         "codigo" to codigo,
         "categoriaId" to categoriaId,
@@ -91,10 +91,15 @@ data class ItemDto(
         "atributos" to atributos,
         "imagenUrl" to imagenUrl,
         "imagenesSuplementarias" to imagenesSuplementarias,
-        "searchTerms" to generateSearchTerms(nombre, codigo),
         "createdAt" to createdAt,
         "updatedAt" to updatedAt
     )
+
+    /**
+     * [A-15] Optimización: Solo incluir searchTerms en creación o cambio de nombre/código.
+     */
+    fun toMapForCreate(): Map<String, Any?> = toMap() + mapOf("searchTerms" to generateSearchTerms(nombre, codigo))
+    fun toMapForUpdate(): Map<String, Any?> = toMap()
 
     private fun generateSearchTerms(nombre: String, codigo: String): List<String> {
         val tokens = (nombre.lowercase() + " " + codigo.lowercase()).split(" ").filter { it.isNotBlank() }

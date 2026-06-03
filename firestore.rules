@@ -6,39 +6,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
     function isBusinessOwner(negocioId) {
       return exists(/databases/$(database)/documents/negocios/$(negocioId)) &&
              get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
     }
 
     match /usuarios/{uid} {
-      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      // [C-03] Protection for sensitive plan fields
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['plan', 'itemsLimit', 'clientsLimit', 'workspacesLimit', 'workspacesOwned']);
     }
 
     match /negocios/{negocioId} {
-      // Regla de creación del negocio principal
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-
-      // Regla de lectura/escritura general para el negocio
       allow read, write: if isSignedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
 
-      // Regla para todas las subcolecciones (Metadata, Clientes, Items, etc.)
       match /{allPaths=**} {
-        // Permitimos acceso si ya es dueño (isBusinessOwner)
-        // O si lo será después de este batch (getAfter - vital para creación inicial)
-        allow read, write: if isSignedIn() && (
-          isBusinessOwner(negocioId) ||
-          getAfter(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid
-        );
+        // [C-03] Removed getAfter() to save 1 read per write
+        allow read, write: if isSignedIn() && isBusinessOwner(negocioId);
       }
     }
 
+    // [C-01] Rules for purchase validation flow
     match /pendingPurchases/{purchaseId} {
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow read, update, delete: if false;
     }
 
-    // Bloqueo por defecto
     match /{document=**} {
       allow read, write: if false;
     }

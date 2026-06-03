@@ -11,7 +11,7 @@ import javax.inject.Singleton
 
 @Singleton
 class FirebaseDataSource @Inject constructor(
-    private val firestore: FirebaseFirestore,
+    val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
     private var cachedBusinessId: String? = null

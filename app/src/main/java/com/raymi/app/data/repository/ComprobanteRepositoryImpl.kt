@@ -6,6 +6,7 @@ import com.raymi.app.data.remote.FirebaseDataSource
 import com.raymi.app.domain.model.Comprobante
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.TipoComprobante
+import com.raymi.app.domain.model.EstadoComprobante
 import com.raymi.app.domain.repository.ComprobanteRepository
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
@@ -85,6 +86,25 @@ class ComprobanteRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error("Error al anular comprobante: ${e.message}"))
+        }
+    }
+
+    override suspend fun updateEstado(
+        comprobanteId: String,
+        estado: EstadoComprobante
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val workspaceId = dataSource.getCurrentBusinessId() 
+            dataSource.updateBusinessDocument(
+                collection = "comprobantes",
+                documentId = comprobanteId,
+                data = mapOf("estado" to estado.name, "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()),
+                negocioId = workspaceId
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error("Fallo al actualizar estado del comprobante: ${e.message}"))
         }
     }
 }

@@ -39,11 +39,19 @@ fun AlquileresScreen(
     viewModel: AlquileresViewModel = hiltViewModel(),
     onAlquilerClick: (String) -> Unit,
     onCreateAlquiler: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    navigatedFromResult: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val strings = LocalRaymiStrings.current
     var showFilters by remember { mutableStateOf(false) }
+
+    // ✅ [M-01] Auto-refresh al volver de crear/editar un alquiler
+    LaunchedEffect(navigatedFromResult) {
+        if (navigatedFromResult) {
+            viewModel.refreshAlquileres()
+        }
+    }
 
     Scaffold(
         topBar = {

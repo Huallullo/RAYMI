@@ -22,6 +22,7 @@ import com.raymi.app.core.utils.formatTo
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MantenimientoScreen(
+    @Suppress("UNUSED_PARAMETER") itemId: String,
     viewModel: MantenimientoViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {

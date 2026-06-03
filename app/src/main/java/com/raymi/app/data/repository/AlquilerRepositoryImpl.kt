@@ -234,10 +234,10 @@ class AlquilerRepositoryImpl @Inject constructor(
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val negocioRef = firestore.collection("negocios").document(workspaceId)
+            val negocioRef = firestore.collection(com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS).document(workspaceId)
             val now = Timestamp.now()
 
-            // ✅ BUG 8 FIX: Firestore limit is 500 per batch. Chunking to 400 for safety.
+            // ✅ BUG 8 & [M-07] FIX: Firestore limit is 500 per batch. Chunking to 400 for safety.
             alquilerIds.chunked(400).forEach { chunk ->
                 val batch = firestore.batch()
                 chunk.forEach { id ->

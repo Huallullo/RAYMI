@@ -194,7 +194,6 @@ fun AddClienteDialog(
 
                     IconButton(
                         onClick = { 
-                            android.util.Log.d("AddCliente", "Consultando DNI: $dni")
                             consultarReniec() 
                         },
                         modifier = Modifier.size(56.dp).padding(top = 8.dp),

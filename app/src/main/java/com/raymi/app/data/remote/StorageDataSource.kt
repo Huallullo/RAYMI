@@ -14,13 +14,21 @@ import javax.inject.Singleton
 @Singleton
 class StorageDataSource @Inject constructor(
     private val storage: FirebaseStorage,
-    private val imageOptimizer: ImageOptimizer
+    private val imageOptimizer: ImageOptimizer,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) {
     /**
      * Sube un archivo a una ruta específica.
      * Si es una imagen, la comprime automáticamente antes de subirla.
      */
     suspend fun uploadFile(path: String, uri: Uri): String {
+        // [B-05] Verificar tamaño antes de procesar
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+            if (pfd.statSize > 10 * 1024 * 1024L) { // 10MB límite
+                throw IllegalArgumentException("La imagen es demasiado grande. Máximo 10MB permitido.")
+            }
+        }
+
         val ref = storage.reference.child(path)
         
         // Optimización: Comprimir imagen antes de subir
@@ -50,11 +58,11 @@ class StorageDataSource @Inject constructor(
 
     /**
      * Obtiene el nombre del archivo desde una URL de Storage para poder borrarlo.
+     * [M-09] Uso de API oficial para mayor robustez.
      */
     fun getPathFromUrl(url: String): String? {
         return try {
-            val decodedUrl = java.net.URLDecoder.decode(url, "UTF-8")
-            decodedUrl.substringAfter("/o/").substringBefore("?alt=media")
+            FirebaseStorage.getInstance().getReferenceFromUrl(url).path
         } catch (_: Exception) {
             null
         }

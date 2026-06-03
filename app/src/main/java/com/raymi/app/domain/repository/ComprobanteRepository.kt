@@ -11,4 +11,5 @@ interface ComprobanteRepository {
     suspend fun getComprobantesByAlquiler(workspaceId: String, alquilerId: String): Flow<Resource<List<Comprobante>>>
     suspend fun getComprobanteById(workspaceId: String, id: String): Flow<Resource<Comprobante>>
     suspend fun anularComprobante(workspaceId: String, comprobanteId: String): Flow<Resource<Unit>>
+    suspend fun updateEstado(comprobanteId: String, estado: com.raymi.app.domain.model.EstadoComprobante): Flow<Resource<Unit>>
 }

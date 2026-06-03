@@ -50,7 +50,9 @@ fun RaymiNavGraph(
                 onNavigateToWorkspaceSelection = {
                     navController.navigate(Screen.WorkspaceSelection.route) { popUpTo(Screen.Login.route) { inclusive = true } }
                 },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { 
+                    if (navController.previousBackStackEntry != null) navController.popBackStack() 
+                }
             )
         }
 
@@ -117,13 +119,14 @@ fun RaymiNavGraph(
                 itemId = id,
                 onNavigateBack = { navController.popBackStack() },
                 onEditItem = { itemId -> navController.navigate(Screen.ItemEdit.createRoute(itemId)) },
-                onRentItem = { itemId -> navController.navigate("create_alquiler?itemId=$itemId") },
+                onRentItem = { itemId -> navController.navigate(Screen.AlquilerCreate.createRoute(itemId)) },
                 onNavigateToMaintenance = { itemId -> navController.navigate(Screen.ItemMantenimiento.createRoute(itemId)) }
             )
         }
 
-        composable(route = Screen.ItemMantenimiento.route, arguments = listOf(navArgument("itemId") { type = NavType.StringType })) {
-            MantenimientoScreen(onNavigateBack = { navController.popBackStack() })
+        composable(route = Screen.ItemMantenimiento.route, arguments = listOf(navArgument("itemId") { type = NavType.StringType })) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("itemId") ?: ""
+            MantenimientoScreen(itemId = id, onNavigateBack = { navController.popBackStack() })
         }
 
         composable(route = Screen.ItemEdit.route, arguments = listOf(navArgument("itemId") { type = NavType.StringType })) { backStackEntry ->
@@ -157,15 +160,27 @@ fun RaymiNavGraph(
         }
 
         composable(route = Screen.Alquileres.route) {
+            val refresh = navController.currentBackStackEntry
+                ?.savedStateHandle?.get<Boolean>("refresh") ?: false
             AlquileresScreen(
                 onAlquilerClick = { id -> navController.navigate(Screen.AlquilerDetalle.createRoute(id)) },
-                onCreateAlquiler = { navController.navigate("create_alquiler") },
-                onNavigateBack = { navController.popBackStack() }
+                onCreateAlquiler = { navController.navigate(Screen.AlquilerCreate.createRoute()) },
+                onNavigateBack = { navController.popBackStack() },
+                navigatedFromResult = refresh
             )
         }
 
-        composable(route = "create_alquiler?itemId={itemId}", arguments = listOf(navArgument("itemId") { type = NavType.StringType; nullable = true; defaultValue = null })) {
-            CreateAlquilerScreen(adInterstitialManager = adInterstitialManager, onNavigateBack = { navController.popBackStack() })
+        composable(
+            route = "create_alquiler?itemId={itemId}", 
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) {
+            CreateAlquilerScreen(
+                adInterstitialManager = adInterstitialManager, 
+                onNavigateBack = {
+                    navController.previousBackStackEntry?.savedStateHandle?.set("refresh", true)
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(route = Screen.AlquilerDetalle.route, arguments = listOf(navArgument("alquilerId") { type = NavType.StringType })) { backStackEntry ->
