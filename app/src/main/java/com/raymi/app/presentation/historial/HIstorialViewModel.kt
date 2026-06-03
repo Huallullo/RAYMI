@@ -102,8 +102,8 @@ class HistorialViewModel @Inject constructor(
             it.copy(
                 allAlquileres = todos,
                 filteredAlquileres = filtrados,
-                // ✅ FEATURE 2 FIX: Sumar lo realmente pagado (incluyendo penalidades si adelanto las tiene)
-                totalRecaudado = filtrados.sumOf { a -> a.precioTotal + a.penalidad - a.saldo },
+                // ✅ FEATURE 2 FIX: Sumar lo realmente pagado
+                totalRecaudado = filtrados.sumOf { a -> a.precioTotal - a.saldo },
                 totalTransacciones = filtrados.size,
                 isLoading = false
             )
