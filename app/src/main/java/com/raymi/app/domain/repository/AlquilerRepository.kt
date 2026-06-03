@@ -13,7 +13,7 @@ interface AlquilerRepository {
     /**
      * Obtiene todos los alquileres (Stream real-time)
      */
-    suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>>
+    fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene todos los alquileres una sola vez con soporte de paginación real (Snapshot).
@@ -28,44 +28,44 @@ interface AlquilerRepository {
     /**
      * Obtiene un alquiler por su ID
      */
-    suspend fun getAlquilerById(id: String): Flow<Resource<Alquiler>>
+    fun getAlquilerById(id: String): Flow<Resource<Alquiler>>
 
     /**
      * Obtiene alquileres por estado
      */
-    suspend fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>>
+    fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene alquileres de un cliente específico
      */
-    suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>>
+    fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene alquileres de un ítem específico
      */
-    suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>>
+    fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>>
 
     /**
      * Obtiene alquileres filtrados por rango de fecha de creación (Optimizado para Dashboard)
      */
-    suspend fun getAlquileresByDateRange(workspaceId: String, start: com.google.firebase.Timestamp, end: com.google.firebase.Timestamp): Flow<Resource<List<Alquiler>>>
+    fun getAlquileresByDateRange(workspaceId: String, start: com.google.firebase.Timestamp, end: com.google.firebase.Timestamp): Flow<Resource<List<Alquiler>>>
 
     /**
      * Crea un nuevo alquiler
      */
-    suspend fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>>
+    fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>>
 
     /**
      * Actualiza un alquiler existente
      */
-    suspend fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>>
+    fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>>
 
-    suspend fun updateAlquilerConStock(alquiler: Alquiler, diffCantidad: Int): Flow<Resource<Unit>>
+    fun updateAlquilerConStock(alquiler: Alquiler, diffCantidad: Int): Flow<Resource<Unit>>
 
     /**
      * Registra la devolución de un alquiler con penalidades opcionales
      */
-    suspend fun registrarDevolucion(
+    fun registrarDevolucion(
         alquilerId: String,
         penalidad: Double = 0.0,
         observaciones: String = "",
@@ -76,18 +76,18 @@ interface AlquilerRepository {
     /**
      * Cancela un alquiler y libera el stock
      */
-    suspend fun cancelarAlquiler(alquilerId: String, motivo: String): Flow<Resource<Unit>>
+    fun cancelarAlquiler(alquilerId: String, motivo: String): Flow<Resource<Unit>>
 
     /**
      * Actualiza el estado de un alquiler
      */
-    suspend fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>>
+    fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>>
 
     /**
      * Obtiene alquileres filtrados por estados directamente en Firestore.
      * OPTIMIZACIÓN: Evita descargar alquileres no deseados.
      */
-    suspend fun getAlquileresByEstados(
+    fun getAlquileresByEstados(
         workspaceId: String,
         estados: List<EstadoAlquiler>,
         limit: Long = 50
@@ -97,7 +97,7 @@ interface AlquilerRepository {
      * Actualiza múltiples alquileres en una sola operación atómica.
      * OPTIMIZACIÓN: Ahorra ráfagas de escrituras y lecturas de seguridad.
      */
-    suspend fun updateAlquileresEstadoBatch(
+    fun updateAlquileresEstadoBatch(
         workspaceId: String,
         alquilerIds: List<String>,
         nuevoEstado: EstadoAlquiler
@@ -116,17 +116,17 @@ interface AlquilerRepository {
     /**
      * Elimina un alquiler
      */
-    suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
+    fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>>
 
     /**
      * Registra un nuevo pago para un alquiler
      */
-    suspend fun addPago(workspaceId: String, alquilerId: String, pago: com.raymi.app.domain.model.Pago): Flow<Resource<Unit>>
+    fun addPago(workspaceId: String, alquilerId: String, pago: com.raymi.app.domain.model.Pago): Flow<Resource<Unit>>
 
     /**
      * Obtiene el historial de pagos de un alquiler
      */
-    suspend fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<com.raymi.app.domain.model.Pago>>>
+    fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<com.raymi.app.domain.model.Pago>>>
 
     /**
      * Obtiene todos los pagos de una lista de alquileres

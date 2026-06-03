@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raymi.app.domain.model.Workspace
 import androidx.compose.ui.res.painterResource
 import com.raymi.app.R
@@ -36,7 +37,7 @@ fun WorkspaceSelectionScreen(
     onLogout: () -> Unit,
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val strings = LocalRaymiStrings.current
 
     // OPTIMIZACIÓN: Se quitó el double fetch de loadWorkspaces() que ya se ejecuta en el init del ViewModel

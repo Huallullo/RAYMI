@@ -19,7 +19,7 @@ class AddClienteUseCase @Inject constructor(
      * @param cliente Cliente a agregar
      * @return Flow con el resultado de la operación
      */
-    suspend operator fun invoke(cliente: Cliente): Flow<Resource<String>> = flow {
+    operator fun invoke(cliente: Cliente): Flow<Resource<String>> = flow {
         // Validar datos del cliente
         if (cliente.dni.length != 8) {
             emit(Resource.Error("El DNI debe tener 8 dígitos"))

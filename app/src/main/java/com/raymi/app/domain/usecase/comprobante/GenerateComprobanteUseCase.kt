@@ -2,14 +2,18 @@ package com.raymi.app.domain.usecase.comprobante
 
 import com.raymi.app.domain.model.*
 import com.raymi.app.domain.repository.ComprobanteRepository
-import com.raymi.app.data.remote.FallbackInvoiceService
+import com.raymi.app.domain.port.InvoiceGeneratorPort
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 import androidx.core.net.toUri
 
+/**
+ * Caso de uso para generar comprobantes electrónicos.
+ * [B-08] Desacoplado mediante puertos.
+ */
 class GenerateComprobanteUseCase @Inject constructor(
     private val repository: ComprobanteRepository,
-    private val billingService: FallbackInvoiceService
+    private val billingService: InvoiceGeneratorPort
 ) {
     operator fun invoke(
         comprobanteInput: Comprobante,

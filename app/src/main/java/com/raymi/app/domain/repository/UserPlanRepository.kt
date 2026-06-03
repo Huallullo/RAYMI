@@ -20,20 +20,5 @@ interface UserPlanRepository {
      * Obtiene detalles del plan para UI
      */
     suspend fun getPlanDetails(planType: PlanType): Resource<Map<String, Any>>
-    
-    /**
-     * Verifica si usuario puede crear más workspaces
-     */
-    suspend fun canCreateWorkspace(userId: String): Boolean
-    
-    /**
-     * Verifica si usuario puede agregar más items
-     */
-    suspend fun canAddMoreItems(userId: String, workspaceId: String): Boolean
-
-    /**
-     * Verifica si usuario puede agregar más clientes
-     */
-    suspend fun canAddMoreClients(userId: String, workspaceId: String): Boolean
 }
 

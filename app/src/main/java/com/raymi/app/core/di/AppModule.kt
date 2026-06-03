@@ -115,6 +115,18 @@ abstract class AppModule {
         mantenimientoRepositoryImpl: MantenimientoRepositoryImpl
     ): MantenimientoRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindPdfGeneratorPort(
+        pdfService: com.raymi.app.data.remote.PdfService
+    ): com.raymi.app.domain.port.PdfGeneratorPort
+
+    @Binds
+    @Singleton
+    abstract fun bindInvoiceGeneratorPort(
+        fallbackInvoiceService: com.raymi.app.data.remote.FallbackInvoiceService
+    ): com.raymi.app.domain.port.InvoiceGeneratorPort
+
     companion object {
         @Provides
         @Singleton

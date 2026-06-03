@@ -18,7 +18,7 @@ import javax.inject.Inject
 class WorkspaceSelectionViewModel @Inject constructor(
     private val getWorkspacesUseCase: GetWorkspacesUseCase,
     private val authRepository: AuthRepository,
-    private val userPlanRepository: com.raymi.app.domain.repository.UserPlanRepository,
+    private val planLimitsUseCase: com.raymi.app.domain.usecase.auth.PlanLimitsUseCase, // ✅ [M-12] Usar UseCase centralizado
     private val workspaceManager: WorkspaceManager
 ) : ViewModel() {
 
@@ -32,7 +32,7 @@ class WorkspaceSelectionViewModel @Inject constructor(
     fun onCreateNewWorkspace(onCanCreate: () -> Unit) {
         viewModelScope.launch {
             val user = authRepository.getCurrentUser() ?: return@launch
-            val canCreate = userPlanRepository.canCreateWorkspace(user.uid)
+            val canCreate = planLimitsUseCase.canAddMoreWorkspaces(user.uid)
             if (canCreate) {
                 onCanCreate()
             } else {

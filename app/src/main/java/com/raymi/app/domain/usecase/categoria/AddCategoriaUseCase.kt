@@ -9,7 +9,7 @@ import javax.inject.Inject
 class AddCategoriaUseCase @Inject constructor(
     private val repository: CategoriaRepository
 ) {
-    suspend operator fun invoke(categoria: Categoria): Flow<Resource<String>> {
+    operator fun invoke(categoria: Categoria): Flow<Resource<String>> {
         return repository.addCategoria(categoria)
     }
 }

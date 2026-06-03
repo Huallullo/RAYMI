@@ -11,7 +11,7 @@ import javax.inject.Inject
 class UpdateClienteUseCase @Inject constructor(
     private val clienteRepository: ClienteRepository
 ) {
-    suspend operator fun invoke(cliente: Cliente): Flow<Resource<Unit>> = flow {
+    operator fun invoke(cliente: Cliente): Flow<Resource<Unit>> = flow {
         // Validaciones
         if (cliente.id.isBlank()) {
             emit(Resource.Error("ID de cliente inválido"))

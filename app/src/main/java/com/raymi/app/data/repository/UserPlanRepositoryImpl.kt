@@ -1,10 +1,8 @@
 package com.raymi.app.data.repository
 
-import com.raymi.app.core.utils.Constants.COLLECTION_NEGOCIOS
 import com.raymi.app.core.utils.Constants.COLLECTION_USUARIOS
 import com.raymi.app.data.model.dto.UserPlanDto
 import com.raymi.app.data.remote.FirebaseDataSource
-import com.raymi.app.data.remote.StatsDataSource
 import com.raymi.app.domain.model.PlanType
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.model.UserPlan
@@ -17,8 +15,7 @@ import javax.inject.Singleton
 
 @Singleton
 class UserPlanRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseDataSource,
-    private val statsDataSource: StatsDataSource
+    private val dataSource: FirebaseDataSource
 ) : UserPlanRepository {
 
     override suspend fun getUserPlan(userId: String): Flow<Resource<UserPlan>> = flow {
@@ -76,61 +73,6 @@ class UserPlanRepositoryImpl @Inject constructor(
                 "items" to "Ilimitados",
                 "workspaces" to "Ilimitados"
             ))
-        }
-    }
-
-    override suspend fun canCreateWorkspace(userId: String): Boolean {
-        return try {
-            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
-            if (planResult is Resource.Success) {
-                val plan = planResult.data ?: return false
-                if (plan.plan == PlanType.PRO) return true
-                
-                val ownedWorkspaces = dataSource.queryDocuments(COLLECTION_NEGOCIOS, "ownerUid", userId)
-                ownedWorkspaces.size < plan.workspacesLimit
-            } else true
-        } catch (_: Exception) {
-            true
-        }
-    }
-
-    override suspend fun canAddMoreItems(userId: String, workspaceId: String): Boolean {
-        return try {
-            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
-            if (planResult is Resource.Success) {
-                val plan = planResult.data ?: return false
-                if (plan.plan == PlanType.PRO) return true
-                
-                val stats = statsDataSource.getStats(workspaceId)
-                val currentItems = (stats?.get("totalItems") as? Number)?.toInt() ?: 0
-                currentItems < plan.itemsLimit
-            } else true
-        } catch (_: Exception) {
-            true
-        }
-    }
-
-    override suspend fun canAddMoreClients(userId: String, workspaceId: String): Boolean {
-        return try {
-            val planResult = getUserPlan(userId).first { it !is Resource.Loading }
-            val plan = if (planResult is Resource.Success) planResult.data else null
-            
-            val stats = statsDataSource.getStats(workspaceId)
-            val currentClients = (stats?.get("totalClientes") as? Number)?.toInt() ?: 0
-            
-            // SI TIENE 0 CLIENTES, PERMITIR SIEMPRE (Unblock inmediato)
-            if (currentClients <= 0) return true
-            
-            if (plan == null || plan.plan == PlanType.PRO) return true
-
-            val limit = if (plan.clientsLimit > 0) plan.clientsLimit else 40
-            
-            android.util.Log.d("UserPlanRepo", "Validación: $currentClients / $limit")
-            
-            currentClients < limit
-        } catch (e: Exception) {
-            android.util.Log.e("UserPlanRepo", "Error en canAddMoreClients: ${e.message}")
-            true // En caso de duda, dejar trabajar al usuario
         }
     }
 }

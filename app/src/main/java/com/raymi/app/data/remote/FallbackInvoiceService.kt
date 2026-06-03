@@ -14,8 +14,8 @@ class FallbackInvoiceService @Inject constructor(
     private val apiperuProvider: ApiperuInvoiceProvider,
     private val miapiProvider: MiapiInvoiceProvider,
     private val localProvider: LocalPdfInvoiceProvider
-) {
-    suspend fun emitirConFallback(
+) : com.raymi.app.domain.port.InvoiceGeneratorPort {
+    override suspend fun emitirConFallback(
         comprobante: Comprobante,
         alquiler: Alquiler,
         workspace: Workspace
@@ -38,7 +38,7 @@ class FallbackInvoiceService @Inject constructor(
         return Resource.Error("❌ Error crítico: Fallaron todos los sistemas de facturación. Último error: $lastError")
     }
 
-    suspend fun emitirSoloLocal(
+    override suspend fun emitirSoloLocal(
         comprobante: Comprobante,
         alquiler: Alquiler,
         workspace: Workspace

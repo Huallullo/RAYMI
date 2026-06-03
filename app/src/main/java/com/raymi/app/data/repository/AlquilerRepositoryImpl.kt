@@ -29,7 +29,7 @@ class AlquilerRepositoryImpl @Inject constructor(
 
     private fun getCacheFor(workspaceId: String) = cacheMap.getOrPut(workspaceId) { SmartCache() }
 
-    override suspend fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
+    override fun getAlquileres(workspaceId: String): Flow<Resource<List<Alquiler>>> {
         return flow {
             emit(Resource.Loading())
             emit(getAlquileresOnce(workspaceId))
@@ -63,7 +63,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getAlquilerById(id: String): Flow<Resource<Alquiler>> = flow {
+    override fun getAlquilerById(id: String): Flow<Resource<Alquiler>> = flow {
         emit(Resource.Loading())
         val result = try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("Negocio no seleccionado")
@@ -80,7 +80,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
+    override fun getAlquileresByEstado(workspaceId: String, estado: EstadoAlquiler): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         val result = try {
             val documents = dataSource.queryBusinessDocuments("alquileres", "estado", estado.name, limit = 50, negocioId = workspaceId)
@@ -93,7 +93,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getAlquileresByDateRange(
+    override fun getAlquileresByDateRange(
         workspaceId: String,
         start: Timestamp,
         end: Timestamp
@@ -111,7 +111,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>> = flow {
+    override fun createAlquiler(alquiler: Alquiler): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         val result = try {
             val dto = AlquilerDto.fromDomain(alquiler)
@@ -126,7 +126,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
+    override fun updateAlquiler(alquiler: Alquiler): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
@@ -140,7 +140,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun updateAlquilerConStock(alquiler: Alquiler, diffCantidad: Int): Flow<Resource<Unit>> = flow {
+    override fun updateAlquilerConStock(alquiler: Alquiler, diffCantidad: Int): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val dataMap = AlquilerDto.fromDomain(alquiler.copy(updatedAt = Timestamp.now())).toMap().filterValues { it != null }.mapValues { it.value!! }
@@ -154,7 +154,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun registrarDevolucion(
+    override fun registrarDevolucion(
         alquilerId: String,
         penalidad: Double,
         observaciones: String,
@@ -174,7 +174,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun cancelarAlquiler(alquilerId: String, motivo: String): Flow<Resource<Unit>> = flow {
+    override fun cancelarAlquiler(alquilerId: String, motivo: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
@@ -188,7 +188,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>> = flow {
+    override fun updateEstadoAlquiler(alquilerId: String, estado: EstadoAlquiler): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
@@ -202,7 +202,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getAlquileresByEstados(
+    override fun getAlquileresByEstados(
         workspaceId: String,
         estados: List<EstadoAlquiler>,
         limit: Long
@@ -227,7 +227,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateAlquileresEstadoBatch(
+    override fun updateAlquileresEstadoBatch(
         workspaceId: String,
         alquilerIds: List<String>,
         nuevoEstado: EstadoAlquiler
@@ -278,7 +278,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>> = flow {
+    override fun deleteAlquiler(alquilerId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val workspaceId = workspaceManager.getWorkspaceId() ?: throw IllegalStateException("No seleccionado")
@@ -292,7 +292,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun addPago(workspaceId: String, alquilerId: String, pago: Pago): Flow<Resource<Unit>> = flow {
+    override fun addPago(workspaceId: String, alquilerId: String, pago: Pago): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         val result = try {
             val data = mapOf("alquilerId" to alquilerId, "monto" to pago.monto, "metodoPago" to pago.metodoPago.name, "referencia" to pago.referencia, "fecha" to pago.fecha)
@@ -306,7 +306,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<Pago>>> = flow {
+    override fun getPagos(workspaceId: String, alquilerId: String): Flow<Resource<List<Pago>>> = flow {
         emit(Resource.Loading())
         val result = try {
             val docs = rentalDataSource.getPagos(workspaceId, alquilerId)
@@ -328,7 +328,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
+    override fun getAlquileresByCliente(workspaceId: String, clienteId: String): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         val result = try {
             val documents = dataSource.queryBusinessDocuments("alquileres", "clienteId", clienteId, limit = 50, negocioId = workspaceId)
@@ -341,7 +341,7 @@ class AlquilerRepositoryImpl @Inject constructor(
         emit(result)
     }
 
-    override suspend fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>> = flow {
+    override fun getAlquileresByItem(workspaceId: String, itemId: String): Flow<Resource<List<Alquiler>>> = flow {
         emit(Resource.Loading())
         val result = try {
             val documents = dataSource.queryBusinessDocuments("alquileres", "itemId", itemId, limit = 50, negocioId = workspaceId)

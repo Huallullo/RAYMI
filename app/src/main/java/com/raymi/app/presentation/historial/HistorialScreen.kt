@@ -106,6 +106,16 @@ fun HistorialScreen(
                             items(uiState.filteredAlquileres, key = { it.id }) { movimiento ->
                                 TransactionItem(movimiento)
                             }
+
+                            if (uiState.hasMore) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                        TextButton(onClick = { viewModel.cargarMas() }) {
+                                            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cargar más registros" else "Show more records", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

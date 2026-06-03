@@ -36,7 +36,7 @@ import javax.inject.Singleton
 @Singleton
 class PdfService @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : com.raymi.app.domain.port.PdfGeneratorPort {
     private val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
     private val primaryColor = DeviceRgb(98, 0, 238) // Morado RAYMI
     private val lightGray = DeviceRgb(245, 245, 245)
@@ -63,7 +63,7 @@ class PdfService @Inject constructor(
         return Image(imageData)
     }
 
-    suspend fun generarComprobanteAlquiler(alquiler: Alquiler, workspace: Workspace?, pagos: List<Pago> = emptyList()): Resource<Uri> =
+    override suspend fun generarComprobanteAlquiler(alquiler: Alquiler, workspace: Workspace?, pagos: List<Pago>): Resource<Uri> =
         withContext(Dispatchers.IO) {
             try {
                 val pdfUri = crearArchivo("Recibo_${alquiler.itemCodigo}")
