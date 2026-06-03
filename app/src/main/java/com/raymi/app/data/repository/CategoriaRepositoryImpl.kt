@@ -107,4 +107,8 @@ class CategoriaRepositoryImpl @Inject constructor(
             emit(Resource.Error("Error al eliminar: ${e.message}"))
         }
     }
+
+    override suspend fun invalidarCache(workspaceId: String) {
+        getCacheFor(workspaceId).invalidate()
+    }
 }

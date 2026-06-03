@@ -12,4 +12,8 @@ class GetCategoriasUseCase @Inject constructor(
     suspend operator fun invoke(workspaceId: String): Flow<Resource<List<Categoria>>> {
         return repository.getCategorias(workspaceId)
     }
+
+    suspend fun invalidarCache(workspaceId: String) {
+        repository.invalidarCache(workspaceId)
+    }
 }

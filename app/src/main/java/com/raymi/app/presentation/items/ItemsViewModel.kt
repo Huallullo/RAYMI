@@ -68,7 +68,12 @@ class ItemsViewModel @Inject constructor(
     fun refreshItems() {
         lastSnapshot = null
         _allItems.value = emptyList()
-        loadMore()
+        _allCategorias.value = emptyList()
+        _uiState.update { it.copy(isLoading = false) } // Evitar race condition
+        viewModelScope.launch {
+            workspaceManager.getWorkspaceId()?.let { getCategoriasUseCase.invalidarCache(it) }
+            loadMore()
+        }
     }
 
     fun loadMore() {
@@ -82,15 +87,18 @@ class ItemsViewModel @Inject constructor(
                 // 1. Cargar Categorías (Solo si están vacías)
                 if (_allCategorias.value.isEmpty()) {
                     launch {
-                        getCategoriasUseCase(workspaceId)
-                            .filter { it !is Resource.Loading }
-                            .take(1)
-                            .collect { res ->
-                                if (res is Resource.Success) {
-                                    val cats = res.data ?: emptyList()
-                                    _allCategorias.value = cats
+                        try {
+                            getCategoriasUseCase(workspaceId)
+                                .filter { it !is Resource.Loading }
+                                .take(1)
+                                .collect { res ->
+                                    if (res is Resource.Success) {
+                                        _allCategorias.value = res.data ?: emptyList()
+                                    }
                                 }
-                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ItemsViewModel", "Error cargando categorías: ${e.message}")
+                        }
                     }
                 }
 

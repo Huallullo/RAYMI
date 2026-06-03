@@ -48,12 +48,20 @@ fun ItemsScreen(
     onItemClick: (String) -> Unit,
     onAddItem: () -> Unit,
     onNavigateToCategorias: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    navigatedFromResult: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val strings = LocalRaymiStrings.current
     var showCategoryWarning by remember { mutableStateOf(false) }
+
+    // Auto-refresh al volver de crear/editar un ítem
+    LaunchedEffect(navigatedFromResult) {
+        if (navigatedFromResult) {
+            viewModel.refreshItems()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

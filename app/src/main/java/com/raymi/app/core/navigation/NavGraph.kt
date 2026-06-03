@@ -100,11 +100,14 @@ fun RaymiNavGraph(
         }
 
         composable(route = Screen.Items.route) {
+            val refresh = navController.currentBackStackEntry
+                ?.savedStateHandle?.get<Boolean>("refresh") ?: false
             ItemsScreen(
                 onItemClick = { id -> navController.navigate(Screen.ItemDetalle.createRoute(id)) },
                 onAddItem = { navController.navigate(Screen.ItemCreate.route) },
                 onNavigateToCategorias = { navController.navigate(Screen.Categorias.route) },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                navigatedFromResult = refresh
             )
         }
 
@@ -125,15 +128,32 @@ fun RaymiNavGraph(
 
         composable(route = Screen.ItemEdit.route, arguments = listOf(navArgument("itemId") { type = NavType.StringType })) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("itemId") ?: ""
-            EditItemScreen(itemId = id, onNavigateBack = { navController.popBackStack() })
+            EditItemScreen(
+                itemId = id,
+                onNavigateBack = {
+                    navController.previousBackStackEntry?.savedStateHandle?.set("refresh", true)
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(route = Screen.ItemCreate.route) {
-            AddItemScreen(onNavigateBack = { navController.popBackStack() }, onNavigateToPlans = { navController.navigate(Screen.Plans.route) })
+            AddItemScreen(
+                onNavigateBack = {
+                    navController.previousBackStackEntry?.savedStateHandle?.set("refresh", true)
+                    navController.popBackStack()
+                },
+                onNavigateToPlans = { navController.navigate(Screen.Plans.route) }
+            )
         }
 
         composable(route = Screen.Categorias.route) {
-            CategoriasScreen(onNavigateBack = { navController.popBackStack() })
+            CategoriasScreen(
+                onNavigateBack = {
+                    navController.previousBackStackEntry?.savedStateHandle?.set("refresh", true)
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(route = Screen.Alquileres.route) {

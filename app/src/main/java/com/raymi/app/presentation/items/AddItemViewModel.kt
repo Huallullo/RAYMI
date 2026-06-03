@@ -46,6 +46,8 @@ class AddItemViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+                // SIEMPRE invalidar caché al abrir AddItemScreen para ver categorías recientes
+                getCategoriasUseCase.invalidarCache(workspaceId)
                 getCategoriasUseCase(workspaceId).collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }

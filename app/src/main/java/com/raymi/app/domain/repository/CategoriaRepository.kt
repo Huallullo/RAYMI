@@ -28,4 +28,9 @@ interface CategoriaRepository {
      * Elimina una categoría.
      */
     suspend fun deleteCategoria(workspaceId: String, categoriaId: String): Flow<Resource<Unit>>
+
+    /**
+     * Invalida el caché de categorías para forzar una recarga desde Firestore.
+     */
+    suspend fun invalidarCache(workspaceId: String)
 }
