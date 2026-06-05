@@ -45,6 +45,12 @@ interface AuthRepository {
     suspend fun logout(): Flow<Resource<Unit>>
 
     /**
+     * Verifica si un correo electrónico existe en el sistema.
+     * [B-10] Validación previa a recuperación de contraseña.
+     */
+    suspend fun checkEmailExists(email: String): Boolean
+
+    /**
      * Actualiza el perfil del usuario (nombre y opcionalmente teléfono)
      */
     suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>>

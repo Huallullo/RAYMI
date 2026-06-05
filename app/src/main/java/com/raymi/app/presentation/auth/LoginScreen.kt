@@ -300,7 +300,7 @@ fun LoginScreen(
 
                 if (!uiState.isRegisterMode) {
                     TextButton(
-                        onClick = viewModel::resetPassword,
+                        onClick = { viewModel.showForgotPassword(true) },
                         modifier = Modifier.alpha(0.7f)
                     ) {
                         Text(strings.forgotPassword, style = MaterialTheme.typography.labelMedium)
@@ -330,6 +330,49 @@ fun LoginScreen(
                 }
             }
         }
+    }
+
+    // Modal para Recuperar Contraseña
+    if (uiState.showForgotPasswordDialog) {
+        var emailReset by remember { mutableStateOf(uiState.email) }
+        
+        AlertDialog(
+            onDismissRequest = { viewModel.showForgotPassword(false) },
+            title = { Text(if (isEnglish) "Recover Password" else "Recuperar Contraseña", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        if (isEnglish) "Enter your email to receive a recovery link:" 
+                        else "Ingresa tu correo para recibir un enlace de recuperación:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = emailReset,
+                        onValueChange = { emailReset = it },
+                        label = { Text("Email") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.resetPassword(emailReset) },
+                    enabled = emailReset.isNotBlank() && !uiState.isLoading
+                ) {
+                    Text(if (isEnglish) "SEND" else "ENVIAR")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.showForgotPassword(false) }) {
+                    Text(if (isEnglish) "CANCEL" else "CANCELAR")
+                }
+            },
+            shape = MaterialTheme.shapes.extraLarge
+        )
     }
 
     // Modal del Desafío Matemático (Estilo reCAPTCHA Image Challenge)

@@ -33,14 +33,6 @@
       ]
     },
     {
-      "collectionGroup": "alquileres",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "fechaFinPrevista", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
       "fields": [
@@ -49,5 +41,20 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "alquileres",
+      "fieldPath": "fechaFinPrevista",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pagos",
+      "fieldPath": "workspaceId",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    }
+  ]
 }

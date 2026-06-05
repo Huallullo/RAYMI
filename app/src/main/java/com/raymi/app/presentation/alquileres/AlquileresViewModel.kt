@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,11 +35,31 @@ class AlquileresViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AlquileresUiState())
     val uiState: StateFlow<AlquileresUiState> = _uiState.asStateFlow()
 
+    private val _allAlquileres = MutableStateFlow<List<Alquiler>>(emptyList())
+    private val _searchQuery = MutableStateFlow("")
+    private val _selectedEstado = MutableStateFlow<EstadoAlquiler?>(null)
+
     fun debeMostrarAnuncios(): Boolean = adManager.debeMostrarAnuncios(_uiState.value.userPlan)
 
     init {
-        refreshAlquileres()
         observeUserSession()
+        
+        // ✅ BUSCADOR REACTIVO: Sincronizado con Alquileres, Query y Estado
+        combine(_allAlquileres, _searchQuery, _selectedEstado) { lista, query, estado ->
+            Triple(lista, query, estado)
+        }.onEach { (lista, query, estado) ->
+            val filtrados = filterAlquileres(lista, query, estado)
+            _uiState.update { state ->
+                state.copy(
+                    alquileres = lista,
+                    filteredAlquileres = filtrados,
+                    searchQuery = query,
+                    selectedEstado = estado
+                )
+            }
+        }.launchIn(viewModelScope)
+
+        refreshAlquileres()
     }
 
     private fun observeUserSession() {
@@ -51,14 +72,14 @@ class AlquileresViewModel @Inject constructor(
      * Reinicia y carga la primera página de alquileres.
      */
     fun refreshAlquileres() {
-        lastSnapshot = null
-        _uiState.update { it.copy(alquileres = emptyList(), filteredAlquileres = emptyList()) }
-        loadMore()
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            lastSnapshot = null
+            loadMore()
+        }
     }
 
     fun loadMore() {
-        if (_uiState.value.isLoading) return
-
         viewModelScope.launch {
             try {
                 val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
@@ -68,24 +89,21 @@ class AlquileresViewModel @Inject constructor(
                 when (result) {
                     is Resource.Success -> {
                         val newData = result.data ?: emptyList()
-                        val currentList = if (lastSnapshot == null) newData else _uiState.value.alquileres + newData
+                        val updatedList = if (lastSnapshot == null) newData else _allAlquileres.value + newData
                         lastSnapshot = result.cursor
                         
-                        _uiState.update { 
-                            it.copy(
-                                alquileres = currentList,
-                                filteredAlquileres = filterAlquileres(currentList, it.searchQuery, it.selectedEstado),
-                                hasMore = newData.size >= PAGE_SIZE,
-                                isLoading = false 
-                            )
-                        }
+                        _allAlquileres.value = updatedList
+                        _uiState.update { it.copy(hasMore = newData.size >= PAGE_SIZE) }
                         verificarVencidos(newData)
                     }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    is Resource.Error -> _uiState.update { it.copy(error = result.message) }
                     else -> {}
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar datos") }
+                _uiState.update { it.copy(error = "Error al cargar datos") }
+            } finally {
+                delay(500)
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -98,38 +116,23 @@ class AlquileresViewModel @Inject constructor(
 
         viewModelScope.launch {
             val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-            // ✅ OPTIMIZACIÓN: Actualizar todos en un solo batch atómico
             alquilerRepository.updateAlquileresEstadoBatch(workspaceId, vencidosIds, EstadoAlquiler.VENCIDO).collect()
             
-            // Actualizar estado localmente para reflejar el cambio sin recargar todo
-            _uiState.update { state ->
-                val updatedList = state.alquileres.map { alq ->
-                    if (vencidosIds.contains(alq.id)) alq.copy(estado = EstadoAlquiler.VENCIDO) else alq
-                }
-                state.copy(
-                    alquileres = updatedList,
-                    filteredAlquileres = filterAlquileres(updatedList, state.searchQuery, state.selectedEstado)
-                )
+            // Actualizar estado localmente
+            val updatedList = _allAlquileres.value.map { alq ->
+                if (vencidosIds.contains(alq.id)) alq.copy(estado = EstadoAlquiler.VENCIDO) else alq
             }
+            _allAlquileres.value = updatedList
         }
     }
 
     fun searchAlquileres(query: String) {
-        _uiState.update { 
-            it.copy(
-                searchQuery = query,
-                filteredAlquileres = filterAlquileres(it.alquileres, query, it.selectedEstado)
-            )
-        }
+        _searchQuery.value = query
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun filterByEstado(estado: EstadoAlquiler?) {
-        _uiState.update { 
-            it.copy(
-                selectedEstado = estado,
-                filteredAlquileres = filterAlquileres(it.alquileres, it.searchQuery, estado)
-            )
-        }
+        _selectedEstado.value = estado
     }
 
     private fun filterAlquileres(

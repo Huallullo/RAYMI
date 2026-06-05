@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 /**
@@ -41,7 +42,7 @@ class ClientesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
 
-    private var allClientes = emptyList<Cliente>()
+    private val _allClientes = MutableStateFlow<List<Cliente>>(emptyList()) // ✅ Ahora es observable
     private val _searchQuery = MutableStateFlow("")
     private val _orden = MutableStateFlow(OrdenCliente.RECIBIENTES)
     private var lastSnapshot: Any? = null
@@ -52,24 +53,22 @@ class ClientesViewModel @Inject constructor(
     init {
         observeUserSession()
         
-        // OPTIMIZACIÓN: Debounce en búsqueda para evitar recomposiciones innecesarias
-        _searchQuery
-            .debounce(300)
-            .distinctUntilChanged()
-            .combine(_orden) { query, orden -> query to orden }
-            .onEach { (query, orden) ->
-                // NOTA: Si el usuario busca, invalidamos la paginación para búsqueda global o manejamos local
-                val filtrados = aplicarLogicaFiltro(allClientes, query, orden)
-                _uiState.update { state ->
-                    state.copy(
-                        searchQuery = query,
-                        orden = orden,
-                        filteredClientes = filtrados,
-                        visibleClientes = filtrados.take(state.visibleLimit),
-                        hasMoreClientes = filtrados.size > state.visibleLimit
-                    )
-                }
-            }.launchIn(viewModelScope)
+        // ✅ BUSCADOR CORREGIDO: Escucha cambios en la lista, el query y el orden
+        combine(_allClientes, _searchQuery, _orden) { lista, query, orden ->
+            Triple(lista, query, orden)
+        }.onEach { (lista, query, orden) ->
+            val filtrados = aplicarLogicaFiltro(lista, query, orden)
+            _uiState.update { state ->
+                state.copy(
+                    searchQuery = query,
+                    orden = orden,
+                    clientes = lista,
+                    filteredClientes = filtrados,
+                    visibleClientes = filtrados,
+                    hasMoreClientes = state.hasMoreClientes
+                )
+            }
+        }.launchIn(viewModelScope)
 
         refreshClientes()
     }
@@ -81,42 +80,44 @@ class ClientesViewModel @Inject constructor(
     }
 
     fun refreshClientes() {
-        lastSnapshot = null
-        allClientes = emptyList()
-        loadMore()
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            lastSnapshot = null
+            // No limpiamos _allClientes inmediatamente para evitar parpadeo blanco
+            loadMore()
+        }
     }
 
     fun loadMore() {
-        if (_uiState.value.isLoading) return
-        
         viewModelScope.launch {
-            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-            _uiState.update { it.copy(isLoading = true) }
-            
-            val result = getClientesOnceUseCase(workspaceId, limit = PAGE_SIZE, lastSnapshot = lastSnapshot)
-            if (result is Resource.Success) {
-                val newItems = result.data ?: emptyList()
-                allClientes = if (lastSnapshot == null) newItems else allClientes + newItems
-                lastSnapshot = result.cursor
+            try {
+                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+                _uiState.update { it.copy(isLoading = true) }
                 
-                _uiState.update { state ->
-                    val filtrados = aplicarLogicaFiltro(allClientes, state.searchQuery, state.orden)
-                    state.copy(
-                        clientes = allClientes,
-                        filteredClientes = filtrados,
-                        visibleClientes = filtrados,
-                        hasMoreClientes = newItems.size >= PAGE_SIZE,
-                        isLoading = false
-                    )
+                val result = getClientesOnceUseCase(workspaceId, limit = PAGE_SIZE, lastSnapshot = lastSnapshot)
+                if (result is Resource.Success) {
+                    val newItems = result.data ?: emptyList()
+                    val updatedList = if (lastSnapshot == null) newItems else _allClientes.value + newItems
+                    lastSnapshot = result.cursor
+                    
+                    _allClientes.value = updatedList
+                    _uiState.update { it.copy(hasMoreClientes = newItems.size >= PAGE_SIZE) }
+                } else if (result is Resource.Error) {
+                    _uiState.update { it.copy(error = result.message) }
                 }
-            } else {
-                _uiState.update { it.copy(isLoading = false, error = result.message) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Fallo al cargar clientes: ${e.localizedMessage}") }
+            } finally {
+                // ✅ Asegurar que el indicador de refresco se apague
+                delay(500) // Pequeño delay para que la animación de M3 termine suave
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun searchClientes(query: String) {
         _searchQuery.value = query
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun cambiarOrden(nuevoOrden: OrdenCliente) {
@@ -223,7 +224,7 @@ class ClientesViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             
             // Buscar cliente para borrar sus fotos
-            val target = allClientes.find { it.id == clienteId }
+            val target = _allClientes.value.find { it.id == clienteId }
             target?.let { c ->
                 listOfNotNull(c.fotoDniFrontUrl, c.fotoDniBackUrl, c.fotoRostroUrl).forEach { url ->
                     storageDataSource.getPathFromUrl(url)?.let { path -> storageDataSource.deleteFile(path) }

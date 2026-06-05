@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.raymi.app.domain.model.Alquiler
 import com.raymi.app.domain.model.EstadoAlquiler
 import com.raymi.app.presentation.components.*
@@ -61,57 +62,77 @@ fun HistorialScreen(
                     IconButton(onClick = { viewModel.exportarInventario() }) {
                         Icon(Icons.Default.Inventory, contentDescription = strings.exportInventory)
                     }
-                    IconButton(onClick = { viewModel.cargarHistorial() }) {
+                    IconButton(onClick = { viewModel.cargarHistorial(refresh = true) }) {
                         Icon(Icons.Default.Refresh, contentDescription = strings.update)
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            
-            // 1. Panel de Resumen Histórico (Diseño Senior)
-            SummaryHeader(
-                recaudado = uiState.totalRecaudado, 
-                totalTransacciones = uiState.allAlquileres.size,
-                labelRevenue = strings.totalRevenue,
-                labelMovements = strings.movements
-            )
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.cargarHistorial(refresh = true) },
+            modifier = Modifier.padding(paddingValues).fillMaxSize()
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
 
-            // 2. Buscador en tiempo real
-            RaymiSearchBar(
-                query = uiState.query,
-                onQueryChange = { viewModel.filtrar(it) },
-                placeholder = strings.searchHistory,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
+                // 1. Panel de Resumen Histórico (Diseño Senior)
+                SummaryHeader(
+                    recaudado = uiState.totalRecaudado,
+                    totalTransacciones = uiState.allAlquileres.size,
+                    labelRevenue = strings.totalRevenue,
+                    labelMovements = strings.movements
+                )
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    uiState.isLoading -> RaymiLoadingIndicator(message = strings.compilingRecords)
-                    uiState.error != null -> RaymiErrorState(message = uiState.error!!, onRetry = { viewModel.cargarHistorial() })
-                    uiState.filteredAlquileres.isEmpty() -> {
-                        RaymiEmptyState(
-                            icon = Icons.Default.HistoryEdu,
-                            title = strings.noRecords,
-                            description = strings.noRecordsDesc
-                        )
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 24.dp, start = 24.dp, end = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(uiState.filteredAlquileres, key = { it.id }) { movimiento ->
-                                TransactionItem(movimiento)
-                            }
+                // 2. Buscador en tiempo real
+                RaymiSearchBar(
+                    query = uiState.query,
+                    onQueryChange = { viewModel.filtrar(it) },
+                    placeholder = strings.searchHistory,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                )
 
-                            if (uiState.hasMore) {
-                                item {
-                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                        TextButton(onClick = { viewModel.cargarMas() }) {
-                                            Text(if (strings is com.raymi.app.core.lang.SpanishStrings) "Cargar más registros" else "Show more records", fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        uiState.isLoading && uiState.allAlquileres.isEmpty() -> RaymiLoadingIndicator(message = strings.compilingRecords)
+                        uiState.error != null -> RaymiErrorState(
+                            message = uiState.error!!,
+                            onRetry = { viewModel.cargarHistorial() })
+
+                        uiState.filteredAlquileres.isEmpty() -> {
+                            RaymiEmptyState(
+                                icon = Icons.Default.HistoryEdu,
+                                title = strings.noRecords,
+                                description = strings.noRecordsDesc
+                            )
+                        }
+
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    bottom = 24.dp,
+                                    start = 24.dp,
+                                    end = 24.dp
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(uiState.filteredAlquileres, key = { it.id }) { movimiento ->
+                                    TransactionItem(movimiento)
+                                }
+
+                                if (uiState.hasMore) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            TextButton(onClick = { viewModel.cargarMas() }) {
+                                                Text(
+                                                    if (strings is com.raymi.app.core.lang.SpanishStrings) "Cargar más registros" else "Show more records",
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -125,7 +146,12 @@ fun HistorialScreen(
 }
 
 @Composable
-fun SummaryHeader(recaudado: Double, totalTransacciones: Int, labelRevenue: String, labelMovements: String) {
+fun SummaryHeader(
+    recaudado: Double,
+    totalTransacciones: Int,
+    labelRevenue: String,
+    labelMovements: String
+) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         shape = MaterialTheme.shapes.extraLarge,
@@ -137,7 +163,12 @@ fun SummaryHeader(recaudado: Double, totalTransacciones: Int, labelRevenue: Stri
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(labelRevenue, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    labelRevenue,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
                 Text(
                     "S/. ${String.format(Locale.getDefault(), "%,.2f", recaudado)}",
                     style = MaterialTheme.typography.headlineSmall,
@@ -146,8 +177,17 @@ fun SummaryHeader(recaudado: Double, totalTransacciones: Int, labelRevenue: Stri
             }
             Column(horizontalAlignment = Alignment.End) {
                 val strings = LocalRaymiStrings.current
-                Text(labelMovements, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$totalTransacciones ${strings.transactions}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    labelMovements,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "$totalTransacciones ${strings.transactions}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -159,7 +199,10 @@ fun TransactionItem(alquiler: Alquiler) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        )
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -169,7 +212,11 @@ fun TransactionItem(alquiler: Alquiler) {
             // Icono de transacción terminada
             Surface(
                 shape = CircleShape,
-                color = if (alquiler.estado == EstadoAlquiler.DEVUELTO) Color(0xFF4CAF50).copy(alpha = 0.1f) else Color.Red.copy(alpha = 0.1f),
+                color = if (alquiler.estado == EstadoAlquiler.DEVUELTO) Color(0xFF4CAF50).copy(
+                    alpha = 0.1f
+                ) else Color.Red.copy(
+                    alpha = 0.1f
+                ),
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {

@@ -36,26 +36,25 @@ class ItemsViewModel @Inject constructor(
     init {
         observeUserSession()
         
-        // Búsqueda y filtrado local REACTIVO con DEBOUNCE
-        _searchQuery
-            .debounce(300)
-            .distinctUntilChanged()
-            .combine(_allCategorias) { query, cats -> query to cats }
-            .combine(_allItems) { (query, cats), items -> Triple(items, cats, query) }
-            .combine(_selectedCategoria) { (items, cats, query), cat -> Quad(items, cats, query, cat) }
-            .onEach { (items, cats, query, cat) ->
-                _uiState.update { it.copy(
-                    itemsFiltrados = aplicarFiltros(items, query, cat),
+        // ✅ BUSCADOR REACTIVO: Sincronizado con Items, Categorías y Query
+        combine(_allItems, _allCategorias, _searchQuery, _selectedCategoria) { items, cats, query, cat ->
+            Quad(items, cats, query, cat)
+        }.onEach { (items, cats, query, cat) ->
+            val filtrados = aplicarFiltros(items, query, cat)
+            _uiState.update { state ->
+                state.copy(
+                    itemsFiltrados = filtrados,
                     categorias = cats,
                     queryBusqueda = query,
-                    categoriaFiltro = cat,
-                    isLoading = false
-                ) }
+                    categoriaFiltro = cat
+                )
             }
-            .launchIn(viewModelScope)
+        }.launchIn(viewModelScope)
 
         refreshItems()
     }
+
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
     private fun observeUserSession() {
         userSessionManager.userPlan
@@ -63,13 +62,10 @@ class ItemsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
-
     fun refreshItems() {
         lastSnapshot = null
         _allItems.value = emptyList()
         _allCategorias.value = emptyList()
-        _uiState.update { it.copy(isLoading = false) } // Evitar race condition
         viewModelScope.launch {
             workspaceManager.getWorkspaceId()?.let { getCategoriasUseCase.invalidarCache(it) }
             loadMore()
@@ -77,28 +73,24 @@ class ItemsViewModel @Inject constructor(
     }
 
     fun loadMore() {
-        if (_uiState.value.isLoading) return
-        
         viewModelScope.launch {
-            val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
-            _uiState.update { it.copy(isLoading = true) }
-            
             try {
+                val workspaceId = workspaceManager.getWorkspaceId() ?: return@launch
+                _uiState.update { it.copy(isLoading = true) }
+                
                 // 1. Cargar Categorías (Solo si están vacías)
                 if (_allCategorias.value.isEmpty()) {
-                    launch {
-                        try {
-                            getCategoriasUseCase(workspaceId)
-                                .filter { it !is Resource.Loading }
-                                .take(1)
-                                .collect { res ->
-                                    if (res is Resource.Success) {
-                                        _allCategorias.value = res.data ?: emptyList()
-                                    }
+                    try {
+                        getCategoriasUseCase(workspaceId)
+                            .filter { it !is Resource.Loading }
+                            .take(1)
+                            .collect { res ->
+                                if (res is Resource.Success) {
+                                    _allCategorias.value = res.data ?: emptyList()
                                 }
-                        } catch (e: Exception) {
-                            android.util.Log.e("ItemsViewModel", "Error cargando categorías: ${e.message}")
-                        }
+                            }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ItemsViewModel", "Error cargando categorías: ${e.message}")
                     }
                 }
 
@@ -114,7 +106,10 @@ class ItemsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ItemsViewModel", "Error: ${e.message}")
+                _uiState.update { it.copy(error = "Falla al cargar inventario") }
             } finally {
+                // ✅ Asegurar que el indicador de refresco se apague
+                delay(500)
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
@@ -122,7 +117,10 @@ class ItemsViewModel @Inject constructor(
 
     fun debeMostrarAnuncios(plan: UserPlan?): Boolean = adManager.debeMostrarAnuncios(plan)
 
-    fun buscar(query: String) { _searchQuery.value = query }
+    fun buscar(query: String) {
+        _searchQuery.value = query
+        _uiState.update { it.copy(queryBusqueda = query) }
+    }
 
     fun filtrarPorCategoria(categoria: Categoria?) { _selectedCategoria.value = categoria }
 

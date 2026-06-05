@@ -59,100 +59,106 @@ class DashboardViewModel @Inject constructor(
 
     /**
      * Carga rápida de estadísticas desde el documento metadata/stats.
-     * OPTIMIZACIÓN: Reduce de ~200 lecturas a solo 1 lectura Firestore por refresh.
+     * ✅ CORREGIDO: Uso de try-finally para asegurar que el loading desaparezca.
      */
     fun refreshData(forceRefresh: Boolean = false) {
+        val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        
         if (forceRefresh) {
             performFullAudit()
         } else {
-            val workspaceId = workspaceManager.getWorkspaceId() ?: return
             viewModelScope.launch {
-                _uiState.update { it.copy(isLoading = true) }
-                getWorkspaceStatsUseCase(workspaceId, false).collect { result ->
-                    if (result is Resource.Success) {
-                        handleStatsResult(result.data ?: emptyMap())
-                        _uiState.update { it.copy(isLoading = false) }
-                    } else if (result is Resource.Error) {
-                        _uiState.update { it.copy(isLoading = false) }
+                try {
+                    _uiState.update { it.copy(isLoading = true) }
+                    // Usamos el caso de uso de stats con forzar lectura de red
+                    getWorkspaceStatsUseCase(workspaceId, forceRefresh = true).collect { result ->
+                        when (result) {
+                            is Resource.Success -> handleStatsResult(result.data ?: emptyMap())
+                            is Resource.Error -> _uiState.update { it.copy(error = result.message) }
+                            else -> {}
+                        }
                     }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(error = "Error de conexión: ${e.localizedMessage}") }
+                } finally {
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
     }
 
     /**
-     * AUDITORÍA PROFUNDA: Recalcula todas las estadísticas leyendo todas las colecciones.
-     * Solo debe llamarse cuando el usuario pide explícitamente un "Refresco Total".
+     * AUDITORÍA PROFUNDA: Recalcula todo.
+     * ✅ CORREGIDO: Blindaje total contra bloqueos de UI.
      */
     fun performFullAudit() {
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            
-            // 1. Invalidar caches
-            itemRepository.invalidateCache(workspaceId)
-            
-            // 2. Fetch Alquileres y Pagos (Limitado para optimizar costos)
-            val resAlq = alquilerRepository.getAlquileresOnce(workspaceId, limit = 100)
-            val alquileres = (resAlq as? Resource.Success)?.data ?: emptyList()
-            val ids = alquileres.map { it.id }
-            
-            val pagosResult = alquilerRepository.getPagosDeAlquileres(workspaceId, ids)
-            val allPagos = (pagosResult as? Resource.Success)?.data ?: emptyList()
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                
+                // 1. Invalidar caches
+                itemRepository.invalidateCache(workspaceId)
+                
+                // 2. Ejecutar auditoría
+                val resAlq = alquilerRepository.getAlquileresOnce(workspaceId, limit = 150)
+                val alquileres = (resAlq as? Resource.Success)?.data ?: emptyList()
+                val ids = alquileres.map { it.id }
+                
+                val pagosResult = alquilerRepository.getPagosDeAlquileres(workspaceId, ids)
+                val allPagos = (pagosResult as? Resource.Success)?.data ?: emptyList()
 
-            // 3. Fetch Items reales (Máximo 200 para auditoría puntual)
-            val resItems = itemRepository.getItemsByWorkspaceOnce(workspaceId, 200)
-            val items = (resItems as? Resource.Success)?.data ?: emptyList()
-            
-            // 4. Fetch Clientes reales
-            val resClientes = clienteRepository.getClientesOnce(workspaceId)
-            val clientes = (resClientes as? Resource.Success)?.data ?: emptyList()
+                val resItems = itemRepository.getItemsByWorkspaceOnce(workspaceId, 200)
+                val items = (resItems as? Resource.Success)?.data ?: emptyList()
+                
+                val resClientes = clienteRepository.getClientesOnce(workspaceId)
+                val clientes = (resClientes as? Resource.Success)?.data ?: emptyList()
 
-            val cal = Calendar.getInstance()
-            val anio = cal.get(Calendar.YEAR)
-            val mes = cal.get(Calendar.MONTH)
-            val diaAnio = cal.get(Calendar.DAY_OF_YEAR)
-            
-            // AUDITORÍA FINANCIERA
-            val ingresosEsteMes = allPagos.filter {
-                val c = Calendar.getInstance().apply { time = it.fecha.toDate() }
-                c.get(Calendar.YEAR) == anio && c.get(Calendar.MONTH) == mes
-            }.sumOf { it.monto }
+                val cal = Calendar.getInstance()
+                val anio = cal.get(Calendar.YEAR)
+                val mes = cal.get(Calendar.MONTH)
+                val diaAnio = cal.get(Calendar.DAY_OF_YEAR)
+                
+                val ingresosEsteMes = allPagos.filter {
+                    val c = Calendar.getInstance().apply { time = it.fecha.toDate() }
+                    c.get(Calendar.YEAR) == anio && c.get(Calendar.MONTH) == mes
+                }.sumOf { it.monto }
 
-            val totalRecaudado = allPagos.sumOf { it.monto }
-            val saldoPendienteTotal = alquileres.filter { it.estado != EstadoAlquiler.DEVUELTO && it.estado != EstadoAlquiler.CANCELADO }
-                .sumOf { it.saldoPendienteReal }
+                val totalRecaudado = allPagos.sumOf { it.monto }
+                val saldoPendienteTotal = alquileres.filter { it.estado != EstadoAlquiler.DEVUELTO && it.estado != EstadoAlquiler.CANCELADO }
+                    .sumOf { it.saldoPendienteReal }
 
-            // AUDITORÍA OPERATIVA
-            val entregasHoyCount = alquileres.count { 
-                val c = Calendar.getInstance().apply { time = it.fechaInicio.toDate() }
-                c.get(Calendar.YEAR) == anio && c.get(Calendar.DAY_OF_YEAR) == diaAnio 
+                val entregasHoyCount = alquileres.count { 
+                    val c = Calendar.getInstance().apply { time = it.fechaInicio.toDate() }
+                    c.get(Calendar.YEAR) == anio && c.get(Calendar.DAY_OF_YEAR) == diaAnio 
+                }
+                val retornosHoyCount = alquileres.count {
+                    val c = Calendar.getInstance().apply { time = it.fechaFinPrevista.toDate() }
+                    c.get(Calendar.YEAR) == anio && c.get(Calendar.DAY_OF_YEAR) == diaAnio
+                }
+
+                val repairData = mapOf(
+                    "totalIngresos" to totalRecaudado,
+                    "totalSaldoPendiente" to saldoPendienteTotal,
+                    "totalClientes" to clientes.size.toLong(),
+                    "totalItems" to items.size.toLong(),
+                    "alquileresActivos" to alquileres.count { it.estado == EstadoAlquiler.ACTIVO || it.estado == EstadoAlquiler.VENCIDO }.toLong(),
+                    "ingresos_${anio}_$mes" to ingresosEsteMes,
+                    "operaciones_${anio}_$diaAnio" to mapOf("entregas" to entregasHoyCount, "devoluciones" to retornosHoyCount)
+                )
+                
+                updateWorkspaceUseCase.updateStats(workspaceId, repairData)
+                handleStatsResult(repairData)
+                _uiState.update { it.copy(
+                    successMessage = "Sincronización completada",
+                    ultimosAlquileres = alquileres,
+                    ultimosPagos = allPagos
+                ) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Falla en auditoría: ${e.localizedMessage}") }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
-            val retornosHoyCount = alquileres.count {
-                val c = Calendar.getInstance().apply { time = it.fechaFinPrevista.toDate() }
-                c.get(Calendar.YEAR) == anio && c.get(Calendar.DAY_OF_YEAR) == diaAnio
-            }
-
-            val repairData = mapOf(
-                "totalIngresos" to totalRecaudado,
-                "totalSaldoPendiente" to saldoPendienteTotal,
-                "totalClientes" to clientes.size.toLong(),
-                "totalItems" to items.size.toLong(),
-                "alquileresActivos" to alquileres.count { it.estado == EstadoAlquiler.ACTIVO || it.estado == EstadoAlquiler.VENCIDO }.toLong(),
-                "ingresos_${anio}_$mes" to ingresosEsteMes,
-                "operaciones_${anio}_$diaAnio" to mapOf("entregas" to entregasHoyCount, "devoluciones" to retornosHoyCount)
-            )
-            
-            updateWorkspaceUseCase.updateStats(workspaceId, repairData)
-            handleStatsResult(repairData)
-            
-            // ✅ FIX PROBLEM 6c: Guardar datos en el estado para exportaciones sin re-lectura
-            _uiState.update { it.copy(
-                isLoading = false, 
-                successMessage = "Estadísticas sincronizadas",
-                ultimosAlquileres = alquileres,
-                ultimosPagos = allPagos
-            ) }
         }
     }
 

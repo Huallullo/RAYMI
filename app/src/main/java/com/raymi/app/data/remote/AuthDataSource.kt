@@ -30,6 +30,16 @@ class AuthDataSource @Inject constructor(
         val user = auth.currentUser ?: throw IllegalStateException("No hay sesión activa para cambiar contraseña")
         user.updatePassword(password).await()
     }
+    
+    suspend fun checkEmailExistsInAuth(email: String): Boolean {
+        return try {
+            val methods = auth.fetchSignInMethodsForEmail(email).await()
+            val providers = methods.signInMethods ?: emptyList<String>()
+            providers.isNotEmpty()
+        } catch (_: Exception) {
+            false
+        }
+    }
         
     fun signOut() = auth.signOut()
 }

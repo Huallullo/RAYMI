@@ -81,7 +81,7 @@ fun RaymiNavGraph(
         }
 
         composable(route = Screen.Clientes.route) {
-            val refresh = navController.currentBackStackEntry?.savedStateHandle?.get<Boolean>("refresh") ?: false
+            val refresh = navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("refresh") ?: false
             ClientesScreen(
                 onClienteClick = { id -> navController.navigate(Screen.ClienteDetalle.createRoute(id)) },
                 onNavigateBack = { navController.popBackStack() },
@@ -103,7 +103,7 @@ fun RaymiNavGraph(
 
         composable(route = Screen.Items.route) {
             val refresh = navController.currentBackStackEntry
-                ?.savedStateHandle?.get<Boolean>("refresh") ?: false
+                ?.savedStateHandle?.remove<Boolean>("refresh") ?: false
             ItemsScreen(
                 onItemClick = { id -> navController.navigate(Screen.ItemDetalle.createRoute(id)) },
                 onAddItem = { navController.navigate(Screen.ItemCreate.route) },
@@ -161,7 +161,7 @@ fun RaymiNavGraph(
 
         composable(route = Screen.Alquileres.route) {
             val refresh = navController.currentBackStackEntry
-                ?.savedStateHandle?.get<Boolean>("refresh") ?: false
+                ?.savedStateHandle?.remove<Boolean>("refresh") ?: false
             AlquileresScreen(
                 onAlquilerClick = { id -> navController.navigate(Screen.AlquilerDetalle.createRoute(id)) },
                 onCreateAlquiler = { navController.navigate(Screen.AlquilerCreate.createRoute()) },

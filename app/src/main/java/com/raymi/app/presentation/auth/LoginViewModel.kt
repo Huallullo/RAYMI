@@ -78,8 +78,22 @@ class LoginViewModel @Inject constructor(
         if (!validateLoginFields()) return
 
         viewModelScope.launch {
+            val email = _uiState.value.email.trim()
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            // 1. Validar si el usuario existe antes de intentar login (UX mejorada)
+            val exists = authRepository.checkEmailExists(email)
+            if (!exists) {
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    error = "No existe ninguna cuenta con este correo."
+                ) }
+                return@launch
+            }
+
+            // 2. Si existe, proceder con la autenticación
             authRepository.login(
-                email = _uiState.value.email.trim(),
+                email = email,
                 password = _uiState.value.password
             ).collect { result ->
                 handleAuthResult(result)
@@ -104,30 +118,25 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun resetPassword() {
-        val emailTrim = _uiState.value.email.trim()
-        val emailValidation = Validators.validateEmail(emailTrim, isRequired = true)
-        _uiState.value = _uiState.value.copy(
-            emailError = if (emailValidation.isValid) null else emailValidation.errorMessage
-        )
-
-        if (!emailValidation.isValid) return
+    fun resetPassword(email: String) {
+        val emailValidation = Validators.validateEmail(email.trim(), isRequired = true)
+        if (!emailValidation.isValid) {
+            _uiState.value = _uiState.value.copy(error = emailValidation.errorMessage)
+            return
+        }
 
         viewModelScope.launch {
-            authRepository.resetPassword(emailTrim).collect { result ->
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
+            authRepository.resetPassword(email.trim()).collect { result ->
                 when (result) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = true,
-                            error = null,
-                            infoMessage = null
-                        )
-                    }
+                    is Resource.Loading -> { }
                     is Resource.Success -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            infoMessage = "Te enviamos un correo para recuperar tu contraseña",
-                            error = null
+                            infoMessage = "Si el correo está registrado, recibirás un enlace en breve.",
+                            error = null,
+                            showForgotPasswordDialog = false
                         )
                     }
                     is Resource.Error -> {
@@ -139,6 +148,10 @@ class LoginViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun showForgotPassword(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showForgotPasswordDialog = show)
     }
 
     private fun handleAuthResult(result: Resource<FirebaseUser>) {
@@ -304,7 +317,8 @@ data class LoginUiState(
     val botOp: String = listOf("+", "-", "x").random(),
     val botAnswer: String = "",
     val isBotVerified: Boolean = false,
-    val showBotMath: Boolean = false
+    val showBotMath: Boolean = false,
+    val showForgotPasswordDialog: Boolean = false
 )
 
 sealed class NavigationEvent {

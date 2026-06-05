@@ -205,6 +205,27 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun checkEmailExists(email: String): Boolean {
+        return try {
+            val emailLower = email.trim().lowercase()
+            
+            // 1. Intentar buscar en Firestore (Perfil de negocio)
+            // Probamos con el campo nuevo
+            val results = dataSource.queryDocuments(COLLECTION_USUARIOS, "emailLowercase", emailLower)
+            if (results.isNotEmpty()) return true
+            
+            // Probamos con el campo estándar (por si es un usuario antiguo)
+            val resultsLegacy = dataSource.queryDocuments(COLLECTION_USUARIOS, "email", email.trim())
+            if (resultsLegacy.isNotEmpty()) return true
+
+            // 2. Si no está en Firestore, verificar directamente en Firebase Auth
+            // Esto es infalible para saber si el correo está registrado en el sistema
+            authDataSource.checkEmailExistsInAuth(emailLower)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())

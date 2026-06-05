@@ -11,6 +11,7 @@ import com.raymi.app.domain.repository.AlquilerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -78,8 +79,9 @@ class HistorialViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial") }
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar historial: ${e.localizedMessage}") }
             } finally {
+                delay(500)
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
