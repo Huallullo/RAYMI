@@ -234,7 +234,11 @@ fun CreateAlquilerScreen(
 
     if (uiState.showClienteDialog) {
         GenericSelectionDialog(strings.selectClient, uiState.clientes, { viewModel.hideClienteDialog() }) { cliente ->
-            ModernClienteItem(cliente = cliente, onClick = { viewModel.seleccionarCliente(cliente) })
+            ModernClienteItem(
+                cliente = cliente, 
+                onClick = { viewModel.seleccionarCliente(cliente) },
+                modifier = Modifier.testTag("client_option")
+            )
         }
     }
 
@@ -262,9 +266,12 @@ fun CreateAlquilerScreen(
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text(strings.units) }, modifier = Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            OutlinedTextField(value = cant, onValueChange = { if (it.all { c -> c.isDigit() }) cant = it }, label = { Text(strings.units) }, modifier = Modifier.width(80.dp).testTag("item_quantity_input"), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                             Spacer(Modifier.width(12.dp))
-                            Button(onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, modifier = Modifier.weight(1f)) { 
+                            Button(
+                                onClick = { viewModel.agregarItem(item, cant.toIntOrNull() ?: 1) }, 
+                                modifier = Modifier.weight(1f).testTag("add_item_confirm_button")
+                            ) {
                                 Text(strings.add) 
                             }
                         }
@@ -310,5 +317,14 @@ fun DatePickerField(label: String, date: Date?, modifier: Modifier, onDateSelect
 @Composable
 fun <T> GenericSelectionDialog(title: String, items: List<T>, onDismiss: () -> Unit, header: @Composable (() -> Unit)? = null, itemContent: @Composable (T) -> Unit) {
     val strings = com.raymi.app.core.lang.LocalRaymiStrings.current
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text(strings.searchNoResults, style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text(strings.close) } })
+    AlertDialog(
+        onDismissRequest = onDismiss, 
+        title = { Text(title, fontWeight = FontWeight.Bold) }, 
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(); if (items.isEmpty()) Text(strings.searchNoResults, style = MaterialTheme.typography.bodySmall) else LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items) { itemContent(it) } } } }, 
+        confirmButton = { 
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("close_selection_button")) { 
+                Text(strings.close) 
+            } 
+        }
+    )
 }

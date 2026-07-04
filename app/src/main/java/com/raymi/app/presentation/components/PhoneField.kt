@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -72,7 +73,8 @@ fun RaymiPhoneField(
     modifier: Modifier = Modifier,
     label: String = "Teléfono",
     isError: Boolean = false,
-    supportingText: String? = null
+    supportingText: String? = null,
+    testTag: String? = null
 ) {
     var showCountryDialog by remember { mutableStateOf(false) }
     var selectedCountry by remember { mutableStateOf(AllAmiricasCountries.find { it.code == "+51" } ?: AllAmiricasCountries[0]) }
@@ -109,7 +111,7 @@ fun RaymiPhoneField(
                 }
             },
             label = { Text(label) },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             shape = MaterialTheme.shapes.large,
             isError = isError,
             supportingText = supportingText?.let { { Text(it) } } ?: {

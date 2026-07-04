@@ -220,6 +220,7 @@ fun FuturisticNavItem(
             .clip(CircleShape)
             .background(containerColor)
             .clickable(onClick = onClick)
+            .testTag(item.testTag)
             .padding(horizontal = 12.dp), // Menos padding lateral
         contentAlignment = Alignment.Center
     ) {

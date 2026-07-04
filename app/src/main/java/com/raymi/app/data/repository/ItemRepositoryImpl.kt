@@ -47,7 +47,9 @@ class ItemRepositoryImpl @Inject constructor(
                 lastSnapshot = lastSnapshot as? com.google.firebase.firestore.DocumentSnapshot,
                 negocioId = workspaceId
             )
-            val items = docs.map { doc -> ItemDto.fromMap(doc.id, doc.data!!).toDomain() }
+            val items = docs.mapNotNull { doc ->
+                doc.data?.let { ItemDto.fromMap(doc.id, it).toDomain() }
+            }
             
             if (lastSnapshot == null) {
                 cache.set(items, TTL_10_MIN)
@@ -151,7 +153,9 @@ class ItemRepositoryImpl @Inject constructor(
         val result = try {
             if (query.isBlank()) {
                 val docs = dataSource.getBusinessDocumentsPaged("items", limit = 25, negocioId = workspaceId)
-                Resource.Success(docs.map { ItemDto.fromMap(it.id, it.data!!).toDomain() })
+                Resource.Success(
+                    docs.mapNotNull { doc -> doc.data?.let { ItemDto.fromMap(doc.id, it).toDomain() } }
+                )
             } else {
                 val docs = dataSource.queryBusinessArrayContainsLimited(
                     collection = "items", 

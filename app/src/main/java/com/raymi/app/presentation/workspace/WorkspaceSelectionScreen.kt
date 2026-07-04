@@ -84,7 +84,12 @@ fun WorkspaceSelectionScreen(
             Text(text = "RAYMI", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary))
             Spacer(modifier = Modifier.height(32.dp))
             Text(text = strings.welcome, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp))
-            Text(text = strings.selectBusiness, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = strings.selectBusiness, 
+                style = MaterialTheme.typography.bodyLarge, 
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("workspace_selection_title")
+            )
             Spacer(modifier = Modifier.height(24.dp))
 
             if (uiState.isLoading) {

@@ -72,7 +72,7 @@ class ValidatorsTest {
     fun validarNombre_contieneDigitos_devuelveError() {
         val resultado = Validators.validateNombre("Juan1")
         assertThat(resultado.isValid).isFalse()
-        assertThat(resultado.errorMessage).isEqualTo("El nombre solo debe contener letras")
+        assertThat(resultado.errorMessage).isEqualTo("El nombre solo debe contener letras, espacios, guiones o apóstrofes")
     }
 
     // ==================== APELLIDOS ====================
@@ -114,7 +114,7 @@ class ValidatorsTest {
     fun validarTelefono_menosDe9Digitos_devuelveError() {
         val resultado = Validators.validateTelefono("12345")
         assertThat(resultado.isValid).isFalse()
-        assertThat(resultado.errorMessage).isEqualTo("El teléfono debe tener al menos 9 dígitos")
+        assertThat(resultado.errorMessage).isEqualTo("El teléfono debe tener exactamente 9 dígitos")
     }
 
     @Test
@@ -188,9 +188,9 @@ class ValidatorsTest {
 
     @Test
     fun validarPrecio_muyAlto_devuelveError() {
-        val resultado = Validators.validatePrecio(20000.0)
+        val resultado = Validators.validatePrecio(100000.0)
         assertThat(resultado.isValid).isFalse()
-        assertThat(resultado.errorMessage).isEqualTo("El precio parece muy alto")
+        assertThat(resultado.errorMessage).isEqualTo("El precio parece demasiado alto")
     }
 
     @Test

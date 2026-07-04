@@ -216,9 +216,11 @@ class CreateAlquilerViewModel @Inject constructor(
                     is Resource.Success -> {
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                         
-                        // Enviar TICKET VIP (Pasa el objeto completo)
-                        workspaceManager.currentWorkspace.value?.let { ws ->
-                            enviarConfirmacionWhatsApp(nuevoAlquiler, ws)
+                        // ✅ [QA Senior] Evitar salir de la app durante los tests (WhatsApp/Chrome)
+                        if (!com.raymi.app.core.ads.AdManager.isRunningTest()) {
+                            workspaceManager.currentWorkspace.value?.let { ws ->
+                                enviarConfirmacionWhatsApp(nuevoAlquiler, ws)
+                            }
                         }
                         
                         // Monetización: Mostrar Intersticial

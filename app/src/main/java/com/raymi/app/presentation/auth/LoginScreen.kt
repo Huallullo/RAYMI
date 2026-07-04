@@ -602,7 +602,7 @@ fun AuthFormStrings(
             value = uiState.email,
             onValueChange = viewModel::onEmailChange,
             label = { Text(strings.emailLabel) },
-            modifier = Modifier.fillMaxWidth().focusRequester(emailFocusRequester),
+            modifier = Modifier.fillMaxWidth().focusRequester(emailFocusRequester).testTag("email_input"),
             shape = MaterialTheme.shapes.large,
             leadingIcon = { Icon(Icons.Default.Mail, null) },
             isError = uiState.emailError != null,
@@ -616,7 +616,7 @@ fun AuthFormStrings(
             value = uiState.password,
             onValueChange = viewModel::onPasswordChange,
             label = { Text(strings.passwordLabel) },
-            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester),
+            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester).testTag("password_input"),
             shape = MaterialTheme.shapes.large,
             leadingIcon = { Icon(Icons.Default.Lock, null) },
             trailingIcon = {

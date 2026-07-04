@@ -81,17 +81,10 @@ class LoginViewModel @Inject constructor(
             val email = _uiState.value.email.trim()
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // 1. Validar si el usuario existe antes de intentar login (UX mejorada)
-            val exists = authRepository.checkEmailExists(email)
-            if (!exists) {
-                _uiState.update { it.copy(
-                    isLoading = false,
-                    error = "No existe ninguna cuenta con este correo."
-                ) }
-                return@launch
-            }
+            // ✅ UX FIX: Eliminamos el bloqueo preventivo en el Login.
+            // Dejamos que Firebase Auth valide el correo y la contraseña directamente.
+            // Esto evita "Falsos Negativos" como el que estás experimentando.
 
-            // 2. Si existe, proceder con la autenticación
             authRepository.login(
                 email = email,
                 password = _uiState.value.password

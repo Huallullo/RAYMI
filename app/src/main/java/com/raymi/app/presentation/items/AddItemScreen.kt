@@ -114,7 +114,11 @@ fun AddItemScreen(
                 )
                 ExposedDropdownMenu(expanded = isCatDropdownExpanded, onDismissRequest = { isCatDropdownExpanded = false }) {
                     uiState.categorias.forEach { categoria ->
-                        DropdownMenuItem(text = { Text(categoria.nombre) }, onClick = { viewModel.onCategoriaChange(categoria); isCatDropdownExpanded = false })
+                        DropdownMenuItem(
+                            text = { Text(categoria.nombre) }, 
+                            onClick = { viewModel.onCategoriaChange(categoria); isCatDropdownExpanded = false },
+                            modifier = Modifier.testTag("category_option")
+                        )
                     }
                 }
             }

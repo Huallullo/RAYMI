@@ -75,7 +75,12 @@ android {
 
         release {
             manifestPlaceholders["usesCleartextTraffic"] = "false"
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                // Permite compilar release en local/CI sin exponer llaves reales.
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

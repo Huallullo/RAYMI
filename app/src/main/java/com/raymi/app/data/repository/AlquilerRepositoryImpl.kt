@@ -50,8 +50,10 @@ class AlquilerRepositoryImpl @Inject constructor(
                 lastSnapshot = lastSnapshot as? com.google.firebase.firestore.DocumentSnapshot,
                 negocioId = workspaceId
             )
-            val list = docs.map { doc -> AlquilerDto.fromMap(doc.id, doc.data!!).toDomain() }
-            
+            val list = docs.mapNotNull { doc ->
+                doc.data?.let { AlquilerDto.fromMap(doc.id, it).toDomain() }
+            }
+
             if (lastSnapshot == null) {
                 cache.set(list, TTL_2_MIN)
             }
@@ -219,7 +221,9 @@ class AlquilerRepositoryImpl @Inject constructor(
                 .get()
                 .await()
             
-            val list = snapshot.documents.map { doc -> AlquilerDto.fromMap(doc.id, doc.data!!).toDomain() }
+            val list = snapshot.documents.mapNotNull { doc ->
+                doc.data?.let { AlquilerDto.fromMap(doc.id, it).toDomain() }
+            }
             emit(Resource.Success(list))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -271,7 +275,9 @@ class AlquilerRepositoryImpl @Inject constructor(
             }
 
             val snap = query.get().await()
-            val list = snap.documents.map { AlquilerDto.fromMap(it.id, it.data!!).toDomain() }
+            val list = snap.documents.mapNotNull { doc ->
+                doc.data?.let { AlquilerDto.fromMap(doc.id, it).toDomain() }
+            }
             Resource.Success(list, cursor = snap.documents.lastOrNull())
         } catch (e: Exception) { 
             Resource.Error(FirebaseErrorMapper.mapError(e))

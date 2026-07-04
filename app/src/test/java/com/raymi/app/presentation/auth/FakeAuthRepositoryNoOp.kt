@@ -34,7 +34,18 @@ class FakeAuthRepositoryNoOp : AuthRepository {
         emit(Resource.Success(Unit))
     }
 
+    override suspend fun checkEmailExists(email: String): Boolean =
+        email == "admin@raymi.com"
+
     override suspend fun updateProfile(name: String, phone: String?): Flow<Resource<Unit>> = flow {
+        emit(Resource.Success(Unit))
+    }
+
+    override suspend fun changePassword(newPassword: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Success(Unit))
+    }
+
+    override suspend fun updateFcmToken(token: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Success(Unit))
     }
 

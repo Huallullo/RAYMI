@@ -66,48 +66,55 @@ sealed class BottomNavItem(
     val route: String,
     val title: String,
     val icon: ImageVector,
-    val selectedIcon: ImageVector = icon
+    val selectedIcon: ImageVector = icon,
+    val testTag: String
 ) {
     object Dashboard : BottomNavItem(
         route = Screen.Dashboard.route,
         title = "Inicio",
         icon = Icons.Outlined.Dashboard,
-        selectedIcon = Icons.Filled.Dashboard
+        selectedIcon = Icons.Filled.Dashboard,
+        testTag = "nav_inicio"
     )
 
     object Clientes : BottomNavItem(
         route = Screen.Clientes.route,
         title = "Clientes",
         icon = Icons.Outlined.People,
-        selectedIcon = Icons.Filled.People
+        selectedIcon = Icons.Filled.People,
+        testTag = "nav_clientes"
     )
 
     object Items : BottomNavItem(
         route = Screen.Items.route,
         title = "Inventario",
         icon = Icons.Outlined.Checkroom,
-        selectedIcon = Icons.Filled.Checkroom
+        selectedIcon = Icons.Filled.Checkroom,
+        testTag = "nav_inventario"
     )
 
     object Alquileres : BottomNavItem(
         route = Screen.Alquileres.route,
         title = "Alquileres",
         icon = Icons.Outlined.ShoppingCart,
-        selectedIcon = Icons.Filled.ShoppingCart
+        selectedIcon = Icons.Filled.ShoppingCart,
+        testTag = "nav_alquileres"
     )
 
     object Historial : BottomNavItem(
         route = Screen.Historial.route,
         title = "Historial",
         icon = Icons.Outlined.History,
-        selectedIcon = Icons.Filled.History
+        selectedIcon = Icons.Filled.History,
+        testTag = "nav_historial"
     )
 
     object Profile : BottomNavItem(
         route = Screen.Profile.route,
         title = "Perfil",
         icon = Icons.Outlined.AccountCircle,
-        selectedIcon = Icons.Filled.AccountCircle
+        selectedIcon = Icons.Filled.AccountCircle,
+        testTag = "nav_perfil"
     )
 }
 

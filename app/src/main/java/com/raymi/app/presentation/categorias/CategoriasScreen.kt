@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.testTag
 import com.raymi.app.domain.model.Categoria
 import com.raymi.app.presentation.components.RaymiEmptyState
 import com.raymi.app.presentation.components.RaymiLoadingIndicator
@@ -47,13 +48,16 @@ fun CategoriasScreen(
                 title = { Text(strings.categories, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.cancel)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.testTag("fab_add_categoria")
+            ) {
                 Icon(Icons.Default.Add, contentDescription = strings.addItem)
             }
         }
@@ -199,12 +203,16 @@ fun CategoryDialog(
                 value = nombre,
                 onValueChange = onNombreChange,
                 label = { Text(if (LocalRaymiStrings.current is com.raymi.app.core.lang.SpanishStrings) "Nombre" else "Name") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("categoria_nombre_input"),
                 singleLine = true
             )
         },
         confirmButton = {
-            Button(onClick = onConfirm, enabled = nombre.isNotBlank()) { Text(saveLabel) }
+            Button(
+                onClick = onConfirm, 
+                enabled = nombre.isNotBlank(),
+                modifier = Modifier.testTag("categoria_guardar_button")
+            ) { Text(saveLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(cancelLabel) } }
     )

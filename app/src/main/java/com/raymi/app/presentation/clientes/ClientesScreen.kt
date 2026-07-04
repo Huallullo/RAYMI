@@ -183,10 +183,14 @@ fun ClientesScreen(
 }
 
 @Composable
-fun ModernClienteItem(cliente: Cliente, onClick: () -> Unit) {
+fun ModernClienteItem(
+    cliente: Cliente, 
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = CustomShapes.CardShape,
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),

@@ -33,14 +33,14 @@ service cloud.firestore {
     }
 
     // ✅ FIX: Reglas para consultas de Grupo (SaaS)
-    // Permiten al Dashboard y al Worker buscar en subcolecciones de forma masiva y segura
+    // Se añade soporte para filtrado por workspaceId en consultas de grupo
 
     match /{path=**}/alquileres/{alquilerId} {
-      allow read: if isSignedIn() && isBusinessOwner(resource.data.workspaceId);
+      allow read: if isSignedIn() && (resource == null || isBusinessOwner(resource.data.workspaceId));
     }
 
     match /{path=**}/pagos/{pagoId} {
-      allow read: if isSignedIn() && isBusinessOwner(resource.data.workspaceId);
+      allow read: if isSignedIn() && (resource == null || isBusinessOwner(resource.data.workspaceId));
     }
 
     match /pendingPurchases/{purchaseId} {

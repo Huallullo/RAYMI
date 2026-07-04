@@ -2,6 +2,8 @@ package com.raymi.app.presentation.components
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
@@ -39,6 +41,7 @@ fun RaymiBottomNavigation(
             }
 
             NavigationBarItem(
+                modifier = Modifier.testTag(item.testTag),
                 icon = {
                     Icon(
                         imageVector = if (selected) item.selectedIcon else item.icon,

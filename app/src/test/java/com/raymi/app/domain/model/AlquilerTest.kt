@@ -12,7 +12,8 @@ class AlquilerTest {
         val alquiler = Alquiler(
             precioTotal = 100.0,
             adelanto = 40.0,
-            penalidad = 20.0
+            penalidad = 20.0,
+            saldo = 80.0
         )
         // total = 100 + 20 = 120
         // pagado = 40

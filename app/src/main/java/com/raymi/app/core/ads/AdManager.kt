@@ -26,10 +26,25 @@ class AdManager @Inject constructor(
      * Determina si se deben mostrar anuncios basado en el plan del usuario.
      */
     fun debeMostrarAnuncios(plan: UserPlan?): Boolean {
+        // [QA Senior] Deshabilitar anuncios en pruebas de instrumentación
+        if (isRunningTest()) return false
+
         if (plan == null) return true 
         if (plan.plan != PlanType.FREE) return false
         if (!plan.mostrarAnuncios) return false
         return true
+    }
+
+    companion object {
+        fun isRunningTest(): Boolean {
+            if (System.getProperty("dexmaker.dexcache") != null) return true
+            return try {
+                Class.forName("androidx.test.platform.app.InstrumentationRegistry")
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
     }
 
     fun crearAdRequest(): AdRequest = AdRequest.Builder().build()

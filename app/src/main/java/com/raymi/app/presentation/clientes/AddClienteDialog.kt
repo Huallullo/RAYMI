@@ -209,7 +209,7 @@ fun AddClienteDialog(
                     value = nombre,
                     onValueChange = { nombre = it; if(it.isNotBlank()) nombreError = false },
                     label = { Text(strings.names) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("cliente_nombre_input"),
                     isError = nombreError,
                     supportingText = { if(nombreError) Text(strings.errorNamesRequired, color = MaterialTheme.colorScheme.error) },
                     shape = MaterialTheme.shapes.large,
@@ -220,7 +220,7 @@ fun AddClienteDialog(
                     value = apellidos,
                     onValueChange = { apellidos = it; if(it.isNotBlank()) apellidosError = false },
                     label = { Text(strings.surnames) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("cliente_apellidos_input"),
                     isError = apellidosError,
                     supportingText = { if(apellidosError) Text(strings.errorSurnamesRequired, color = MaterialTheme.colorScheme.error) },
                     shape = MaterialTheme.shapes.large
@@ -230,7 +230,8 @@ fun AddClienteDialog(
                     phone = telefono, 
                     onPhoneChange = { telefono = it; telefonoError = false }, 
                     isError = telefonoError, 
-                    label = strings.phone
+                    label = strings.phone,
+                    testTag = "cliente_telefono_input"
                 )
                 if (telefonoError) {
                     Text(strings.errorPhoneLength, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 16.dp))
@@ -316,7 +317,7 @@ fun AddClienteDialog(
                         face = faceUri
                     )
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp).testTag("cliente_guardar_button"),
                 shape = MaterialTheme.shapes.large,
                 enabled = !isLoading
             ) {
