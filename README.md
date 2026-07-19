@@ -1,4 +1,4 @@
-# RAYMI - Sistema SaaS de Gestión de Alquileres (v2.5 - Senior Edition)
+# RAYMI - Sistema SaaS de Gestión de Alquileres
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple.svg)
 ![Hilt](https://img.shields.io/badge/Hilt-2.52-blue.svg)
