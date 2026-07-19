@@ -34,6 +34,7 @@ import com.raymi.app.domain.model.Item
 import com.raymi.app.presentation.clientes.ModernClienteItem
 import com.raymi.app.presentation.components.*
 import java.util.*
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.testTag
 import com.raymi.app.core.lang.LocalRaymiStrings
 import javax.inject.Inject
@@ -327,4 +328,41 @@ fun <T> GenericSelectionDialog(title: String, items: List<T>, onDismiss: () -> U
             } 
         }
     )
+}
+
+@Preview(showBackground = true, name = "Evidencia T4 - Crear Alquiler (Phone)")
+@Composable
+fun PreviewCreateAlquilerPhone() {
+    MaterialTheme {
+        Surface {
+            // Versión simplificada para la captura de pantalla del informe
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Crear Alquiler", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(16.dp))
+                SelectionTile("Cliente", "Juan Pérez", Icons.Default.Person, true, {})
+                Spacer(Modifier.height(16.dp))
+                Text("Periodo de Alquiler", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = "05/06/2026", onValueChange = {}, label = { Text("Inicio") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = "08/06/2026", onValueChange = {}, label = { Text("Fin") }, modifier = Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                    Text("Confirmar Alquiler")
+                }
+            }
+        }
+    }
+}
+
+@Preview(device = "spec:width=1280dp,height=800dp,dpi=240", showBackground = true, name = "Evidencia Hallazgo - Tablet Layout")
+@Composable
+fun PreviewCreateAlquilerTablet() {
+    MaterialTheme {
+        Surface {
+            // Esta captura servirá para tu informe (punto 3.2.1) 
+            // demostrando que el diseño no se adapta y se estira demasiado.
+            PreviewCreateAlquilerPhone()
+        }
+    }
 }
