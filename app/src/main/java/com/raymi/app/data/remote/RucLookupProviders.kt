@@ -5,6 +5,7 @@ import com.raymi.app.domain.model.EmpresaData
 import com.raymi.app.domain.model.Resource
 import com.raymi.app.domain.repository.RucLookupProvider
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
