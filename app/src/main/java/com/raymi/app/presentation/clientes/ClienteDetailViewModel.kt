@@ -82,6 +82,7 @@ class ClienteDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Negocio no identificado")
+                val userId = workspaceManager.currentWorkspace.value?.ownerId ?: throw Exception("Propietario del negocio no identificado")
                 var finalCliente = cliente
 
                 // Actualizar fotos si se seleccionaron nuevas
@@ -90,7 +91,7 @@ class ClienteDetailViewModel @Inject constructor(
                         val path = storageDataSource.getPathFromUrl(old)
                         if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
                     }
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_front.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_front.webp", it)
                     finalCliente = finalCliente.copy(fotoDniFrontUrl = url)
                 }
                 dniBack?.let {
@@ -98,7 +99,7 @@ class ClienteDetailViewModel @Inject constructor(
                         val path = storageDataSource.getPathFromUrl(old)
                         if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
                     }
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_back.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_back.webp", it)
                     finalCliente = finalCliente.copy(fotoDniBackUrl = url)
                 }
                 face?.let {
@@ -106,7 +107,7 @@ class ClienteDetailViewModel @Inject constructor(
                         val path = storageDataSource.getPathFromUrl(old)
                         if (!path.isNullOrBlank()) storageDataSource.deleteFile(path) 
                     }
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_face.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_face.webp", it)
                     finalCliente = finalCliente.copy(fotoRostroUrl = url)
                 }
 

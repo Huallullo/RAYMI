@@ -190,6 +190,7 @@ class BusinessSettingsViewModel @Inject constructor(
             return
         }
         val workspaceId = workspaceManager.getWorkspaceId() ?: return
+        val userId = workspaceManager.currentWorkspace.value?.ownerId ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
@@ -198,7 +199,7 @@ class BusinessSettingsViewModel @Inject constructor(
                         storageDataSource.deleteFile(path)
                     }
                 }
-                val url = storageDataSource.uploadFile("negocios/$workspaceId/logo.webp", uri)
+                val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/logo.webp", uri)
                 _uiState.update { it.copy(logoUrl = url, isLoading = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Error al subir logo: ${e.message}", isLoading = false) }

@@ -175,15 +175,15 @@ class ClientesViewModel @Inject constructor(
 
                 // Subir fotos de seguridad si existen
                 dniFront?.let {
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_front.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_front.webp", it)
                     finalCliente = finalCliente.copy(fotoDniFrontUrl = url)
                 }
                 dniBack?.let {
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_back.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_back.webp", it)
                     finalCliente = finalCliente.copy(fotoDniBackUrl = url)
                 }
                 face?.let {
-                    val url = storageDataSource.uploadFile("negocios/$workspaceId/clientes/${cliente.dni}_face.webp", it)
+                    val url = storageDataSource.uploadFile("users/$userId/negocios/$workspaceId/clientes/${cliente.dni}_face.webp", it)
                     finalCliente = finalCliente.copy(fotoRostroUrl = url)
                 }
 

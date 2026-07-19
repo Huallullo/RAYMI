@@ -106,6 +106,7 @@ class EditItemViewModel @Inject constructor(
                 var imageUrl = original.imagenUrl
                 state.newImageUri?.let { uri ->
                     val workspaceId = workspaceManager.getWorkspaceId() ?: throw Exception("Sin sesión")
+                    val userId = workspaceManager.currentWorkspace.value?.ownerId ?: throw Exception("Propietario del negocio no identificado")
                     
                     // 1. Borrar imagen anterior si existe (Ahorro de espacio)
                     original.imagenUrl?.let { oldUrl ->
@@ -117,7 +118,7 @@ class EditItemViewModel @Inject constructor(
                     }
 
                     // 2. Subir nueva imagen (Auto-comprimida en StorageDataSource)
-                    val path = "negocios/$workspaceId/items/${UUID.randomUUID()}.webp"
+                    val path = "users/$userId/negocios/$workspaceId/items/${UUID.randomUUID()}.webp"
                     imageUrl = storageDataSource.uploadFile(path, uri)
                 }
 

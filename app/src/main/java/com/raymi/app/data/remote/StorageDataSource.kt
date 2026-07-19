@@ -19,7 +19,8 @@ class StorageDataSource @Inject constructor(
 ) {
     /**
      * Sube un archivo a una ruta específica.
-     * Si es una imagen, la comprime automáticamente antes de subirla.
+     * Optimizado para Spark Plan: codifica la imagen optimizada a Base64
+     * y la retorna como un data URL de tipo "data:image/webp;base64,...".
      */
     suspend fun uploadFile(path: String, uri: Uri): String {
         // [B-05] Verificar tamaño antes de procesar
@@ -29,38 +30,38 @@ class StorageDataSource @Inject constructor(
             }
         }
 
-        val ref = storage.reference.child(path)
-        
-        // Optimización: Comprimir imagen antes de subir
-        val optimizedImage = imageOptimizer.optimizeImage(uri)
-        
-        return if (optimizedImage != null) {
-            // Subir ByteArray optimizado
-            ref.putBytes(optimizedImage).await()
-            ref.downloadUrl.await().toString()
-        } else {
-            // Fallback: Subir archivo original si falla la optimización
-            ref.putFile(uri).await()
-            ref.downloadUrl.await().toString()
+        // Definir dimensiones óptimas para no sobrepasar el límite de Firestore (1MB)
+        val (maxWidth, maxHeight, quality) = when {
+            path.contains("logo.webp") -> Triple(200, 200, 60)
+            path.contains("_face.webp") -> Triple(300, 300, 50)
+            path.contains("clientes/") -> Triple(500, 500, 50)
+            path.contains("items/") -> Triple(400, 400, 60)
+            else -> Triple(400, 400, 60)
         }
+        
+        // Optimización: Comprimir imagen localmente
+        val optimizedImage = imageOptimizer.optimizeImage(uri, maxWidth, maxHeight, quality)
+        val bytes = optimizedImage ?: context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw IllegalArgumentException("No se pudo procesar la imagen")
+
+        val base64String = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        return "data:image/webp;base64,$base64String"
     }
 
     /**
      * Elimina un archivo en una ruta específica.
+     * No-op para Base64 en Firestore, ya que el string se elimina del documento directamente.
      */
     suspend fun deleteFile(path: String) {
-        try {
-            storage.reference.child(path).delete().await()
-        } catch (_: Exception) {
-            // Ignorar si el archivo no existe (evita crashes al borrar)
-        }
+        // No-op
     }
 
     /**
      * Obtiene el nombre del archivo desde una URL de Storage para poder borrarlo.
-     * [M-09] Uso de API oficial para mayor robustez.
+     * Retorna null para URLs en formato data URI Base64.
      */
     fun getPathFromUrl(url: String): String? {
+        if (url.startsWith("data:")) return null
         return try {
             FirebaseStorage.getInstance().getReferenceFromUrl(url).path
         } catch (_: Exception) {

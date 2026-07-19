@@ -99,7 +99,7 @@ fun MainScreen(
                             Icon(Icons.Default.WifiOff, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                text = if (strings is SpanishStrings) "Sin conexión a Internet" else "No Internet Connection",
+                                text = strings.noInternetConnection,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 fontWeight = FontWeight.Black

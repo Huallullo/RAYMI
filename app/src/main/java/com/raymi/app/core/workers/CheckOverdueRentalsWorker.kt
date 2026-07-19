@@ -49,9 +49,7 @@ class CheckOverdueRentalsWorker @AssistedInject constructor(
                 notificationHelper.sendOverdueNotification(
                     alquilerId = alquiler.id,
                     title = strings.overdueDetected,
-                    content = if (strings is com.raymi.app.core.lang.SpanishStrings) 
-                        "El alquiler de ${alquiler.clienteNombre} ha vencido." 
-                        else "Rental for ${alquiler.clienteNombre} has expired."
+                    content = strings.rentalOverdueMessage.format(alquiler.clienteNombre)
                 )
             }
 

@@ -278,6 +278,8 @@ interface RaymiStrings {
     val brandIdentity: String
     val businessLogo: String
     val financeRegion: String
+    val rentalOverdueMessage: String
+    val noInternetConnection: String
 }
 
 class SpanishStrings : RaymiStrings {
@@ -546,6 +548,8 @@ class SpanishStrings : RaymiStrings {
         "cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez",
         "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte"
     )
+    override val rentalOverdueMessage = "El alquiler de %s ha vencido."
+    override val noInternetConnection = "Sin conexión a Internet"
 }
 
 class EnglishStrings : RaymiStrings {
@@ -814,6 +818,8 @@ class EnglishStrings : RaymiStrings {
         "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
         "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"
     )
+    override val rentalOverdueMessage = "Rental for %s has expired."
+    override val noInternetConnection = "No Internet Connection"
 }
 
 val LocalRaymiStrings = staticCompositionLocalOf<RaymiStrings> { SpanishStrings() }
